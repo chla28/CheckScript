@@ -1,6 +1,7 @@
 /// check-script : évalue un ou plusieurs scripts shell et produit un
 /// classement (Sécurité, Robustesse, Maintenabilité, Portabilité,
-/// Performance), dans le terminal et/ou dans des fichiers .md / .adoc / .json.
+/// Performance), dans le terminal et/ou dans des fichiers .md / .adoc /
+/// .html / .json / .sarif ; corrige les défauts sûrs avec --fix.
 library;
 
 import 'dart:io';
@@ -20,7 +21,9 @@ const externalTools = [
   'shfmt',
   'bashate',
   'checkbashisms',
-  'syntax'
+  'gitleaks',
+  'trufflehog',
+  'syntax',
 ];
 
 ArgParser buildParser(Lang lang) {
@@ -30,11 +33,11 @@ ArgParser buildParser(Lang lang) {
         abbr: 'o',
         valueHelp: 'FICHIER',
         help: t(
-            'Écrit le rapport dans FICHIER (.md, .adoc, .json, .txt) ; répétable.',
-            'Write the report to FILE (.md, .adoc, .json, .txt); repeatable.'))
+            'Écrit le rapport dans FICHIER (.md, .adoc, .html, .json, .sarif, .txt) ; répétable.',
+            'Write the report to FILE (.md, .adoc, .html, .json, .sarif, .txt); repeatable.'))
     ..addOption('format',
         abbr: 'f',
-        allowed: ['terminal', 'md', 'adoc', 'json'],
+        allowed: ['terminal', 'md', 'adoc', 'html', 'json', 'sarif'],
         help: t(
             'Format des fichiers de sortie sans extension reconnue, ou de la '
                 'sortie standard si aucun -o.',
@@ -50,6 +53,20 @@ ArgParser buildParser(Lang lang) {
         allowed: ['sh', 'bash', 'dash', 'ksh', 'zsh'],
         help: t('Force le dialecte (sinon déduit du shebang).',
             'Force the dialect (otherwise taken from the shebang).'))
+    ..addOption('profile',
+        abbr: 'p',
+        allowed: ['strict', 'default', 'legacy'],
+        help: t(
+            'Profil de notation : strict (nouveaux scripts), default, legacy (existant).',
+            'Scoring profile: strict (new scripts), default, legacy (existing code).'))
+    ..addMultiOption('context',
+        allowed: ['root', 'cron', 'systemd', 'interactive'],
+        help: t('Contexte d\'exécution (durcit certaines règles) ; répétable.',
+            'Execution context (hardens some rules); repeatable.'))
+    ..addFlag('follow-source',
+        negatable: false,
+        help: t('Suit les fichiers sourcés (shellcheck -x).',
+            'Follow sourced files (shellcheck -x).'))
     ..addOption('config',
         abbr: 'c',
         valueHelp: 'FICHIER',
@@ -67,11 +84,36 @@ ArgParser buildParser(Lang lang) {
         negatable: false,
         help: t(
             'N\'utilise que les règles intégrées.', 'Use built-in rules only.'))
+    ..addOption('baseline',
+        abbr: 'b',
+        valueHelp: 'RAPPORT.json',
+        help: t(
+            'Rapport JSON de référence : ne détaille que les nouveaux problèmes et affiche l\'évolution des notes.',
+            'Baseline JSON report: only new issues are detailed and score changes are shown.'))
+    ..addOption('fail-on-new',
+        valueHelp: 'SÉVÉRITÉ',
+        allowed: ['low', 'medium', 'high', 'critical'],
+        help: t(
+            'Avec --baseline : code de sortie 1 si un nouveau problème atteint cette sévérité.',
+            'With --baseline: exit code 1 if a new issue reaches this severity.'))
+    ..addFlag('fix',
+        negatable: false,
+        help: t(
+            'Corrige les défauts sûrs (ShellCheck, règles intégrées, shfmt) dans le fichier.',
+            'Fix safe issues (ShellCheck, built-in rules, shfmt) in place.'))
+    ..addFlag('dry-run',
+        negatable: false,
+        help: t('Avec --fix : affiche le diff sans modifier le fichier.',
+            'With --fix: show the diff without changing the file.'))
+    ..addFlag('backup',
+        negatable: false,
+        help: t('Avec --fix : conserve l\'original en FICHIER.orig.',
+            'With --fix: keep the original as FILE.orig.'))
     ..addFlag('details',
         negatable: false,
         help: t(
-            'Terminal : liste tous les problèmes (défaut : 10 par catégorie).',
-            'Terminal: list every issue (default: 10 per category).'))
+            'Terminal : liste tous les problèmes et leur correction (défaut : 10 par catégorie).',
+            'Terminal: list every issue and its fix (default: 10 per category).'))
     ..addFlag('summary',
         negatable: false,
         help: t('Terminal : synthèse seule, sans détail des problèmes.',
@@ -86,11 +128,13 @@ ArgParser buildParser(Lang lang) {
         negatable: false,
         help:
             t('Pas de rapport sur la sortie standard.', 'No report on stdout.'))
-    ..addOption('fail-under',
-        valueHelp: 'NOTE',
+    ..addMultiOption('fail-under',
+        valueHelp: 'NOTE|CATÉGORIE=NOTE',
         help: t(
-            'Code de sortie 1 si une note globale est inférieure à NOTE (0-10).',
-            'Exit code 1 if an overall score is below SCORE (0-10).'))
+            'Code de sortie 1 si une note est inférieure au seuil : note globale '
+                '(7) ou par catégorie (security=8,robustness=6) ; répétable.',
+            'Exit code 1 if a score is below the threshold: overall (7) or per '
+                'category (security=8,robustness=6); repeatable.'))
     ..addFlag('list-tools',
         negatable: false,
         help: t('Affiche les outils externes détectés.',
@@ -105,6 +149,30 @@ ArgParser buildParser(Lang lang) {
 
 Future<void> main(List<String> argv) async {
   exitCode = await run(argv);
+}
+
+/// Seuils de `--fail-under` : clé `global` ou nom de catégorie.
+/// Lève [FormatException] si une valeur est invalide.
+Map<String, double> parseFailUnder(List<String> values) {
+  final out = <String, double>{};
+  for (final v in values) {
+    for (final part in v.split(',')) {
+      final item = part.trim();
+      if (item.isEmpty) continue;
+      final eq = item.indexOf('=');
+      final key =
+          eq < 0 ? 'global' : item.substring(0, eq).trim().toLowerCase();
+      // La virgule sépare les seuils : décimales avec un point (6.5).
+      final raw = eq < 0 ? item : item.substring(eq + 1);
+      final n = double.tryParse(raw.trim());
+      if (key != 'global' && Category.tryParse(key) == null) {
+        throw FormatException(key);
+      }
+      if (n == null || n < 0 || n > 10) throw FormatException(item);
+      out[key] = n;
+    }
+  }
+  return out;
 }
 
 /// Point d'entrée testable : renvoie le code de sortie.
@@ -145,10 +213,14 @@ Future<int> run(List<String> argv,
             'Maintainability, Portability, Performance), scored out of 10.\n'));
     out.writeln(parser.usage);
     out.writeln(t(
-        '\nCodes de sortie : 0 OK, 1 note sous --fail-under, 2 usage/configuration, '
-            '3 script illisible.',
-        '\nExit codes: 0 OK, 1 score below --fail-under, 2 usage/configuration, '
-            '3 unreadable script.'));
+        '\nDirectives dans le script : # check-script disable=RÈGLE[,…] '
+            '(ligne), # check-script disable-file=RÈGLE[,…] (fichier).'
+            '\nCodes de sortie : 0 OK, 1 seuil non atteint (--fail-under, '
+            '--fail-on-new), 2 usage/configuration, 3 script illisible.',
+        '\nIn-script directives: # check-script disable=RULE[,…] (line), '
+            '# check-script disable-file=RULE[,…] (file).'
+            '\nExit codes: 0 OK, 1 threshold not met (--fail-under, '
+            '--fail-on-new), 2 usage/configuration, 3 unreadable script.'));
     return exitOk;
   }
   if (a['version'] as bool) {
@@ -157,9 +229,11 @@ Future<int> run(List<String> argv,
   }
 
   // ── Configuration ─────────────────────────────────────────────────────────
+  final profile =
+      a['profile'] == null ? null : Profile.tryParse(a['profile'] as String);
   CheckConfig config;
   try {
-    config = await loadConfig(a['config'] as String?);
+    config = await loadConfig(a['config'] as String?, profile: profile);
   } on FormatException catch (e) {
     err.writeln(t('Configuration invalide : ${e.message}',
         'Invalid configuration: ${e.message}'));
@@ -173,12 +247,53 @@ Future<int> run(List<String> argv,
     for (final w in a['without'] as List<String>) ...w.split(','),
     if (a['no-external'] as bool) ...externalTools,
   ];
-  config = config.withToolsDisabled(without);
+  final ctxArgs = a['context'] as List<String>;
+  config = config.withToolsDisabled(without).copyWith(
+        contexts: ctxArgs.isEmpty
+            ? null
+            : {
+                for (final c in ctxArgs)
+                  if (c != 'interactive') ExecContext.tryParse(c)!
+              },
+        followSource: (a['follow-source'] as bool) ? true : null,
+      );
 
+  Map<String, double> failUnder;
+  try {
+    failUnder = parseFailUnder(a['fail-under'] as List<String>);
+  } on FormatException catch (e) {
+    err.writeln(t(
+        '--fail-under : valeur invalide « ${e.message} » (note 0-10, ou catégorie=note).',
+        '--fail-under: invalid value "${e.message}" (score 0-10, or category=score).'));
+    return exitUsage;
+  }
+
+  Baseline? baseline;
+  if (a['baseline'] != null) {
+    try {
+      baseline =
+          Baseline.parse(await File(a['baseline'] as String).readAsString());
+    } on FileSystemException {
+      err.writeln(t('Référence illisible : ${a['baseline']}',
+          'Unreadable baseline: ${a['baseline']}'));
+      return exitUsage;
+    } on FormatException catch (e) {
+      err.writeln(e.message);
+      return exitUsage;
+    }
+  }
+  final failOnNew = a['fail-on-new'] == null
+      ? null
+      : Severity.tryParse(a['fail-on-new'] as String);
+  if (failOnNew != null && baseline == null) {
+    err.writeln(t('--fail-on-new nécessite --baseline.',
+        '--fail-on-new requires --baseline.'));
+    return exitUsage;
+  }
+
+  final commandRunner = runner ?? const ProcessCommandRunner();
   final engine = Engine(
-      config: config,
-      lang: lang,
-      runner: runner ?? const ProcessCommandRunner());
+      config: config, lang: lang, runner: commandRunner, baseline: baseline);
 
   if (a['list-tools'] as bool) {
     await listTools(engine, out, lang);
@@ -189,33 +304,72 @@ Future<int> run(List<String> argv,
     return exitOk;
   }
 
-  double? failUnder;
-  if (a['fail-under'] != null) {
-    failUnder =
-        double.tryParse((a['fail-under'] as String).replaceAll(',', '.'));
-    if (failUnder == null || failUnder < 0 || failUnder > 10) {
-      err.writeln(t('--fail-under : note entre 0 et 10 attendue.',
-          '--fail-under: a score between 0 and 10 is expected.'));
-      return exitUsage;
-    }
-  }
-
   if (a.rest.isEmpty) {
     err.writeln(t('Aucun script à analyser. Voir check-script --help.',
         'No script to analyse. See check-script --help.'));
     return exitUsage;
   }
+  final fix = a['fix'] as bool;
+  final dryRun = a['dry-run'] as bool;
+  if ((dryRun || a['backup'] as bool) && !fix) {
+    err.writeln(t('--dry-run et --backup s\'utilisent avec --fix.',
+        '--dry-run and --backup are used with --fix.'));
+    return exitUsage;
+  }
+  if (fix && !dryRun && a.rest.contains('-')) {
+    err.writeln(t('--fix sur l\'entrée standard nécessite --dry-run.',
+        '--fix on standard input requires --dry-run.'));
+    return exitUsage;
+  }
 
-  // ── Analyse ───────────────────────────────────────────────────────────────
+  // ── Analyse (et correction) ───────────────────────────────────────────────
   final dialect =
       a['shell'] == null ? null : Dialect.tryParse(a['shell'] as String);
   final reports = <ScriptReport>[];
   var inputError = false;
+
+  // Les closures ne profitent pas de la promotion de type de out/err.
+  final IOSink outSink = out, errSink = err;
+  Future<void> handle(ScriptInfo script, String? path) async {
+    if (fix) {
+      final r = await fixScript(script, config: config, runner: commandRunner);
+      final name = path ?? '<stdin>';
+      if (r.aborted != null) {
+        errSink.writeln(t(
+            '$name : corrections abandonnées (la syntaxe ne serait plus valide) : ${r.aborted}',
+            '$name: fixes dropped (the syntax would become invalid): ${r.aborted}'));
+      } else if (!r.changed) {
+        errSink.writeln(t('$name : aucune correction automatique applicable.',
+            '$name: no automatic fix applicable.'));
+      } else {
+        final summary =
+            r.applied.entries.map((e) => '${e.key} ×${e.value}').join(', ');
+        if (dryRun) {
+          outSink.write(unifiedDiff(r.original, r.fixed,
+              fromName: '$name.orig', toName: name));
+          errSink.writeln(t('$name : corrections possibles : $summary',
+              '$name: available fixes: $summary'));
+        } else {
+          if (a['backup'] as bool) {
+            await File('$path.orig').writeAsString(r.original);
+          }
+          await File(path!).writeAsString(r.fixed);
+          errSink.writeln(
+              t('$name : corrigé ($summary)', '$name: fixed ($summary)'));
+          script =
+              ScriptInfo.fromContent(path, r.fixed, forcedDialect: dialect);
+        }
+      }
+    }
+    reports.add(await engine.analyze(script, filePath: dryRun ? null : path));
+  }
+
   for (final target in a.rest) {
     if (target == '-') {
       final content = await _readStdin();
-      reports.add(await engine.analyze(
-          ScriptInfo.fromContent('<stdin>', content, forcedDialect: dialect)));
+      await handle(
+          ScriptInfo.fromContent('<stdin>', content, forcedDialect: dialect),
+          null);
       continue;
     }
     final files = await collectScripts(target);
@@ -230,7 +384,9 @@ Future<int> run(List<String> argv,
     }
     for (final f in files) {
       try {
-        reports.add(await engine.analyzeFile(f, dialect: dialect));
+        final content = await File(f).readAsString();
+        await handle(
+            ScriptInfo.fromContent(f, content, forcedDialect: dialect), f);
       } on FileSystemException catch (e) {
         err.writeln(t(
             'Lecture impossible : $f (${e.osError?.message ?? e.message})',
@@ -244,6 +400,11 @@ Future<int> run(List<String> argv,
     }
   }
   if (reports.isEmpty) return inputError ? exitInput : exitUsage;
+  if (baseline != null) {
+    for (final r in reports.where((r) => r.comparison == null)) {
+      err.writeln('${r.script.path} : ${Messages(lang).notInBaseline}');
+    }
+  }
 
   // ── Sorties ───────────────────────────────────────────────────────────────
   final forced =
@@ -257,7 +418,8 @@ Future<int> run(List<String> argv,
   final maxDetails =
       (a['summary'] as bool) ? 0 : ((a['details'] as bool) ? null : 10);
 
-  if (!(a['quiet'] as bool)) {
+  // En --dry-run, la sortie standard porte le diff.
+  if (!(a['quiet'] as bool) && !dryRun) {
     final fmt = outputs.isEmpty
         ? (forced ?? OutputFormat.terminal)
         : OutputFormat.terminal;
@@ -285,10 +447,28 @@ Future<int> run(List<String> argv,
   }
 
   if (inputError) return exitInput;
-  if (failUnder != null && reports.any((r) => r.global < failUnder!)) {
-    return exitBelowThreshold;
-  }
+  if (failsThresholds(reports, failUnder, failOnNew)) return exitBelowThreshold;
   return exitOk;
+}
+
+/// Vrai si un rapport passe sous un seuil `--fail-under` ou contient un
+/// nouveau problème de sévérité ≥ [failOnNew].
+bool failsThresholds(List<ScriptReport> reports, Map<String, double> failUnder,
+    Severity? failOnNew) {
+  for (final r in reports) {
+    for (final e in failUnder.entries) {
+      final v = e.key == 'global'
+          ? r.global
+          : r.score(Category.tryParse(e.key)!).score;
+      if (v < e.value) return true;
+    }
+    if (failOnNew != null &&
+        (r.comparison?.added.any((f) => f.severity.index <= failOnNew.index) ??
+            false)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 Future<String> _readStdin() async {
@@ -300,10 +480,11 @@ Future<String> _readStdin() async {
 }
 
 /// Charge la configuration : fichier explicite, sinon `./.checkscript.yaml`,
-/// sinon `$XDG_CONFIG_HOME/check-script/config.yaml`, sinon défauts.
-Future<CheckConfig> loadConfig(String? explicit) async {
+/// sinon `$XDG_CONFIG_HOME/check-script/config.yaml`, sinon défauts du profil.
+Future<CheckConfig> loadConfig(String? explicit, {Profile? profile}) async {
   if (explicit != null) {
-    return CheckConfig.parse(await File(explicit).readAsString());
+    return CheckConfig.parse(await File(explicit).readAsString(),
+        profile: profile);
   }
   final env = Platform.environment;
   final xdg = env['XDG_CONFIG_HOME'] ??
@@ -313,9 +494,11 @@ Future<CheckConfig> loadConfig(String? explicit) async {
     if (xdg != null) p.join(xdg, 'check-script', 'config.yaml'),
   ]) {
     final f = File(c);
-    if (await f.exists()) return CheckConfig.parse(await f.readAsString());
+    if (await f.exists()) {
+      return CheckConfig.parse(await f.readAsString(), profile: profile);
+    }
   }
-  return const CheckConfig();
+  return CheckConfig.forProfile(profile ?? Profile.standard);
 }
 
 final _shellShebang = RegExp(r'^#!.*\b(?:ba|da|k|mk|z)?sh\b');
@@ -388,6 +571,8 @@ String _installHint(String tool, Lang lang) {
     'bashate' => 'pip install --user bashate',
     'checkbashisms' =>
       'dnf install devscripts-checkbashisms | apt install devscripts',
+    'gitleaks' => 'https://github.com/gitleaks/gitleaks/releases',
+    'trufflehog' => 'https://github.com/trufflesecurity/trufflehog/releases',
     _ => '',
   };
   return how.isEmpty
@@ -398,7 +583,10 @@ String _installHint(String tool, Lang lang) {
 void listRules(IOSink out, Lang lang) {
   final t = Messages(lang);
   for (final r in allBuiltinRules()) {
+    final ctx = r.contexts.isEmpty
+        ? ''
+        : ' [${r.contexts.map((c) => c.name).join(', ')}]';
     out.writeln('${r.id.padRight(9)}${t.category(r.category).padRight(17)}'
-        '${r.severity.label.padRight(10)}${r.title.of(lang)}');
+        '${r.severity.label.padRight(10)}${r.title.of(lang)}$ctx');
   }
 }

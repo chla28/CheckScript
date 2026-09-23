@@ -113,6 +113,94 @@ void main() {
     expect((await run(['-c', c.path, fixture('good.sh')])).$1, cli.exitUsage);
   });
 
+  group('nouvelles options', () {
+    test('--fail-under par catégorie', () async {
+      expect(
+          (await run(
+                  ['-q', '--fail-under', 'performance=5', fixture('bad.sh')]))
+              .$1,
+          cli.exitOk);
+      expect(
+          (await run([
+            '-q',
+            '--fail-under',
+            'security=5,performance=5',
+            fixture('bad.sh')
+          ]))
+              .$1,
+          cli.exitBelowThreshold);
+      expect(
+          (await run(['-q', '--fail-under', 'moon=5', fixture('bad.sh')])).$1,
+          cli.exitUsage);
+    });
+    test('parseFailUnder', () {
+      expect(cli.parseFailUnder(['7', 'security=8,robustness=6.5']),
+          {'global': 7.0, 'security': 8.0, 'robustness': 6.5});
+    });
+    test('--profile et --context apparaissent dans le rapport', () async {
+      final (_, out, _) = await run([
+        '--no-color',
+        '--profile',
+        'strict',
+        '--context',
+        'root',
+        fixture('good.sh')
+      ]);
+      expect(out, contains('Profil : strict · Contexte : root'));
+    });
+    test('--baseline et --fail-on-new', () async {
+      final base = '${tmp.path}/base.json';
+      await run(['-q', '-o', base, fixture('good.sh')]);
+      final changed = File('${tmp.path}/good.sh')
+        ..writeAsStringSync('${readFixture('good.sh')}chmod 777 /srv\n');
+      final (code, out, _) = await run(
+          ['--no-color', '-b', base, '--fail-on-new', 'high', changed.path]);
+      expect(code, cli.exitBelowThreshold);
+      expect(out, contains('nouveaux : 1'));
+      expect(
+          (await run([
+            '-q',
+            '-b',
+            base,
+            '--fail-on-new',
+            'high',
+            fixture('good.sh')
+          ]))
+              .$1,
+          cli.exitOk);
+      expect(
+          (await run(['-q', '--fail-on-new', 'high', fixture('good.sh')])).$1,
+          cli.exitUsage);
+    });
+    test('--fix : fichier corrigé, sauvegarde, rapport sur la version corrigée',
+        () async {
+      final f = File('${tmp.path}/fix.sh')
+        ..writeAsStringSync('#!/bin/bash\n# t\negrep a f\n');
+      final (code, _, err) = await run(['-q', '--fix', '--backup', f.path]);
+      expect(code, cli.exitOk);
+      expect(f.readAsStringSync(), '#!/bin/bash\n# t\ngrep -E a f\n');
+      expect(File('${f.path}.orig').readAsStringSync(), contains('egrep'));
+      expect(err, contains('POR005 ×1'));
+    });
+    test('--fix --dry-run : diff sur la sortie, fichier intact', () async {
+      final f = File('${tmp.path}/dry.sh')
+        ..writeAsStringSync('#!/bin/bash\negrep a f\n');
+      final (_, out, _) = await run(['--fix', '--dry-run', f.path]);
+      expect(out, contains('-egrep a f'));
+      expect(out, contains('+grep -E a f'));
+      expect(f.readAsStringSync(), contains('egrep'));
+    });
+    test('--dry-run sans --fix : erreur d\'usage', () async {
+      expect((await run(['--dry-run', fixture('good.sh')])).$1, cli.exitUsage);
+    });
+    test('sorties .sarif et .html', () async {
+      final sarif = '${tmp.path}/r.sarif', html = '${tmp.path}/r.html';
+      await run(['-q', '-o', sarif, '-o', html, fixture('bad.sh')]);
+      expect(jsonDecode(File(sarif).readAsStringSync())['version'], '2.1.0');
+      expect(File(html).readAsStringSync(), startsWith('<!DOCTYPE html>'));
+    });
+  });
+
   test('--list-rules et --list-tools', () async {
     expect((await run(['--list-rules'])).$2, contains('SEC001'));
     final tools = (await run(['--list-tools', '--lang', 'en'])).$2;

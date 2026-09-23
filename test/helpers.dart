@@ -12,12 +12,15 @@ String readFixture(String name) => File(fixture(name)).readAsStringSync();
 class FakeRunner implements CommandRunner {
   final Map<String, CommandResult Function(List<String> args)> responses;
   final calls = <(String, List<String>)>[];
+  final stdins = <String?>[];
 
   FakeRunner(this.responses);
 
   @override
-  Future<CommandResult?> run(String executable, List<String> args) async {
+  Future<CommandResult?> run(String executable, List<String> args,
+      {String? stdin, CancelToken? cancel}) async {
     calls.add((executable, args));
+    stdins.add(stdin);
     final r = responses[executable];
     return r?.call(args);
   }

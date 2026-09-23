@@ -63,6 +63,16 @@ class Finding {
   /// même ligne, ce problème (issu des règles intégrées) est dédoublonné.
   final List<String> equivalents;
 
+  /// Conseil de correction (langue du rapport), facultatif.
+  final String? hint;
+
+  /// Documentation de la règle (ex. wiki ShellCheck), facultative.
+  final String? url;
+
+  /// Empreinte stable (indépendante du numéro de ligne) servant à comparer
+  /// deux analyses (baseline) ; calculée par le moteur.
+  final String? fingerprint;
+
   const Finding({
     required this.tool,
     required this.ruleId,
@@ -73,9 +83,18 @@ class Finding {
     required this.message,
     this.snippet,
     this.equivalents = const [],
+    this.hint,
+    this.url,
+    this.fingerprint,
   });
 
-  Finding copyWith({Category? category, Severity? severity}) => Finding(
+  Finding copyWith(
+          {Category? category,
+          Severity? severity,
+          String? hint,
+          String? url,
+          String? fingerprint}) =>
+      Finding(
         tool: tool,
         ruleId: ruleId,
         category: category ?? this.category,
@@ -85,6 +104,24 @@ class Finding {
         message: message,
         snippet: snippet,
         equivalents: equivalents,
+        hint: hint ?? this.hint,
+        url: url ?? this.url,
+        fingerprint: fingerprint ?? this.fingerprint,
+      );
+
+  /// Relit un problème sérialisé par [toJson] (baseline, interface Flutter).
+  factory Finding.fromJson(Map<String, Object?> j) => Finding(
+        tool: '${j['tool']}',
+        ruleId: '${j['rule']}',
+        category: Category.tryParse('${j['category']}') ?? Category.robustness,
+        severity: Severity.tryParse('${j['severity']}') ?? Severity.low,
+        line: (j['line'] as num?)?.toInt() ?? 0,
+        column: (j['column'] as num?)?.toInt() ?? 0,
+        message: '${j['message']}',
+        snippet: j['snippet'] as String?,
+        hint: j['hint'] as String?,
+        url: j['url'] as String?,
+        fingerprint: j['fingerprint'] as String?,
       );
 
   Map<String, Object?> toJson() => {
@@ -96,6 +133,9 @@ class Finding {
         'column': column,
         'message': message,
         if (snippet != null) 'snippet': snippet,
+        if (hint != null) 'hint': hint,
+        if (url != null) 'url': url,
+        if (fingerprint != null) 'fingerprint': fingerprint,
       };
 
   @override

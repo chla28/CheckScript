@@ -1,6 +1,7 @@
 /// Contrat commun des analyseurs et abstraction de l'exécution de commandes.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import '../config.dart';
@@ -16,24 +17,78 @@ class CommandResult {
   const CommandResult(this.exitCode, this.stdout, this.stderr);
 }
 
+/// Jeton d'annulation d'une analyse (interface graphique, Ctrl+C…).
+class CancelToken {
+  var _cancelled = false;
+  final _listeners = <void Function()>[];
+
+  bool get isCancelled => _cancelled;
+
+  void cancel() {
+    if (_cancelled) return;
+    _cancelled = true;
+    for (final l in List.of(_listeners)) {
+      l();
+    }
+  }
+
+  /// Enregistre une action exécutée à l'annulation (immédiatement si elle a
+  /// déjà eu lieu) ; renvoie une fonction de désinscription.
+  void Function() onCancel(void Function() action) {
+    if (_cancelled) {
+      action();
+      return () {};
+    }
+    _listeners.add(action);
+    return () => _listeners.remove(action);
+  }
+
+  /// Lève [AnalysisCancelled] si l'analyse a été annulée.
+  void check() {
+    if (_cancelled) throw const AnalysisCancelled();
+  }
+}
+
+class AnalysisCancelled implements Exception {
+  const AnalysisCancelled();
+  @override
+  String toString() => 'Analyse annulée';
+}
+
 /// Exécute les outils externes. Remplacé par un faux dans les tests.
 abstract class CommandRunner {
-  /// Exécute [executable] ; renvoie null si l'exécutable est introuvable.
-  Future<CommandResult?> run(String executable, List<String> args);
+  /// Exécute [executable] (avec [stdin] sur l'entrée standard si fourni) ;
+  /// renvoie null si l'exécutable est introuvable. Le processus est tué si
+  /// [cancel] est déclenché.
+  Future<CommandResult?> run(String executable, List<String> args,
+      {String? stdin, CancelToken? cancel});
 }
 
 class ProcessCommandRunner implements CommandRunner {
   const ProcessCommandRunner();
 
   @override
-  Future<CommandResult?> run(String executable, List<String> args) async {
+  Future<CommandResult?> run(String executable, List<String> args,
+      {String? stdin, CancelToken? cancel}) async {
+    final Process p;
     try {
       // LC_ALL=C : messages des outils (bash -n…) en anglais, donc analysables.
-      final r = await Process.run(executable, args,
-          environment: {'LC_ALL': 'C'}, stdoutEncoding: systemEncoding);
-      return CommandResult(r.exitCode, '${r.stdout}', '${r.stderr}');
+      p = await Process.start(executable, args, environment: {'LC_ALL': 'C'});
     } on ProcessException {
       return null;
+    }
+    final unregister = cancel?.onCancel(() => p.kill()) ?? () {};
+    try {
+      final out = p.stdout.transform(systemEncoding.decoder).join();
+      final err = p.stderr.transform(systemEncoding.decoder).join();
+      if (stdin != null) p.stdin.write(stdin);
+      await p.stdin.close().catchError((_) {});
+      final code = await p.exitCode;
+      final result = CommandResult(code, await out, await err);
+      cancel?.check();
+      return result;
+    } finally {
+      unregister();
     }
   }
 }
@@ -48,6 +103,7 @@ class AnalysisContext {
   final CheckConfig config;
   final Lang lang;
   final CommandRunner runner;
+  final CancelToken? cancel;
 
   const AnalysisContext({
     required this.script,
@@ -55,7 +111,13 @@ class AnalysisContext {
     required this.config,
     required this.lang,
     required this.runner,
+    this.cancel,
   });
+
+  /// Raccourci : exécute une commande avec le jeton d'annulation de l'analyse.
+  Future<CommandResult?> run(String executable, List<String> args,
+          {String? stdin}) =>
+      runner.run(executable, args, stdin: stdin, cancel: cancel);
 }
 
 class AnalyzerResult {

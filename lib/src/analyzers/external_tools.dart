@@ -26,7 +26,7 @@ class SyntaxAnalyzer extends Analyzer {
   @override
   Future<AnalyzerResult> analyze(AnalysisContext ctx) async {
     final shell = interpreterFor(ctx.script.dialect);
-    final r = await ctx.runner.run(shell, ['-n', ctx.filePath]);
+    final r = await ctx.run(shell, ['-n', ctx.filePath]);
     if (r == null) {
       return AnalyzerResult(
           ToolRun(name, ToolStatus.missing, detail: '$shell -n'));
@@ -106,13 +106,13 @@ class ShfmtAnalyzer extends Analyzer {
       '-i=${indentUnit(s.lines)}',
       ctx.filePath,
     ];
-    var r = await ctx.runner.run(tc.executable, args);
+    var r = await ctx.run(tc.executable, args);
     if (r == null) return AnalyzerResult(ToolRun(name, ToolStatus.missing));
     var errors = parseShfmtErrors(r.stderr);
     // Script POSIX non analysable en mode POSIX : si le mode bash l'accepte,
     // l'erreur vient de constructions bash (portabilité), pas de la syntaxe.
     if (errors.isNotEmpty && s.dialect.isPosix) {
-      final retry = await ctx.runner.run(tc.executable,
+      final retry = await ctx.run(tc.executable,
           [for (final a in args) a.startsWith('-ln=') ? '-ln=bash' : a]);
       if (retry != null && parseShfmtErrors(retry.stderr).isEmpty) {
         errors = [for (final e in errors) e.asDialectIssue()];
@@ -261,7 +261,7 @@ class BashateAnalyzer extends Analyzer {
       '--max-line-length=${ctx.config.thresholds.maxLineLength}',
       ctx.filePath,
     ];
-    final r = await ctx.runner.run(tc.executable, args);
+    final r = await ctx.run(tc.executable, args);
     if (r == null) return AnalyzerResult(ToolRun(name, ToolStatus.missing));
     final findings = parseBashate('${r.stdout}\n${r.stderr}');
     return AnalyzerResult(
@@ -352,7 +352,7 @@ class CheckbashismsAnalyzer extends Analyzer {
           ToolRun(name, ToolStatus.skipped, detail: 'dialecte ${d.name}'));
     }
     final args = ['--extra', if (d == Dialect.unknown) '--force', ctx.filePath];
-    final r = await ctx.runner.run(tc.executable, args);
+    final r = await ctx.run(tc.executable, args);
     if (r == null) return AnalyzerResult(ToolRun(name, ToolStatus.missing));
     final findings = parseCheckbashisms(r.stderr.isEmpty ? r.stdout : r.stderr);
     return AnalyzerResult(

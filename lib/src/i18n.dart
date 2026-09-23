@@ -108,6 +108,27 @@ class Messages {
           'See `check-script --list-tools`.');
   String moreIssues(int n) =>
       _t('… et $n autre(s) (voir --details)', '… and $n more (see --details)');
+  String get hint => _t('Correction', 'Fix');
+  String get documentation => _t('Documentation', 'Documentation');
+  String get profile => _t('Profil', 'Profile');
+  String get contexts => _t('Contexte', 'Context');
+  String suppressedCount(int n) => _t(
+      '$n problème(s) neutralisé(s) par des directives # check-script disable',
+      '$n issue(s) suppressed by # check-script disable directives');
+  String get baseline =>
+      _t('Comparaison avec la référence', 'Comparison with the baseline');
+  String comparisonLine(int added, int fixed, int unchanged) => _t(
+      'nouveaux : $added · corrigés : $fixed · inchangés : $unchanged',
+      'new: $added · fixed: $fixed · unchanged: $unchanged');
+  String get previous => _t('Référence', 'Baseline');
+  String get evolution => _t('Évolution', 'Change');
+  String get newIssuesOnly => _t('Nouveaux problèmes (absents de la référence)',
+      'New issues (not in the baseline)');
+  String get notInBaseline =>
+      _t('script absent de la référence', 'script not in the baseline');
+  String get source => _t('Source', 'Source');
+  String get filter => _t('Filtrer', 'Filter');
+  String get all => _t('Tous', 'All');
   String reportWritten(String path) =>
       _t('Rapport écrit : $path', 'Report written: $path');
 

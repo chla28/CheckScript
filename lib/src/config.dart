@@ -4,6 +4,7 @@ library;
 import 'package:yaml/yaml.dart';
 
 import 'model/finding.dart';
+import 'rules/catalog.dart' show ExecContext;
 
 /// Reclassement d'une règle (catégorie et/ou sévérité).
 class RuleOverride {
@@ -76,6 +77,25 @@ class Thresholds {
   });
 }
 
+/// Profils prédéfinis : point de départ de la configuration.
+enum Profile {
+  /// Nouveaux scripts, exigence élevée.
+  strict,
+
+  /// Réglages par défaut.
+  standard,
+
+  /// Existant ancien : style et formatage peu pénalisés.
+  legacy;
+
+  static Profile? tryParse(String s) => switch (s.toLowerCase()) {
+        'strict' => strict,
+        'default' || 'standard' => standard,
+        'legacy' => legacy,
+        _ => null,
+      };
+}
+
 class CheckConfig {
   final Map<String, ToolConfig> tools;
 
@@ -85,12 +105,22 @@ class CheckConfig {
   final ScoringConfig scoring;
   final Thresholds thresholds;
 
+  /// Contextes d'exécution déclarés (`--context`).
+  final Set<ExecContext> contexts;
+
+  /// Suivre les fichiers sourcés (`shellcheck -x`).
+  final bool followSource;
+  final Profile profile;
+
   const CheckConfig({
     this.tools = defaultTools,
     this.disabledRules = const {},
     this.overrides = const {},
     this.scoring = const ScoringConfig(),
     this.thresholds = const Thresholds(),
+    this.contexts = const {},
+    this.followSource = false,
+    this.profile = Profile.standard,
   });
 
   static const defaultTools = {
@@ -98,12 +128,72 @@ class CheckConfig {
     'shfmt': ToolConfig(executable: 'shfmt'),
     'bashate': ToolConfig(executable: 'bashate'),
     'checkbashisms': ToolConfig(executable: 'checkbashisms'),
+    'gitleaks': ToolConfig(executable: 'gitleaks'),
+    'trufflehog': ToolConfig(executable: 'trufflehog'),
     'syntax': ToolConfig(executable: ''),
     'builtin': ToolConfig(executable: ''),
   };
 
+  /// Configuration de départ d'un profil.
+  factory CheckConfig.forProfile(Profile p) => switch (p) {
+        Profile.standard => const CheckConfig(),
+        Profile.strict => const CheckConfig(
+            profile: Profile.strict,
+            scoring: ScoringConfig(weights: {
+              Severity.critical: 5,
+              Severity.high: 3,
+              Severity.medium: 1,
+              Severity.low: 0.4,
+            }, referenceLines: 50),
+            thresholds: Thresholds(
+                maxLineLength: 100,
+                maxFunctionLines: 40,
+                maxNesting: 3,
+                maxLinesWithoutFunction: 100),
+          ),
+        Profile.legacy => const CheckConfig(
+            profile: Profile.legacy,
+            scoring: ScoringConfig(weights: {
+              Severity.critical: 4,
+              Severity.high: 1.5,
+              Severity.medium: 0.5,
+              Severity.low: 0.1,
+            }),
+            thresholds: Thresholds(
+                maxLineLength: 160,
+                maxFunctionLines: 150,
+                maxNesting: 6,
+                maxLinesWithoutFunction: 400),
+            disabledRules: {
+              'MNT001', 'MNT004', 'MNT005', 'MNT010', 'FORMAT', //
+              'E001', 'E002', 'E003', 'E005', 'E006',
+            },
+          ),
+      };
+
   ToolConfig tool(String name) =>
       tools[name] ?? defaultTools[name] ?? ToolConfig(executable: name);
+
+  CheckConfig copyWith({
+    Map<String, ToolConfig>? tools,
+    Set<String>? disabledRules,
+    Map<String, RuleOverride>? overrides,
+    ScoringConfig? scoring,
+    Thresholds? thresholds,
+    Set<ExecContext>? contexts,
+    bool? followSource,
+    Profile? profile,
+  }) =>
+      CheckConfig(
+        tools: tools ?? this.tools,
+        disabledRules: disabledRules ?? this.disabledRules,
+        overrides: overrides ?? this.overrides,
+        scoring: scoring ?? this.scoring,
+        thresholds: thresholds ?? this.thresholds,
+        contexts: contexts ?? this.contexts,
+        followSource: followSource ?? this.followSource,
+        profile: profile ?? this.profile,
+      );
 
   /// Copie avec certains outils désactivés (option `--without`).
   CheckConfig withToolsDisabled(Iterable<String> names) {
@@ -111,24 +201,28 @@ class CheckConfig {
     for (final n in names) {
       t[n] = tool(n).copyWith(enabled: false);
     }
-    return CheckConfig(
-        tools: t,
-        disabledRules: disabledRules,
-        overrides: overrides,
-        scoring: scoring,
-        thresholds: thresholds);
+    return copyWith(tools: t);
   }
 
-  /// Lit une configuration YAML. Les clés absentes gardent leur valeur par
-  /// défaut. Lève [FormatException] si le document est invalide.
-  static CheckConfig parse(String yamlText) {
+  /// Lit une configuration YAML. Les clés absentes gardent la valeur du
+  /// profil ([profile] s'il est fourni, sinon la clé `profile:` du document,
+  /// sinon `standard`). Lève [FormatException] si le document est invalide.
+  static CheckConfig parse(String yamlText, {Profile? profile}) {
     final doc = loadYaml(yamlText);
-    if (doc == null) return const CheckConfig();
+    if (doc == null) return CheckConfig.forProfile(profile ?? Profile.standard);
     if (doc is! YamlMap) {
       throw const FormatException('la racine doit être un dictionnaire');
     }
+    var prof = profile;
+    if (prof == null && doc['profile'] != null) {
+      prof = Profile.tryParse('${doc['profile']}');
+      if (prof == null) {
+        throw FormatException('profil inconnu : ${doc['profile']}');
+      }
+    }
+    final base = CheckConfig.forProfile(prof ?? Profile.standard);
 
-    final tools = Map<String, ToolConfig>.of(defaultTools);
+    final tools = Map<String, ToolConfig>.of(base.tools);
     final yTools = doc['tools'];
     if (yTools is YamlMap) {
       yTools.forEach((k, v) {
@@ -150,8 +244,8 @@ class CheckConfig {
     }
 
     final rules = doc['rules'];
-    final disabled = <String>{};
-    final overrides = <String, RuleOverride>{};
+    final disabled = <String>{...base.disabledRules};
+    final overrides = <String, RuleOverride>{...base.overrides};
     if (rules is YamlMap) {
       if (rules['disabled'] is YamlList) {
         for (final r in rules['disabled'] as YamlList) {
@@ -179,7 +273,7 @@ class CheckConfig {
       }
     }
 
-    var scoring = const ScoringConfig();
+    var scoring = base.scoring;
     final ys = doc['scoring'];
     if (ys is YamlMap) {
       final weights = Map<Severity, double>.of(scoring.weights);
@@ -207,7 +301,7 @@ class CheckConfig {
       );
     }
 
-    var th = const Thresholds();
+    var th = base.thresholds;
     final yt = doc['thresholds'];
     if (yt is YamlMap) {
       int pick(String key, int def) => yt[key] is int ? yt[key] as int : def;
@@ -220,12 +314,24 @@ class CheckConfig {
       );
     }
 
-    return CheckConfig(
+    final contexts = <ExecContext>{};
+    final yc = doc['context'];
+    for (final v in yc is YamlList ? yc : (yc == null ? const [] : [yc])) {
+      final c = ExecContext.tryParse('$v');
+      if (c == null) throw FormatException('contexte inconnu : $v');
+      contexts.add(c);
+    }
+
+    return base.copyWith(
         tools: tools,
         disabledRules: disabled,
         overrides: overrides,
         scoring: scoring,
-        thresholds: th);
+        thresholds: th,
+        contexts: contexts,
+        followSource: doc['followSource'] is bool
+            ? doc['followSource'] as bool
+            : base.followSource);
   }
 
   static double _toDouble(Object? v, String key) {

@@ -1,0 +1,78 @@
+/// Directives de suppression écrites dans le script lui-même :
+///
+/// ```sh
+/// # check-script disable-file=MNT005,E003     ← tout le fichier
+/// # check-script disable=SEC022               ← ligne suivante (commentaire seul)
+/// curl -k "$URL"  # check-script disable=SEC005   ← cette ligne
+/// ```
+///
+/// Les identifiants acceptent le joker final `*` (`SC20*`) et `all`.
+/// Les directives `# shellcheck disable=…` restent traitées par ShellCheck.
+library;
+
+import 'model/finding.dart';
+
+final _directive = RegExp(
+    r'#\s*check-script\s+(disable|disable-file|disable-next-line)\s*=\s*([\w*,\s-]+)',
+    caseSensitive: false);
+
+class Suppressions {
+  /// Règles supprimées pour tout le fichier.
+  final Set<String> file;
+
+  /// Règles supprimées par ligne (1-based).
+  final Map<int, Set<String>> lines;
+
+  const Suppressions(this.file, this.lines);
+
+  static const none = Suppressions({}, {});
+
+  bool get isEmpty => file.isEmpty && lines.isEmpty;
+
+  factory Suppressions.parse(List<String> scriptLines) {
+    final file = <String>{};
+    final lines = <int, Set<String>>{};
+    for (var i = 0; i < scriptLines.length; i++) {
+      final raw = scriptLines[i];
+      final m = _directive.firstMatch(raw);
+      if (m == null) continue;
+      final ids = {
+        for (final id in m.group(2)!.split(RegExp(r'[,\s]+')))
+          if (id.trim().isNotEmpty) id.trim().toUpperCase()
+      };
+      final kind = m.group(1)!.toLowerCase();
+      if (kind == 'disable-file') {
+        file.addAll(ids);
+        continue;
+      }
+      final commentOnly = raw.trimLeft().startsWith('#');
+      var target = i + 1; // ligne courante (1-based)
+      if (commentOnly || kind == 'disable-next-line') {
+        // Prochaine ligne qui n'est ni vide ni un commentaire.
+        var j = i + 1;
+        while (j < scriptLines.length &&
+            (scriptLines[j].trim().isEmpty ||
+                scriptLines[j].trimLeft().startsWith('#'))) {
+          j++;
+        }
+        target = j + 1;
+      }
+      (lines[target] ??= <String>{}).addAll(ids);
+    }
+    return Suppressions(file, lines);
+  }
+
+  static bool _matches(String pattern, String id) {
+    if (pattern == 'ALL') return true;
+    return pattern.endsWith('*')
+        ? id.startsWith(pattern.substring(0, pattern.length - 1))
+        : pattern == id;
+  }
+
+  bool suppresses(Finding f) {
+    final id = f.ruleId.toUpperCase();
+    if (file.any((p) => _matches(p, id))) return true;
+    final l = lines[f.line];
+    return l != null && l.any((p) => _matches(p, id));
+  }
+}

@@ -133,11 +133,16 @@ class ShellcheckAnalyzer extends Analyzer {
       '--format=json1',
       '--enable=${optionalChecks.join(',')}',
       if (tc.exclude.isNotEmpty) '--exclude=${tc.exclude.join(',')}',
+      // Fichiers sourcés suivis, résolus depuis le dossier du script.
+      if (ctx.config.followSource) ...[
+        '--external-sources',
+        '--source-path=SCRIPTDIR'
+      ],
       if (ctx.script.dialect.shellcheckName != null)
         '--shell=${ctx.script.dialect.shellcheckName}',
       ctx.filePath,
     ];
-    final r = await ctx.runner.run(tc.executable, args);
+    final r = await ctx.run(tc.executable, args);
     if (r == null) return AnalyzerResult(ToolRun(name, ToolStatus.missing));
     // 0 : rien à signaler ; 1 : problèmes trouvés ; autre : erreur d'usage.
     if (r.exitCode > 1 && r.stdout.trim().isEmpty) {

@@ -1,9 +1,12 @@
-/// Mise en forme des rapports : terminal (ANSI), Markdown, AsciiDoc, JSON.
+/// Mise en forme des rapports : terminal (ANSI), Markdown, AsciiDoc, JSON,
+/// SARIF et HTML.
 library;
 
 import 'dart:convert';
 
 import '../i18n.dart';
+import 'html.dart';
+import 'sarif.dart';
 import '../model/finding.dart';
 import '../model/report.dart';
 import '../version.dart';
@@ -12,14 +15,18 @@ enum OutputFormat {
   terminal,
   markdown,
   asciidoc,
-  json;
+  json,
+  sarif,
+  html;
 
   /// Format déduit de l'extension d'un fichier de sortie.
   static OutputFormat? fromPath(String path) {
     final p = path.toLowerCase();
     if (p.endsWith('.md') || p.endsWith('.markdown')) return markdown;
     if (p.endsWith('.adoc') || p.endsWith('.asciidoc')) return asciidoc;
+    if (p.endsWith('.sarif') || p.endsWith('.sarif.json')) return sarif;
     if (p.endsWith('.json')) return json;
+    if (p.endsWith('.html') || p.endsWith('.htm')) return html;
     if (p.endsWith('.txt')) return terminal;
     return null;
   }
@@ -28,6 +35,8 @@ enum OutputFormat {
         'md' || 'markdown' => markdown,
         'adoc' || 'asciidoc' => asciidoc,
         'json' => json,
+        'sarif' => sarif,
+        'html' || 'htm' => html,
         'text' || 'txt' || 'terminal' => terminal,
         _ => null,
       };
@@ -52,6 +61,8 @@ String render(
       OutputFormat.markdown => renderMarkdown(reports, opts),
       OutputFormat.asciidoc => renderAsciidoc(reports, opts),
       OutputFormat.json => renderJson(reports),
+      OutputFormat.sarif => renderSarif(reports),
+      OutputFormat.html => renderHtml(reports, opts),
     };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,13 +84,42 @@ String _toolsLine(ScriptReport r, Messages t) => [
             '(${t.toolStatus(run.status)})'
     ].join(', ');
 
+/// Outils dont l'absence est signalée (gitleaks et trufflehog sont des
+/// compléments facultatifs, couverts par les règles SEC002/SEC022).
+const coreTools = {'shellcheck', 'shfmt', 'bashate', 'checkbashisms', 'syntax'};
+
 List<String> _missing(List<ScriptReport> reports) => {
       for (final r in reports)
         for (final t in r.tools)
-          if (t.status == ToolStatus.missing) t.tool
+          if (t.status == ToolStatus.missing && coreTools.contains(t.tool))
+            t.tool
     }.toList();
 
 String _loc(Finding f, Messages t) => f.line == 0 ? t.wholeFile : '${f.line}';
+
+/// Problèmes à détailler : les nouveaux seulement s'il y a une référence.
+List<Finding> detailFindings(ScriptReport r, [Category? c]) {
+  final fs = r.comparison?.added ?? r.findings;
+  return c == null
+      ? fs
+      : [
+          for (final f in fs)
+            if (f.category == c) f
+        ];
+}
+
+/// Ligne « profil / contexte » (vide pour le profil standard sans contexte).
+String? _profileLine(ScriptReport r, Messages t) {
+  if (r.profile == 'standard' && r.contexts.isEmpty) return null;
+  return '${t.profile}${t.colon}${r.profile}'
+      '${r.contexts.isEmpty ? '' : ' · ${t.contexts}${t.colon}${r.contexts.join(', ')}'}';
+}
+
+/// Écart signé, ex. « +1,5 » / « -0,3 ».
+String fmtDelta(double now, double before, Lang lang) {
+  final d = ((now - before) * 10).round() / 10;
+  return '${d >= 0 ? '+' : ''}${fmtScore(d, lang)}';
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Terminal
@@ -130,6 +170,8 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
     b.writeln('${t.dialect}${t.colon}${r.script.dialect.name}    '
         '${t.lines}${t.colon}${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln(a.dim('${t.tools}${t.colon}${_toolsLine(r, t)}'));
+    final pl = _profileLine(r, t);
+    if (pl != null) b.writeln(a.dim(pl));
     b.writeln();
 
     final sevHeads = [
@@ -153,13 +195,24 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
     b.writeln();
     b.writeln(a.bold('${t.globalScore}${t.colon}') +
         a.score(r.global, '${fmtScore(r.global, o.lang)}/10 (${r.grade})'));
+    if (r.suppressed > 0) b.writeln(a.dim(t.suppressedCount(r.suppressed)));
+    final cmp = r.comparison;
+    if (cmp != null) {
+      b.writeln();
+      b.writeln(a.bold(t.baseline));
+      b.writeln(
+          '  ${t.comparisonLine(cmp.added.length, cmp.fixed, cmp.unchanged)}');
+      b.writeln(
+          '  ${t.globalScore}${t.colon}${fmtScore(cmp.previousGlobal, o.lang)} → '
+          '${fmtScore(r.global, o.lang)} (${fmtDelta(r.global, cmp.previousGlobal, o.lang)})');
+    }
 
     if (o.maxDetails != 0) {
       b.writeln();
-      b.writeln(a.bold(t.details));
-      if (r.findings.isEmpty) b.writeln('  ${t.noIssue}');
+      b.writeln(a.bold(cmp == null ? t.details : t.newIssuesOnly));
+      if (detailFindings(r).isEmpty) b.writeln('  ${t.noIssue}');
       for (final c in Category.values) {
-        final fs = r.findingsOf(c);
+        final fs = detailFindings(r, c);
         if (fs.isEmpty) continue;
         b.writeln(a.magenta('▶ ${t.category(c)} (${fs.length})'));
         final shown = o.maxDetails == null ? fs : fs.take(o.maxDetails!);
@@ -167,6 +220,10 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
           b.writeln('  ${_pad(f.line == 0 ? t.wholeFile : 'L${f.line}', 9)}'
               '${a.severity(f.severity, _pad(f.severity.label, 9))}'
               '${a.dim(_pad('${f.ruleId} [${f.tool}]', 26))}${f.message}');
+          final help = f.hint ?? f.url;
+          if (o.maxDetails == null && help != null) {
+            b.writeln(a.dim('${' ' * 46}→ $help'));
+          }
         }
         if (fs.length > shown.length) {
           b.writeln(a.dim('  ${t.moreIssues(fs.length - shown.length)}'));
@@ -229,6 +286,9 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
         '- **${t.lines}**${t.colon}${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln('- **${t.date}**${t.colon}${_date(r.date)}');
     b.writeln('- **${t.tools}**${t.colon}${_toolsLine(r, t)}');
+    final pl = _profileLine(r, t);
+    if (pl != null) b.writeln('- $pl');
+    if (r.suppressed > 0) b.writeln('- ${t.suppressedCount(r.suppressed)}');
     b.writeln(
         '- **${t.globalScore}**${t.colon}**${fmtScore(r.global, o.lang)}/10** (${t.grade} ${r.grade})\n');
 
@@ -242,10 +302,28 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
     }
     b.writeln('\n_${t.scoringNote}_\n');
 
-    b.writeln('$h# ${t.details}\n');
-    if (r.findings.isEmpty) b.writeln('${t.noIssue}\n');
+    final cmp = r.comparison;
+    if (cmp != null) {
+      b.writeln('$h# ${t.baseline}\n');
+      b.writeln(
+          '${t.comparisonLine(cmp.added.length, cmp.fixed, cmp.unchanged)}\n');
+      b.writeln(
+          '| ${t.category_} | ${t.previous} | ${t.score} | ${t.evolution} |');
+      b.writeln('|---|---:|---:|---:|');
+      for (final s in r.scores) {
+        final before = cmp.previousScores[s.category] ?? s.score;
+        b.writeln('| ${t.category(s.category)} | ${fmtScore(before, o.lang)} | '
+            '${fmtScore(s.score, o.lang)} | ${fmtDelta(s.score, before, o.lang)} |');
+      }
+      b.writeln(
+          '| **${t.globalScore}** | ${fmtScore(cmp.previousGlobal, o.lang)} | '
+          '**${fmtScore(r.global, o.lang)}** | ${fmtDelta(r.global, cmp.previousGlobal, o.lang)} |\n');
+    }
+
+    b.writeln('$h# ${cmp == null ? t.details : t.newIssuesOnly}\n');
+    if (detailFindings(r).isEmpty) b.writeln('${t.noIssue}\n');
     for (final c in Category.values) {
-      final fs = r.findingsOf(c);
+      final fs = detailFindings(r, c);
       if (fs.isEmpty) continue;
       b.writeln('$h## ${t.category(c)} (${fs.length})\n');
       b.writeln(
@@ -255,9 +333,11 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
         final snippet = f.snippet == null
             ? ''
             : '<br>`${_mdCell(f.snippet!.replaceAll('`', "'"))}`';
-        b.writeln(
-            '| ${_loc(f, t)} | ${f.severity.label} | ${f.tool} | `${f.ruleId}` | '
-            '${_mdCell(f.message)}$snippet |');
+        final rule =
+            f.url == null ? '`${f.ruleId}`' : '[`${f.ruleId}`](${f.url})';
+        final hint = f.hint == null ? '' : '<br>→ _${_mdCell(f.hint!)}_';
+        b.writeln('| ${_loc(f, t)} | ${f.severity.label} | ${f.tool} | $rule | '
+            '${_mdCell(f.message)}$snippet$hint |');
       }
       b.writeln();
     }
@@ -306,6 +386,10 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
         '${t.lines}:: ${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln('${t.date}:: ${_date(r.date)}');
     b.writeln('${t.tools}:: ${_toolsLine(r, t)}');
+    final pl = _profileLine(r, t);
+    if (pl != null) {
+      b.writeln('${t.profile}:: ${pl.split(t.colon).skip(1).join(t.colon)}');
+    }
     b.writeln(
         '${t.globalScore}:: *${fmtScore(r.global, o.lang)}/10* (${t.grade} ${r.grade})');
     b.writeln();
@@ -319,11 +403,30 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
     }
     b.writeln('|===\n');
     b.writeln('NOTE: ${t.scoringNote}\n');
+    if (r.suppressed > 0) b.writeln('${t.suppressedCount(r.suppressed)}.\n');
 
-    b.writeln('$h ${t.details}\n');
-    if (r.findings.isEmpty) b.writeln('${t.noIssue}\n');
+    final cmp = r.comparison;
+    if (cmp != null) {
+      b.writeln('$h ${t.baseline}\n');
+      b.writeln(
+          '${t.comparisonLine(cmp.added.length, cmp.fixed, cmp.unchanged)}\n');
+      b.writeln('[cols="3,1,1,1",options="header"]');
+      b.writeln('|===');
+      b.writeln('|${t.category_} |${t.previous} |${t.score} |${t.evolution}');
+      for (final s in r.scores) {
+        final before = cmp.previousScores[s.category] ?? s.score;
+        b.writeln('|${t.category(s.category)} |${fmtScore(before, o.lang)} '
+            '|${fmtScore(s.score, o.lang)} |${fmtDelta(s.score, before, o.lang)}');
+      }
+      b.writeln('|*${t.globalScore}* |${fmtScore(cmp.previousGlobal, o.lang)} '
+          '|*${fmtScore(r.global, o.lang)}* |${fmtDelta(r.global, cmp.previousGlobal, o.lang)}');
+      b.writeln('|===\n');
+    }
+
+    b.writeln('$h ${cmp == null ? t.details : t.newIssuesOnly}\n');
+    if (detailFindings(r).isEmpty) b.writeln('${t.noIssue}\n');
     for (final c in Category.values) {
-      final fs = r.findingsOf(c);
+      final fs = detailFindings(r, c);
       if (fs.isEmpty) continue;
       b.writeln('$h= ${t.category(c)} (${fs.length})\n');
       b.writeln('[cols="1,1,1,1,6",options="header"]');
@@ -333,9 +436,11 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
       for (final f in fs) {
         final snippet =
             f.snippet == null ? '' : ' +\n`+${_adocCell(f.snippet!)}+`';
-        b.writeln(
-            '|${_loc(f, t)} |${f.severity.label} |${f.tool} |`${f.ruleId}` '
-            '|${_adocCell(f.message)}$snippet');
+        final rule =
+            f.url == null ? '`${f.ruleId}`' : '${f.url}[`${f.ruleId}`]';
+        final hint = f.hint == null ? '' : ' +\n_→ ${_adocCell(f.hint!)}_';
+        b.writeln('|${_loc(f, t)} |${f.severity.label} |${f.tool} |$rule '
+            '|${_adocCell(f.message)}$snippet$hint');
       }
       b.writeln('|===\n');
     }
@@ -349,7 +454,7 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JSON (consommé par la future interface Flutter et par l'intégration continue)
+// JSON (consommé par l'interface Flutter et par l'intégration continue)
 // ─────────────────────────────────────────────────────────────────────────────
 
 String renderJson(List<ScriptReport> reports) =>

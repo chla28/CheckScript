@@ -5,6 +5,38 @@ import '../scoring.dart';
 import '../script_info.dart';
 import 'finding.dart';
 
+/// Comparaison avec une analyse de référence (baseline).
+class Comparison {
+  /// Problèmes absents de la référence.
+  final List<Finding> added;
+
+  /// Nombre de problèmes de la référence qui ont disparu.
+  final int fixed;
+
+  /// Nombre de problèmes présents dans les deux analyses.
+  final int unchanged;
+  final double previousGlobal;
+  final Map<Category, double> previousScores;
+
+  const Comparison({
+    required this.added,
+    required this.fixed,
+    required this.unchanged,
+    required this.previousGlobal,
+    required this.previousScores,
+  });
+
+  Map<String, Object?> toJson() => {
+        'new': added.length,
+        'fixed': fixed,
+        'unchanged': unchanged,
+        'previousGlobal': previousGlobal,
+        'previousScores': {
+          for (final e in previousScores.entries) e.key.name: e.value
+        },
+      };
+}
+
 class ScriptReport {
   final ScriptInfo script;
   final List<ToolRun> tools;
@@ -15,6 +47,16 @@ class ScriptReport {
   final double global;
   final DateTime date;
 
+  /// Problèmes neutralisés par des directives `# check-script disable=…`.
+  final int suppressed;
+
+  /// Profil et contextes utilisés (traçabilité du rapport).
+  final String profile;
+  final List<String> contexts;
+
+  /// Comparaison avec la référence, si `--baseline` a été fourni.
+  final Comparison? comparison;
+
   const ScriptReport({
     required this.script,
     required this.tools,
@@ -22,7 +64,24 @@ class ScriptReport {
     required this.scores,
     required this.global,
     required this.date,
+    this.suppressed = 0,
+    this.profile = 'standard',
+    this.contexts = const [],
+    this.comparison,
   });
+
+  ScriptReport withComparison(Comparison? c) => ScriptReport(
+        script: script,
+        tools: tools,
+        findings: findings,
+        scores: scores,
+        global: global,
+        date: date,
+        suppressed: suppressed,
+        profile: profile,
+        contexts: contexts,
+        comparison: c,
+      );
 
   String get grade => gradeFor(global);
 
@@ -40,8 +99,12 @@ class ScriptReport {
           'comments': script.commentLines,
         },
         'date': date.toIso8601String(),
+        'profile': profile,
+        if (contexts.isNotEmpty) 'contexts': contexts,
         'global': {'score': global, 'grade': grade},
         'categories': [for (final s in scores) s.toJson()],
+        'suppressed': suppressed,
+        if (comparison != null) 'comparison': comparison!.toJson(),
         'tools': [for (final t in tools) t.toJson()],
         'findings': [for (final f in findings) f.toJson()],
       };
