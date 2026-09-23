@@ -67,7 +67,7 @@ CategoryScore scoreCategory(
 }
 
 /// Écart maximal entre la note globale et la plus faible note de catégorie.
-const maxGapToWorst = 2.5;
+const maxGapToWorst = 1.5;
 
 /// Note globale : moyenne des catégories pondérée par
 /// [ScoringConfig.categoryWeights], plafonnée à la plus faible note de

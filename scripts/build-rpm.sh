@@ -24,31 +24,31 @@ PACKAGE="all"
 VERSION=""
 for arg in "$@"; do
   case "$arg" in
-    --package=*) PACKAGE="${arg#--package=}" ;;
-    --help | -h)
-      sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
-      exit 0
-      ;;
-    -*)
-      echo "Option inconnue : $arg" >&2
+  --package=*) PACKAGE="${arg#--package=}" ;;
+  --help | -h)
+    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  -*)
+    echo "Option inconnue : $arg" >&2
+    exit 1
+    ;;
+  *)
+    if [[ -z "$VERSION" ]]; then
+      VERSION="$arg"
+    else
+      echo "Argument inconnu : $arg" >&2
       exit 1
-      ;;
-    *)
-      if [[ -z "$VERSION" ]]; then
-        VERSION="$arg"
-      else
-        echo "Argument inconnu : $arg" >&2
-        exit 1
-      fi
-      ;;
+    fi
+    ;;
   esac
 done
 case "$PACKAGE" in
-  cli | gui | all) ;;
-  *)
-    echo "Paquet inconnu : $PACKAGE (attendu : cli, gui, all)" >&2
-    exit 1
-    ;;
+cli | gui | all) ;;
+*)
+  echo "Paquet inconnu : $PACKAGE (attendu : cli, gui, all)" >&2
+  exit 1
+  ;;
 esac
 [[ -z "$VERSION" ]] && VERSION="$(awk '/^version:/ {print $2; exit}' "${PROJECT_DIR}/pubspec.yaml")"
 VERSION="${VERSION%%+*}"

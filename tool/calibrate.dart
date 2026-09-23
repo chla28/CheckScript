@@ -53,6 +53,19 @@ Future<void> main(List<String> args) async {
         '${r.scores.map((s) => s.score.toStringAsFixed(1).padLeft(5)).join(' ')}'
         '  ${r.global.toStringAsFixed(1).padLeft(4)} ${r.grade}  ${range.join('–')}'
         '${ok ? '' : '  ✗'}');
+    // Plage attendue sans contexte déclaré, si précisée.
+    if (label['defaultGrades'] != null) {
+      final dr = [for (final g in label['defaultGrades'] as YamlList) '$g'];
+      final r0 = await Engine(config: const CheckConfig(), lang: Lang.fr)
+          .analyzeFile('test/corpus/scripts/$name');
+      final ok0 = grades.indexOf(r0.grade) >= grades.indexOf(dr.first) &&
+          grades.indexOf(r0.grade) <= grades.indexOf(dr.last);
+      if (!ok0) failures++;
+      stdout.writeln('${'  (sans contexte)'.padRight(36)} '
+          '${r0.scores.map((s) => s.score.toStringAsFixed(1).padLeft(5)).join(' ')}'
+          '  ${r0.global.toStringAsFixed(1).padLeft(4)} ${r0.grade}  ${dr.join('–')}'
+          '${ok0 ? '' : '  ✗'}');
+    }
     if (details) {
       final counts = <String, int>{};
       for (final f in r.findings) {

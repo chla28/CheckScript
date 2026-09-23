@@ -72,14 +72,14 @@ void main() {
     expect(s.total, 1);
   });
 
-  test('note globale pondérée, plafonnée à la pire catégorie + 2,5', () {
+  test('note globale pondérée, plafonnée à la pire catégorie + 1,5', () {
     CategoryScore cs(Category c, double v) => CategoryScore(c, v, const {});
     final all10 = [for (final c in Category.values) cs(c, 10)];
     expect(globalScore(all10, cfg), 10);
     final oneBad = [
       for (final c in Category.values) cs(c, c == Category.performance ? 2 : 10)
     ];
-    expect(globalScore(oneBad, cfg), 4.5);
+    expect(globalScore(oneBad, cfg), 3.5);
     final mixed = [
       cs(Category.security, 8),
       cs(Category.robustness, 6),
@@ -87,8 +87,13 @@ void main() {
       cs(Category.portability, 9),
       cs(Category.performance, 10),
     ];
-    // (8×1,5 + 6×1,25 + 7 + 9×0,75 + 10×0,5) / 5 = 7,65
-    expect(globalScore(mixed, cfg), 7.7);
+    // (8×1,5 + 6×1,25 + 7 + 9×0,75 + 10×0,5) / 5 = 7,65, plafonné à 6 + 1,5
+    expect(globalScore(mixed, cfg), 7.5);
+    final close = [
+      for (final c in Category.values) cs(c, c == Category.performance ? 8 : 9)
+    ];
+    // Moyenne 8,9 sous le plafond 9,5 : non plafonnée.
+    expect(globalScore(close, cfg), 8.9);
   });
 
   test('niveaux', () {

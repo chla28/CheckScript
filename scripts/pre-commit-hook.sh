@@ -24,13 +24,13 @@ mapfile -t candidates < <(git diff --cached --name-only --diff-filter=ACMR)
 files=()
 for f in "${candidates[@]}"; do
   case "$f" in
-    *.sh | *.bash | *.ksh | *.dash | *.zsh) files+=("$f") ;;
-    *.*) ;;
-    *)
-      if git show ":$f" 2>/dev/null | head -n1 | grep -Eq '^#!.*\b(ba|da|k|mk|z)?sh\b'; then
-        files+=("$f")
-      fi
-      ;;
+  *.sh | *.bash | *.ksh | *.dash | *.zsh) files+=("$f") ;;
+  *.*) ;;
+  *)
+    if git show ":$f" 2>/dev/null | head -n1 | grep -Eq '^#!.*\b(ba|da|k|mk|z)?sh\b'; then
+      files+=("$f")
+    fi
+    ;;
   esac
 done
 [[ ${#files[@]} -eq 0 ]] && exit 0

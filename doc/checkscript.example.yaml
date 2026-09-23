@@ -4,7 +4,11 @@
 #   1. --config FICHIER
 #   2. ./.checkscript.yaml
 #   3. ${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml
-# Toutes les clés sont facultatives : une clé absente garde sa valeur par défaut.
+# Toutes les clés sont facultatives : une clé absente garde la valeur du profil.
+
+profile: default                # strict | default | legacy (--profile prime)
+context: []                     # [root, cron, systemd] : règles et sévérités dédiées
+followSource: false             # shellcheck -x (fichiers sourcés)
 
 tools:
   shellcheck:
@@ -17,6 +21,8 @@ tools:
     enabled: true
     exclude: [E006]             # transmis à bashate --ignore
   checkbashisms: true           # forme courte : activé / désactivé
+  gitleaks: true                # secrets (si installé)
+  trufflehog: true              # secrets, sans vérification réseau (si installé)
   syntax: true                  # contrôle bash -n / sh -n
   builtin: true                 # règles intégrées
 

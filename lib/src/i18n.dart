@@ -96,11 +96,11 @@ class Messages {
       'Note = 10 − Σ pénalités (Critical 4, High 2, Medium 0,75, Low 0,25 ; '
           'occurrences répétées d\'une même règle atténuées en log2 ; '
           'Medium/Low atténués selon la taille du script). Note globale = moyenne '
-          'pondérée des catégories, plafonnée à la plus faible catégorie + 2,5.',
+          'pondérée des catégories, plafonnée à la plus faible catégorie + 1,5.',
       'Score = 10 − Σ penalties (Critical 4, High 2, Medium 0.75, Low 0.25; '
           'repeated occurrences of one rule damped logarithmically; '
           'Medium/Low scaled by script size). Overall score = weighted mean of '
-          'the categories, capped at the lowest category + 2.5.');
+          'the categories, capped at the lowest category + 1.5.');
   String missingToolsHint(List<String> tools) => _t(
       'Outils absents (${tools.join(', ')}) : l\'analyse est moins complète. '
           'Voir `check-script --list-tools`.',

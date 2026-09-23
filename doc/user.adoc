@@ -15,21 +15,26 @@ sur cinq catégories*, chacune notée sur 10 :
 [cols="1,3",options="header"]
 |===
 |Catégorie |Ce qui est évalué
-|Sécurité |Injection de commande, secrets en dur, téléchargements exécutés, permissions dangereuses, vérifications TLS désactivées…
-|Robustesse |Gestion des erreurs (`set -e`, `cd` non contrôlé), quoting, erreurs de syntaxe, fins de ligne CRLF…
+|Sécurité |Injection de commande, secrets en dur, téléchargements exécutés, permissions dangereuses, TLS désactivé, PATH non sûr, fichiers sensibles modifiés…
+|Robustesse |Gestion des erreurs (`set -e`, `cd` non contrôlé, codes de retour ignorés), quoting, erreurs de syntaxe, CRLF…
 |Maintenabilité |Lisibilité, style, formatage, taille des fonctions, imbrication, commentaires…
-|Portabilité |Bashismes dans un script `/bin/sh`, shebang, commandes obsolètes ou propres à une distribution…
-|Performance |Processus inutiles (`cat \| grep`, `expr`, sous-shells dans les boucles…)
+|Portabilité |Bashismes dans un script `/bin/sh` (dont ceux qui cassent sous dash), shebang, commandes obsolètes ou propres à une distribution…
+|Performance |Processus inutiles (`cat \| grep`, `expr`, commandes externes dans les boucles…)
 |===
 
 Pour chaque catégorie, le rapport indique le *nombre de problèmes par
 sévérité* (Critical / High / Medium / Low) et leur *total*, puis une *note
-globale* et un niveau de A à E.
+globale* et un niveau de A à E. Chaque problème est accompagné d'un *conseil
+de correction* et, pour les outils externes, d'un lien vers leur
+documentation.
 
 L'outil exploite les analyseurs de référence lorsqu'ils sont installés
-(ShellCheck, shfmt, bashate, checkbashisms, `bash -n`) et les complète par une
-cinquantaine de *règles intégrées* qui fonctionnent toujours, même sans aucun
-outil externe.
+(ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n`)
+et les complète par 64 *règles intégrées* qui fonctionnent toujours.
+Il sait aussi *corriger* les défauts sûrs (`--fix`), *comparer* deux analyses
+(référence) et s'intègre à l'intégration continue (SARIF, GitLab Code
+Quality, hook pre-commit). Une *interface graphique* (`check-script-gui`)
+reprend le même moteur.
 
 L'interface et les rapports sont disponibles en *français* et en *anglais*.
 
@@ -41,14 +46,28 @@ L'interface et les rapports sont disponibles en *français* et en *anglais*.
 ----
 tar xzf check_script-VERSION-linux-x86_64.tar.gz
 cd check_script-VERSION-linux-x86_64
-./install.sh              # installation utilisateur : ~/.local/bin/check-script
-sudo ./install.sh         # installation système   : /usr/local/bin/check-script
+./install.sh              # installation utilisateur (~/.local)
+sudo ./install.sh         # installation système (/usr/local)
 ./install.sh --prefix=/opt/outils
 ----
 
+L'installation dépose la commande `check-script`, l'interface
+`check-script-gui` (avec son entrée de menu), la page de manuel
+(`man check-script`), les complétions bash et zsh et la documentation.
 Désinstallation : `./uninstall.sh` (mêmes options).
 
-Le binaire est autonome : aucun environnement Dart n'est nécessaire.
+Le binaire CLI est autonome ; l'interface nécessite GTK 3.
+
+=== Paquets RPM
+
+[source,bash]
+----
+sudo dnf install ./check-script-VERSION-1.fc44.x86_64.rpm       # CLI
+sudo dnf install ./check-script-gui-VERSION-1.fc44.x86_64.rpm   # interface
+----
+
+Le paquet CLI recommande ShellCheck, shfmt et checkbashisms, installés
+automatiquement si les dépendances faibles sont activées.
 
 === Outils d'analyse (facultatifs mais recommandés)
 
@@ -57,10 +76,12 @@ Sans eux, seules les règles intégrées s'appliquent et le rapport le signale.
 [cols="1,3,3",options="header"]
 |===
 |Outil |Apport |Installation (Fedora/RHEL — Debian/Ubuntu)
-|`shellcheck` |Référence de l'analyse statique shell (quoting, erreurs, portabilité POSIX…) |`dnf install ShellCheck` — `apt install shellcheck`
-|`shfmt` |Formatage canonique et détection des constructions hors dialecte |`dnf install shfmt` — `apt install shfmt`
+|`shellcheck` |Référence de l'analyse statique shell (quoting, erreurs, portabilité POSIX…) ; propose des corrections |`dnf install ShellCheck` — `apt install shellcheck`
+|`shfmt` |Formatage canonique, arbre syntaxique pour des règles intégrées exactes, détection des constructions hors dialecte |`dnf install shfmt` — `apt install shfmt`
 |`bashate` |Règles de style (conventions OpenStack) |`pip install --user bashate`
 |`checkbashisms` |Bashismes dans les scripts `/bin/sh` |`dnf install devscripts-checkbashisms` — `apt install devscripts`
+|`gitleaks` |Détection de secrets (optionnel) |https://github.com/gitleaks/gitleaks/releases
+|`trufflehog` |Détection de secrets (optionnel, lancé sans vérification réseau) |https://github.com/trufflesecurity/trufflehog/releases
 |`bash` / `sh` |Contrôle syntaxique (`bash -n`) |présent sur toute distribution
 |===
 
@@ -72,55 +93,66 @@ $ check-script --list-tools
 Outil           Statut              Version
 syntax          intégré             bash -n / sh -n
 shellcheck      disponible          0.11.0
+gitleaks        absent              (installer : https://github.com/gitleaks/gitleaks/releases)
+trufflehog      absent              (installer : https://github.com/trufflesecurity/trufflehog/releases)
 checkbashisms   disponible          2.26.5
-builtin         intégré             50 règles
+builtin         intégré             64 règles
 shfmt           disponible          ?
 bashate         disponible          2.1.1
 ----
 
 NOTE: `?` signifie que l'outil est présent mais n'affiche pas de numéro de
-version (cas du paquet `shfmt` de Fedora).
+version (cas du paquet `shfmt` de Fedora). L'absence de gitleaks et
+trufflehog n'est pas signalée dans les rapports : les règles intégrées SEC002
+et SEC022 couvrent déjà les secrets.
 
 == Utilisation
 
 [source,bash]
 ----
-check-script mon_script.sh                   # rapport dans le terminal
-check-script mon_script.sh -o rapport.md     # + rapport Markdown
-check-script mon_script.sh -o rapport.adoc   # + rapport AsciiDoc
-check-script -q deploy.sh -o r.md -o r.adoc  # fichiers seuls, rien à l'écran
-check-script scripts/                        # tous les scripts d'un dossier
-cat script.sh | check-script -               # lecture sur l'entrée standard
-check-script --lang en build.sh              # rapport en anglais
-check-script -f json build.sh > r.json       # JSON sur la sortie standard
+check-script mon_script.sh                          # rapport dans le terminal
+check-script --details mon_script.sh                # + tous les problèmes et leur correction
+check-script mon_script.sh -o rapport.html          # rapport HTML autonome
+check-script -q deploy.sh -o r.md -o r.adoc         # fichiers seuls, rien à l'écran
+check-script scripts/                               # tous les scripts d'un dossier
+cat script.sh | check-script -                      # entrée standard
+check-script --lang en build.sh                     # rapport en anglais
+check-script --profile strict --context root install.sh
+check-script --fix --dry-run deploy.sh              # corrections proposées (diff)
+check-script --fix --backup deploy.sh               # corrections appliquées
+check-script -b reference.json scripts/             # nouveaux problèmes seulement
 ----
 
 Un *dossier* est parcouru récursivement ; y sont retenus les fichiers
 `.sh`, `.bash`, `.ksh`, `.dash`, `.zsh` et les fichiers sans extension dont le
 shebang désigne un shell. Les dossiers cachés (`.git`…) sont ignorés.
 
-Avec plusieurs scripts, le rapport commence par un *tableau de synthèse*
-(une ligne par script).
-
 === Options
 
 [cols="2,5",options="header"]
 |===
 |Option |Effet
-|`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension (`.md`, `.adoc`, `.json`, `.txt`). Répétable.
-|`-f`, `--format terminal\|md\|adoc\|json` |Format des fichiers sans extension reconnue, ou de la sortie standard quand aucun `-o` n'est donné.
-|`-l`, `--lang fr\|en` |Langue du rapport. Défaut : `LC_ALL`, `LC_MESSAGES` puis `LANG` (français si la valeur commence par `fr`, anglais sinon).
+|`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension : `.md`, `.adoc`, `.html`, `.json`, `.sarif`, `.codeclimate.json` (ou `gl-code-quality-report.json`), `.txt`. Répétable.
+|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `json`, `sarif`, `codeclimate` : format des fichiers sans extension reconnue, ou de la sortie standard sans `-o`.
+|`-l`, `--lang fr\|en` |Langue du rapport. Défaut : `LC_ALL`, `LC_MESSAGES` puis `LANG`.
 |`-s`, `--shell sh\|bash\|dash\|ksh\|zsh` |Force le dialecte au lieu de le déduire du shebang.
+|`-p`, `--profile strict\|default\|legacy` |Profil de notation (voir <<profils>>).
+|`--context root\|cron\|systemd\|interactive` |Contexte d'exécution (voir <<contextes>>). Répétable.
+|`--follow-source` |Suit les fichiers sourcés (`shellcheck -x`).
 |`-c`, `--config FICHIER` |Fichier de configuration YAML (voir <<config>>).
-|`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `syntax`, `builtin`) ; répétable ou séparé par des virgules.
+|`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `gitleaks`, `trufflehog`, `syntax`, `builtin`) ; répétable ou séparé par des virgules.
 |`--no-external` |N'utilise que les règles intégrées.
-|`--details` |Terminal : liste tous les problèmes (défaut : 10 par catégorie).
-|`--summary` |Terminal : synthèse seule, sans le détail.
+|`-b`, `--baseline RAPPORT.json` |Référence : seuls les nouveaux problèmes sont détaillés, l'évolution des notes est affichée (voir <<reference>>).
+|`--fail-on-new SÉVÉRITÉ` |Avec `--baseline` : code de sortie 1 si un nouveau problème atteint cette sévérité.
+|`--fix` |Corrige les défauts sûrs dans le fichier (voir <<fix>>).
+|`--dry-run` |Avec `--fix` : affiche le diff unifié sans modifier le fichier.
+|`--backup` |Avec `--fix` : conserve l'original en `FICHIER.orig`.
+|`--details` |Terminal : tous les problèmes, avec leur conseil de correction (défaut : 10 par catégorie).
+|`--summary` |Terminal : synthèse seule.
 |`--[no-]color` |Force ou désactive la couleur (défaut : automatique, `NO_COLOR` respecté).
 |`-q`, `--quiet` |Aucun rapport sur la sortie standard.
-|`--fail-under NOTE` |Code de sortie 1 si la note globale d'un script est inférieure à NOTE (0 à 10).
-|`--list-tools` |Affiche les outils détectés et leur version.
-|`--list-rules` |Affiche les règles intégrées.
+|`--fail-under NOTE` / `--fail-under CATÉGORIE=NOTE` |Code de sortie 1 si la note globale, ou celle d'une catégorie, est inférieure au seuil. Répétable ; plusieurs seuils séparés par des virgules (`security=8,robustness=6.5`) ; décimales avec un point.
+|`--list-tools` / `--list-rules` |Outils détectés / règles intégrées.
 |`-v`, `--version` / `-h`, `--help` |Version / aide.
 |===
 
@@ -130,52 +162,52 @@ Avec plusieurs scripts, le rapport commence par un *tableau de synthèse*
 |===
 |Code |Signification
 |0 |Analyse effectuée.
-|1 |Une note globale est inférieure au seuil `--fail-under`.
-|2 |Erreur d'usage (option invalide, aucun script, configuration invalide).
+|1 |Seuil non atteint (`--fail-under`, `--fail-on-new`).
+|2 |Erreur d'usage (option invalide, aucun script, configuration ou référence invalide).
 |3 |Script introuvable ou illisible, ou fichier de rapport impossible à écrire.
 |===
 
 == Lire le rapport
 
-.Extrait de sortie terminal
+.Extrait de sortie terminal (`--details`)
 ----
 ═══ Évaluation du script : deploy.sh ═══
 Dialecte : bash    Lignes : 16 (code : 15, commentaires : 0)
 Outils : syntax (exécuté), shellcheck 0.11.0 (exécuté), …
 
 Catégorie        Note /10             Critical     High   Medium      Low   Total
-Sécurité           0,0 ░░░░░░░░░░            3        3        3        0       9
-Robustesse         1,8 ██░░░░░░░░            0        1        8        2      11
+Sécurité           0,0 ░░░░░░░░░░            3        3        3        1      10
+Robustesse         1,3 █░░░░░░░░░            0        1        8        4      13
 Maintenabilité     8,8 █████████░            0        0        0        5       5
 Portabilité       10,0 ██████████            0        0        0        0       0
 Performance        9,0 █████████░            0        0        0        4       4
 
-Note globale : 2,5/10 (E)
+Note globale : 1,5/10 (E)
 
 Détail des problèmes
-▶ Sécurité (9)
+▶ Sécurité (10)
   L3       Critical SEC002 [builtin]          Secret (mot de passe, jeton, clé) écrit en dur dans le script
-  L5       Critical SEC001 [builtin]          Contenu téléchargé exécuté directement par un shell (curl|sh)
+                                              → Lire le secret depuis l'environnement, un fichier protégé…
   L8       Critical SC2115 [shellcheck]       Use "${var:?}" to ensure this never expands to /* .
+                                              → https://www.shellcheck.net/wiki/SC2115
   …
 ----
 
 Chaque problème indique sa *ligne* (`fichier` s'il concerne le script entier),
-sa *sévérité*, sa *règle* et l'*outil* qui l'a détecté. Les messages des outils
-externes restent dans leur langue d'origine (anglais) ; ceux des règles
-intégrées suivent l'option `--lang`.
-
-Les *secrets* détectés (SEC002, SEC010) ne sont jamais recopiés dans le
-rapport.
+sa *sévérité*, sa *règle*, l'*outil* qui l'a détecté et, avec `--details`,
+son *conseil de correction* ou le lien vers la documentation de la règle.
+Les messages des outils externes restent en anglais ; ceux des règles
+intégrées suivent `--lang`. Les *secrets* détectés ne sont jamais recopiés
+dans le rapport.
 
 === Sévérités
 
 [cols="1,4",options="header"]
 |===
 |Sévérité |Signification
-|Critical |Compromission ou destruction probable (exécution de code téléchargé, secret en dur, `rm -rf /`, script syntaxiquement invalide).
-|High |Défaut grave exploitable ou provoquant des effets de bord (eval d'une variable, `chmod 777`, TLS désactivé, `cd` non contrôlé).
-|Medium |Défaut réel mais au comportement limité (variable non quotée, bashisme en `/bin/sh`, pas de `set -e`).
+|Critical |Compromission ou destruction probable (code téléchargé exécuté, secret en dur, `rm -rf /`, script syntaxiquement invalide).
+|High |Défaut grave exploitable ou aux effets de bord importants (eval d'une variable, `chmod 777`, TLS désactivé, `cd` non contrôlé, bashisme qui casse sous dash).
+|Medium |Défaut réel au comportement limité (variable non quotée, pas de `set -e`, fichier temporaire prévisible).
 |Low |Style, lisibilité, performance, bonnes pratiques.
 |===
 
@@ -187,65 +219,159 @@ Pour chaque catégorie :
 note = 10 − Σ pénalités          (plancher 0, arrondi au dixième)
 
 pénalité d'une règle déclenchée n fois = poids × (1 + log2 n)
-poids : Critical 4 · High 2 · Medium 0,75 · Low 0,25
+poids (profil standard) : Critical 4 · High 2 · Medium 0,75 · Low 0,25
 Medium et Low sont multipliés par √(100 / max(100, lignes de code))
 ----
 
 * *Occurrences répétées* : une même règle déclenchée 8 fois coûte 4 fois son
-  poids, pas 8 fois — des répétitions traduisent en général une seule habitude
-  à corriger.
-* *Taille du script* : un long script accumule mécaniquement plus de défauts
-  mineurs ; les pénalités Medium/Low sont donc atténuées au-delà de 100 lignes
-  de code. Critical et High ne le sont jamais.
+  poids, pas 8 fois — des répétitions traduisent une seule habitude.
+* *Taille du script* : au-delà de 100 lignes de code, les pénalités
+  Medium/Low sont atténuées. Critical et High ne le sont jamais.
 
 La *note globale* est la moyenne pondérée des catégories (Sécurité 1,5 ;
 Robustesse 1,25 ; Maintenabilité 1 ; Portabilité 0,75 ; Performance 0,5),
-*plafonnée à la plus faible note de catégorie + 2,5* : une catégorie
-catastrophique ne peut pas être masquée par les autres.
+*plafonnée à la plus faible note de catégorie + 1,5* : une catégorie faible
+ne peut pas être masquée par les autres (principe du maillon faible).
 
 Niveaux : *A* ≥ 9 · *B* ≥ 7,5 · *C* ≥ 6 · *D* ≥ 4 · *E* < 4.
 
-Poids et seuils sont modifiables par configuration.
+Ces réglages ont été calibrés sur un corpus de scripts réels et typiques
+(voir le guide développeur).
 
 === Doublons entre outils
 
 Quand plusieurs outils signalent le même défaut sur la même ligne (par
-exemple ShellCheck SC2002 et la règle intégrée PERF001 pour un `cat`
-inutile), un seul problème est conservé : celui de l'outil le plus spécialisé,
-dans l'ordre `bash -n`, ShellCheck, checkbashisms, règles intégrées, shfmt,
-bashate.
+exemple ShellCheck SC2002 et la règle intégrée PERF001), un seul problème
+est conservé, celui de l'outil le plus spécialisé : `bash -n`, ShellCheck,
+gitleaks, trufflehog, checkbashisms, règles intégrées, shfmt, bashate.
+
+[[profils]]
+== Profils
+
+[cols="1,4",options="header"]
+|===
+|Profil |Usage
+|`strict` |Nouveaux scripts : poids Critical 5, High 3, Medium 1, Low 0,4 ; atténuation dès 50 lignes ; lignes ≤ 100, fonctions ≤ 40 lignes, imbrication ≤ 3.
+|`default` |Réglages décrits ci-dessus.
+|`legacy` |Existant ancien : High 1,5, Medium 0,5, Low 0,1 ; seuils relâchés ; règles de pur style désactivées (MNT001, MNT004, MNT005, MNT010, formatage shfmt, E001–E006 de bashate).
+|===
+
+Le profil se choisit par `--profile` ou par la clé `profile:` de la
+configuration ; les autres clés de la configuration s'appliquent par-dessus.
+
+[[contextes]]
+== Contextes d'exécution
+
+Déclarer comment le script est lancé active des règles spécifiques et
+relève certaines sévérités (elles ne sont jamais abaissées) :
+
+[cols="1,3,3",options="header"]
+|===
+|Contexte |Règles activées |Sévérités relevées
+|`root` |SEC017 (PATH non fixé) |fichier temporaire prévisible, téléchargement en clair, `source` non fiable, archive non vérifiée → High ; `chmod 777`, `rm -rf "$VAR/"`, `cd` non contrôlé → Critical ; pas de `set -e` → High
+|`cron` |ROB014 (pas de verrou), ROB015 (saisie interactive), ROB016 (PATH non fixé) |pas de `set -e`, fichier temporaire prévisible → High ; `set -x` → Medium
+|`systemd` |SEC017, ROB015 |pas de `set -e` → High ; `set -x` → Medium
+|===
+
+[[directives]]
+== Directives dans le script
+
+Un faux positif ou un choix assumé se neutralise dans le script lui-même :
+
+[source,bash]
+----
+#!/bin/bash
+# check-script disable-file=MNT005,E003        # tout le fichier
+
+# check-script disable=SEC005                  # commentaire seul : ligne de code suivante
+curl -k "$URL_INTERNE"
+
+eval "$SAFE_CMD"  # check-script disable=SEC003   # cette ligne
+# check-script disable-next-line=SEC022
+CLE_PUBLIQUE="AAAAC3NzaC1lZDI1NTE5AAAAI…"
+----
+
+Les identifiants acceptent le joker final (`SC20*`) et `all`. Le nombre de
+problèmes neutralisés figure dans le rapport. Les directives
+`# shellcheck disable=…` restent traitées par ShellCheck.
+
+[[fix]]
+== Correction automatique
+
+`--fix` applique uniquement des transformations *sûres* :
+
+. les corrections proposées par ShellCheck (quoting de variables,
+  `cd … || exit`, backticks…) ;
+. les corrections intégrées : fins de ligne CRLF, espaces finaux, backticks
+  → `$(…)`, `egrep`/`fgrep` → `grep -E`/`-F`, `which` → `command -v`,
+  `read` → `read -r` (jamais dans un heredoc, une chaîne ou un commentaire) ;
+. le formatage shfmt, dans le style d'indentation du script.
+
+Le résultat est contrôlé par `bash -n` (ou `sh -n`) : si le script était
+valide et ne le serait plus, *aucune* correction n'est écrite. Le rapport
+affiché ensuite porte sur la version corrigée.
+
+[source,bash]
+----
+check-script --fix --dry-run deploy.sh       # diff sur la sortie standard, rien n'est écrit
+check-script --fix --backup deploy.sh        # écrit deploy.sh, garde deploy.sh.orig
+----
+
+[[reference]]
+== Référence et évolution
+
+Un rapport JSON antérieur sert de *référence* : seuls les problèmes
+nouveaux sont détaillés, et l'évolution des notes est affichée
+(`nouveaux : 1 · corrigés : 2 · inchangés : 30`, `Note globale : 6,1 → 7,4
+(+1,3)`). Les problèmes sont appariés par une empreinte indépendante du
+numéro de ligne : ajouter du code au-dessus d'un problème connu ne le fait
+pas passer pour nouveau.
+
+[source,bash]
+----
+check-script -q -o reference.json scripts/          # sur la branche principale
+check-script -b reference.json --fail-on-new high scripts/
+----
+
+C'est la manière d'adopter l'outil sur un existant : la dette actuelle est
+tolérée, toute nouvelle dette bloque.
 
 == Outils externes : ce qui est exploité
 
 ShellCheck::
-Exécuté en JSON avec les vérifications optionnelles `add-default-case`,
+JSON avec les vérifications optionnelles `add-default-case`,
 `avoid-nullary-conditions`, `check-set-e-suppressed`,
-`check-unassigned-uppercase`, `deprecate-which`, `useless-use-of-cat`. Chaque
-code SCxxxx est classé dans une catégorie (table dans le guide développeur) :
-par exemple SC2115 → Sécurité/Critical, SC2164 → Robustesse/High, SC3xxx →
-Portabilité. `SC1091` (fichier sourcé introuvable) est exclu par défaut.
+`check-unassigned-uppercase`, `deprecate-which`, `useless-use-of-cat`.
+Chaque code SCxxxx est classé (SC2115 → Sécurité/Critical, SC2164 →
+Robustesse/High, SC3xxx → Portabilité, bashismes qui cassent sous dash →
+High…). `SC1091` est exclu par défaut. Ses corrections alimentent `--fix`.
 
 shfmt::
-Contrôle le formatage *dans le style d'indentation du script* (espaces ou
-tabulations, largeur détectée) : le choix du style n'est pas pénalisé, ses
-incohérences le sont (un problème Low par bloc à reformater). Sur un script
-`/bin/sh` que shfmt ne sait pas analyser en POSIX mais accepte en bash, l'erreur
-est classée en Portabilité.
+Formatage contrôlé dans le style d'indentation du script (le choix du style
+n'est pas pénalisé, ses incohérences le sont). Son *arbre syntaxique*
+(`--to-json`) rend exactes les règles intégrées qui portent sur des
+commandes (un `which` dans une chaîne n'est pas une commande ; un `mkdir`
+dans la condition d'un `if` est contrôlé).
 
 bashate::
-Style ; la règle E003 (indentation multiple de 4) est ignorée pour un script
-indenté autrement, shfmt contrôlant déjà la cohérence.
+Style ; E003 ignoré pour un script indenté autrement que par 4 espaces.
 
 checkbashisms::
-Exécuté uniquement pour les scripts `/bin/sh` (ou sans shebang).
+Scripts `/bin/sh` (ou sans shebang) uniquement.
+
+gitleaks, trufflehog::
+Détection de secrets ; trufflehog est lancé avec `--no-verification` pour
+qu'aucun secret ne soit envoyé sur le réseau.
 
 bash -n::
-Contrôle syntaxique avec l'interpréteur du dialecte (`bash`, `sh`, `ksh`,
-`zsh`) : toute erreur est Critical.
+Contrôle syntaxique avec l'interpréteur du dialecte : toute erreur est
+Critical.
 
 == Règles intégrées
 
-Liste obtenue par `check-script --list-rules` :
+Liste complète : `check-script --list-rules`. Chaque règle a un conseil de
+correction (affiché avec `--details` et dans les rapports fichiers). Entre
+crochets : règle active seulement dans ce contexte.
 
 [cols="1,2,1,6",options="header"]
 |===
@@ -254,70 +380,85 @@ Liste obtenue par `check-script --list-rules` :
 |SEC002 |Sécurité |Critical |Secret écrit en dur (mot de passe, jeton, clé AWS/GitHub, clé privée)
 |SEC003 |Sécurité |High |`eval` appliqué à une expansion : risque d'injection
 |SEC004 |Sécurité |High |Permissions en écriture pour tous (`chmod 777/666`, `o+w`)
-|SEC005 |Sécurité |High |Vérification TLS / clé d'hôte désactivée (`curl -k`, `--no-check-certificate`, `StrictHostKeyChecking=no`…)
+|SEC005 |Sécurité |High |Vérification TLS / clé d'hôte désactivée
 |SEC006 |Sécurité |Medium |Téléchargement en clair (`http://`)
-|SEC007 |Sécurité |High |`rm -r` sur un chemin construit avec une variable non protégée (`"$DIR/"` au lieu de `"${DIR:?}/"`)
+|SEC007 |Sécurité |High |`rm -r` sur un chemin construit avec une variable non protégée
 |SEC008 |Sécurité |Critical |Suppression récursive de `/` ou d'un répertoire système
-|SEC009 |Sécurité |Medium |Fichier temporaire au nom prévisible dans `/tmp` (utiliser `mktemp`)
+|SEC009 |Sécurité |Medium |Fichier temporaire au nom prévisible dans `/tmp`
 |SEC010 |Sécurité |High |Mot de passe en ligne de commande (`sudo -S`, `sshpass -p`, `mysql -pXXX`…)
 |SEC011 |Sécurité |Medium |`source` d'un fichier depuis `/tmp` ou une URL
-|SEC012 |Sécurité |Low |`set -x` : les secrets peuvent apparaître dans les journaux
-|SEC013 |Sécurité |High |Positionnement d'un bit setuid/setgid
+|SEC012 |Sécurité |Low |`set -x` : secrets dans les journaux
+|SEC013 |Sécurité |High |Bit setuid/setgid
 |SEC014 |Sécurité |Medium |Saisie d'un secret sans masquage (`read` sans `-s`)
+|SEC015 |Sécurité |Low |`sudo` avec une commande relative, PATH non fixé
+|SEC016 |Sécurité |High |PATH contenant `.` ou une entrée vide
+|SEC017 |Sécurité |Medium |Script privilégié sans PATH fixé [root, systemd]
+|SEC018 |Sécurité |High |Modification de sudoers, authorized_keys, passwd, shadow ou cron
+|SEC019 |Sécurité |Medium |Archive téléchargée extraite sans vérification (`curl \| tar`)
+|SEC020 |Sécurité |Medium |Option SSH risquée (`-A`, `ForwardAgent=yes`, `PermitLocalCommand`)
+|SEC021 |Sécurité |Low |Secret exporté dans l'environnement
+|SEC022 |Sécurité |Medium |Chaîne à forte entropie (secret potentiel ; sommes de contrôle exclues)
 |ROB001 |Robustesse |Medium |Pas d'arrêt sur erreur (`set -e`)
-|ROB002 |Robustesse |Low |Pipelines sans `set -o pipefail` (bash/ksh/zsh)
+|ROB002 |Robustesse |Low |Pipelines sans `set -o pipefail`
 |ROB003 |Robustesse |Low |Pas de `set -u`
-|ROB004 |Robustesse |Low |`mktemp` sans nettoyage par `trap`
-|ROB005 |Robustesse |Medium |`cd` sans contrôle d'échec (si pas de `set -e`)
-|ROB006 |Robustesse |Medium |Variable non quotée dans un test `[ ]`
+|ROB004 |Robustesse |Low |`mktemp` sans `trap` de nettoyage
+|ROB005 |Robustesse |Medium |`cd` sans contrôle d'échec (sans `set -e`)
+|ROB006 |Robustesse |Medium |Variable non quotée dans `[ ]`
 |ROB007 |Robustesse |Low |`read` sans `-r`
 |ROB008 |Robustesse |Medium |Boucle sur la sortie de `ls`
-|ROB009 |Robustesse |High |Fins de ligne Windows (CRLF)
+|ROB009 |Robustesse |High |Fins de ligne CRLF
 |ROB010 |Robustesse |Medium |`$@` / `$*` non quoté
-|MNT001 |Maintenabilité |Low |Ligne trop longue (> 120)
-|MNT002 |Maintenabilité |Low/Medium |Fonction trop longue (> 60 lignes ; Medium au-delà de 120)
-|MNT003 |Maintenabilité |Medium |Imbrication trop profonde (> 4 niveaux)
+|ROB011 |Robustesse |Low |Code de retour d'une commande critique ignoré (sans `set -e`)
+|ROB012 |Robustesse |Low |IFS modifié globalement sans restauration
+|ROB013 |Robustesse |Low |`trap` de nettoyage sans EXIT
+|ROB014 |Robustesse |Medium |Tâche planifiée sans verrou (`flock`) [cron]
+|ROB015 |Robustesse |Medium |Saisie interactive sans terminal [cron, systemd]
+|ROB016 |Robustesse |Medium |Tâche cron sans PATH fixé [cron]
+|MNT001 |Maintenabilité |Low |Ligne trop longue
+|MNT002 |Maintenabilité |Low/Medium |Fonction trop longue
+|MNT003 |Maintenabilité |Medium |Imbrication trop profonde
 |MNT004 |Maintenabilité |Low |Pas de commentaire d'en-tête
-|MNT005 |Maintenabilité |Low |Moins d'une ligne de commentaire pour 20 lignes de code (scripts > 30 lignes)
+|MNT005 |Maintenabilité |Low |Très peu de commentaires
 |MNT006 |Maintenabilité |Low |Marqueur TODO/FIXME/XXX/HACK
 |MNT007 |Maintenabilité |Low |Backticks au lieu de `$(…)`
-|MNT008 |Maintenabilité |Medium |Script long (> 150 lignes de code) sans aucune fonction
+|MNT008 |Maintenabilité |Medium |Script long sans fonction
 |MNT009 |Maintenabilité |Low |Indentation mélangeant tabulations et espaces
 |MNT010 |Maintenabilité |Low |Espaces en fin de ligne
 |POR001 |Portabilité |Medium |Pas de shebang
 |POR002 |Portabilité |Low |Interpréteur hors `/bin`, `/usr/bin` (ou `env`)
-|POR003 |Portabilité |Medium |Construction bash dans un script `/bin/sh` (`[[`, `function`, tableaux, `$'…'`, `<<<`, `&>`, `echo -e`, `source`…)
+|POR003 |Portabilité |Medium |Construction bash dans un script `/bin/sh`
 |POR004 |Portabilité |Low |`which` au lieu de `command -v`
 |POR005 |Portabilité |Low |`egrep` / `fgrep` obsolètes
-|POR006 |Portabilité |Low |Un seul gestionnaire de paquets (`dnf`, `apt-get`…) sans alternative
-|POR007 |Portabilité |Low |Outils net-tools obsolètes (`ifconfig`, `netstat`…)
+|POR006 |Portabilité |Low |Un seul gestionnaire de paquets sans alternative
+|POR007 |Portabilité |Low |Outils net-tools obsolètes
 |PERF001 |Performance |Low |`cat` inutile
-|PERF002 |Performance |Low |`grep \| wc -l` au lieu de `grep -c`
-|PERF003 |Performance |Low |`expr` au lieu de `$((…))`
-|PERF004 |Performance |Low |Commande externe (`basename`, `dirname`, `expr`…) à chaque tour de boucle
-|PERF005 |Performance |Low |Filtres enchaînés (`grep \| grep`, `grep \| awk`, `sed \| sed`)
-|PERF006 |Performance |Low |`ps \| grep` au lieu de `pgrep`
+|PERF002 |Performance |Low |`grep \| wc -l`
+|PERF003 |Performance |Low |`expr`
+|PERF004 |Performance |Low |Commande externe à chaque tour de boucle
+|PERF005 |Performance |Low |Filtres enchaînés réductibles
+|PERF006 |Performance |Low |`ps \| grep`
 |PERF007 |Performance |Low |`for … in $(seq …)` (bash)
 |PERF008 |Performance |Low |`echo` inutile dans une substitution
 |PERF009 |Performance |Low |`$(cat f)` au lieu de `$(< f)` (bash)
 |===
 
-IMPORTANT: Les règles intégrées sont *heuristiques* (expressions régulières
-sur un découpage léger du script : commentaires, chaînes et heredocs sont
-pris en compte, mais ce n'est pas un analyseur shell complet). Un faux positif
-se neutralise par configuration (`rules.disabled`).
+IMPORTANT: Les règles intégrées restent *heuristiques* quand shfmt est
+absent (expressions régulières sur un découpage léger du script). Un faux
+positif se neutralise par une directive (<<directives>>) ou par
+configuration (`rules.disabled`).
 
 [[config]]
 == Configuration
 
 Fichier YAML lu, dans l'ordre : `--config FICHIER`, `./.checkscript.yaml`,
 `${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml`. Toutes les clés sont
-facultatives ; un exemple commenté est fourni dans
-`doc/checkscript.example.yaml` (installé dans
-`~/.local/share/doc/check-script/`).
+facultatives ; exemple commenté : `doc/checkscript.example.yaml`.
 
 [source,yaml]
 ----
+profile: strict                        # base : strict | default | legacy
+context: [root]                        # contextes d'exécution
+followSource: true                     # shellcheck -x
 tools:
   shellcheck:
     path: /opt/shellcheck/shellcheck
@@ -340,28 +481,82 @@ thresholds:
 
 == Intégration continue
 
+GitLab::
+Le format « Code Quality » s'affiche dans le widget des merge requests.
+Exemple complet : `doc/ci/gitlab-ci.yml`.
++
 [source,bash]
 ----
-# Échec du job si un script du dépôt descend sous 7/10, rapport en artefact
-check-script --fail-under 7 --no-color -o check-script.md scripts/
+check-script --summary -o gl-code-quality-report.json -o check-script.html \
+  --fail-under 6 --fail-under security=8 .
 ----
 
-Le format JSON (`-o rapport.json` ou `-f json`) est stable et destiné aux
-traitements automatiques : notes par catégorie, compteurs par sévérité,
-liste des problèmes, outils exécutés et leurs versions.
+GitHub::
+Le SARIF s'affiche dans l'onglet « Security → Code scanning ». Exemple :
+`doc/ci/github-actions.yml`.
+
+pre-commit::
+Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
++
+[source,yaml]
+----
+repos:
+  - repo: https://github.com/chla28/CheckScript
+    rev: v0.2.0
+    hooks:
+      - id: check-script        # ou check-script-fix pour corriger
+----
++
+Sans le framework, le hook autonome contrôle la version *indexée* des
+scripts modifiés :
++
+[source,bash]
+----
+ln -s /chemin/vers/CheckScript/scripts/pre-commit-hook.sh .git/hooks/pre-commit
+# variables : CHECK_SCRIPT_MIN (défaut 6), CHECK_SCRIPT_ARGS, CHECK_SCRIPT_SKIP=1
+----
+
+Le format JSON (`-o rapport.json`) est stable : notes par catégorie,
+compteurs, problèmes avec empreinte, conseil et lien, outils et versions,
+comparaison avec la référence.
+
+== Interface graphique
+
+`check-script-gui` (menu « CheckScript », ou lanceur MainGUI de la suite
+AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
+
+* *Analyse* : ouvrir ou déposer un script ; source annoté (marque de
+  sévérité en marge, info-bulle des problèmes), onglet *Synthèse* (note
+  globale, radar des cinq catégories, compteurs par sévérité) et onglet
+  *Problèmes* (filtres par catégorie et sévérité, conseil, lien vers la
+  documentation ; un clic place le source sur la ligne) ;
+* *Corriger…* : aperçu du diff puis application, avec copie `.orig` ;
+* *Dossier* : tableau triable de tous les scripts d'un dossier ; avec une
+  référence chargée, colonne *Tendance* (évolution de la note) ;
+* *Exporter…* : HTML, Markdown, AsciiDoc, JSON, SARIF ;
+* *Réglages* : langue, thème, profil, contextes, outils (avec détection des
+  versions), suivi des fichiers sourcés, fichier de configuration YAML.
+
+La progression outil par outil s'affiche pendant l'analyse, qui peut être
+annulée. Un chemin passé en argument (`check-script-gui deploy.sh` ou un
+dossier) est analysé au démarrage.
 
 == Questions fréquentes
 
 Le rapport dit « Outils absents » ::
 L'analyse s'est limitée aux règles intégrées pour ces outils ; installez-les
-(voir <<_outils_danalyse_facultatifs_mais_recommandés>>) pour un résultat
-complet. `check-script --list-tools` indique les commandes d'installation.
+pour un résultat complet (`check-script --list-tools` donne les commandes).
 
 Mon script est en bash mais n'a pas de shebang ::
 Utilisez `--shell bash` ; sans shebang, le dialecte est inconnu, POR001 est
 signalé et checkbashisms est exécuté en mode forcé.
 
 Comment ignorer une règle pour un seul script ? ::
-Pour les codes ShellCheck, la directive `# shellcheck disable=SC2086` dans le
-script est respectée. Pour les autres, placez un `.checkscript.yaml` dans le
-dossier d'où l'outil est lancé, ou utilisez `--config`.
+Par une directive `# check-script disable=…` / `disable-file=…` (voir
+<<directives>>), ou `# shellcheck disable=…` pour les codes ShellCheck.
+
+Pourquoi un script POSIX avec quelques bashismes est-il noté si bas ? ::
+Parce qu'il échouera réellement sur les systèmes où `/bin/sh` est dash
+(Debian, Ubuntu) : `function`, `[[`, `&>`, `<<<` ou les tableaux y sont des
+erreurs, pas des détails de style. Déclarez `#!/usr/bin/env bash` si le
+script est écrit pour bash.

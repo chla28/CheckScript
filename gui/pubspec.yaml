@@ -1,0 +1,26 @@
+name: check_script_gui
+description: Interface graphique de check-script (évaluation de scripts shell).
+publish_to: 'none'
+version: 0.2.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  check_script:
+    path: ../
+  file_picker: ^11.0.3
+  shared_preferences: ^2.3.5
+  url_launcher: ^6.3.1
+  desktop_drop: ^0.7.1
+  path: ^1.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

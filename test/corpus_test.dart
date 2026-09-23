@@ -93,6 +93,22 @@ void main() {
             reason:
                 '$name : ${r.global} (${r.grade}), attendu ${range.join('–')}');
       }, skip: hasShellcheck ? null : 'ShellCheck non installé');
+
+      if (label['defaultGrades'] != null) {
+        test('niveau sans contexte déclaré (outils installés)', () async {
+          final r = await Engine().analyzeFile(path);
+          final range = [
+            for (final g in label['defaultGrades'] as YamlList) '$g'
+          ];
+          final i = _grades.indexOf(r.grade);
+          expect(
+              i >= _grades.indexOf(range.first) &&
+                  i <= _grades.indexOf(range.last),
+              isTrue,
+              reason:
+                  '$name : ${r.global} (${r.grade}), attendu ${range.join('–')}');
+        }, skip: hasShellcheck ? null : 'ShellCheck non installé');
+      }
     });
   }
 }

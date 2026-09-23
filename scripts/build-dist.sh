@@ -4,9 +4,15 @@
 #             (inclut un SBOM CycloneDX — sbom.cdx.json — si l'outil externe
 #              `sbom-generator` est présent)
 #
+#           dist/rpm/<distrib>/*.rpm  (avec --rpm)
+#
 # Contenu de l'archive :
 #   bin/check-script        CLI (Dart, binaire autonome)
-#   doc/                    user.adoc, developer.adoc, exemple de configuration
+#   gui/                    interface Flutter (bundle release, check_script_gui)
+#   man/check-script.1      page de manuel (si asciidoctor est présent)
+#   completions/            complétions bash et zsh
+#   doc/                    user.adoc, developer.adoc, exemple de configuration,
+#                           exemples CI
 #   sbom.cdx.json           SBOM CycloneDX (arbre pub) — si `sbom-generator`
 #                           est présent
 #   install.sh / uninstall.sh
@@ -15,11 +21,13 @@
 # produit (dist/…-scan-report.pdf) via `sbom-generator scan` +
 # Grype/OSV-Scanner/Trivy — best-effort, sauté si aucun scanner n'est installé.
 #
-# Usage : ./scripts/build-dist.sh [VERSION] [--install] [--skip-tests]
+# Usage : ./scripts/build-dist.sh [VERSION] [--rpm] [--install] [--skip-tests] [--no-gui]
 #   VERSION      numéro de version (défaut : version de pubspec.yaml)
+#   --rpm        génère aussi les RPM (scripts/build-rpm.sh, build natif)
 #   --install    après un build réussi, installe le livrable dans ~/.local
 #                (lance dist/<paquet>/install.sh)
-#   --skip-tests ne lance pas `dart analyze` / `dart test` avant la compilation
+#   --skip-tests ne lance pas analyse statique et tests avant la compilation
+#   --no-gui     ne construit pas l'interface Flutter
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,16 +38,22 @@ DEFAULT_VERSION="${DEFAULT_VERSION%%+*}"
 VERSION="$DEFAULT_VERSION"
 DO_INSTALL=false
 RUN_TESTS=true
+BUILD_RPM=false
+BUILD_GUI=true
 
 for _arg in "$@"; do
   case "$_arg" in
   --install) DO_INSTALL=true ;;
   --skip-tests) RUN_TESTS=false ;;
+  --rpm) BUILD_RPM=true ;;
+  --no-gui) BUILD_GUI=false ;;
   --help | -h)
-    echo "Usage: $0 [VERSION] [--install] [--skip-tests]"
+    echo "Usage: $0 [VERSION] [--rpm] [--install] [--skip-tests] [--no-gui]"
     echo "  VERSION       numéro de version (défaut: ${DEFAULT_VERSION}, lu depuis pubspec.yaml)"
+    echo "  --rpm         génère aussi les RPM (scripts/build-rpm.sh)"
     echo "  --install     après le build, installe le livrable dans ~/.local (dist/<paquet>/install.sh)"
-    echo "  --skip-tests  ne lance pas dart analyze / dart test avant la compilation"
+    echo "  --skip-tests  ne lance pas l'analyse statique et les tests avant la compilation"
+    echo "  --no-gui      ne construit pas l'interface Flutter"
     exit 0
     ;;
   -*)
@@ -50,6 +64,14 @@ for _arg in "$@"; do
   esac
 done
 unset _arg
+
+# Version injectée dans le bundle Flutter (lue par MainGUI via
+# data/flutter_assets/version.json) : --build-name suit la release.
+FLUTTER_VERSION_ARGS=()
+_vbase="${VERSION#v}"
+_vbase="${_vbase%%[-+]*}"
+[[ "$_vbase" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]] && FLUTTER_VERSION_ARGS=(--build-name="$_vbase")
+unset _vbase
 
 ARCH="$(uname -m)"
 DIST_NAME="check_script-${VERSION}-linux-${ARCH}"
@@ -94,6 +116,8 @@ echo ""
 echo "Version : ${VERSION}"
 echo "Arch    : ${ARCH}"
 echo "Sortie  : dist/${DIST_NAME}.tar.gz"
+[[ "$BUILD_GUI" == true ]] && echo "GUI     : oui (flutter build linux)"
+[[ "$BUILD_RPM" == true ]] && echo "RPM     : oui (dist/rpm/)"
 
 HAVE_SBOM_GENERATOR=false
 if command -v sbom-generator &>/dev/null; then
@@ -104,12 +128,16 @@ else
 fi
 echo ""
 
-for tool in dart tar; do
+_required_tools=(dart tar)
+[[ "$BUILD_GUI" == true ]] && _required_tools+=(flutter)
+[[ "$BUILD_RPM" == true ]] && _required_tools+=(rpmbuild)
+for tool in "${_required_tools[@]}"; do
   if ! command -v "$tool" &>/dev/null; then
     echo "Erreur : '$tool' introuvable dans PATH." >&2
     exit 1
   fi
 done
+unset _required_tools
 
 echo "Outils : dart $(dart --version 2>&1 | head -1 | awk '{print $4}')"
 echo ""
@@ -129,12 +157,17 @@ if [[ "$RUN_TESTS" == true ]]; then
   dart analyze --fatal-infos 2>&1 | tail -1 | sed 's/^/  /'
   echo "▶ Tests (dart test)…"
   dart test 2>&1 | tail -1 | sed 's/^/  /'
+  if [[ "$BUILD_GUI" == true ]]; then
+    echo "▶ Interface : analyse et tests (flutter)…"
+    (cd gui && flutter pub get >/dev/null && flutter analyze --no-fatal-infos 2>&1 | tail -1 &&
+      flutter test 2>&1 | tail -1) | sed 's/^/  /'
+  fi
 fi
 echo ""
 
 # ── Nettoyage ────────────────────────────────────────────────────────────────
 rm -rf "${DIST_DIR:?}"
-mkdir -p "${DIST_DIR}/bin" "${DIST_DIR}/doc"
+mkdir -p "${DIST_DIR}/bin" "${DIST_DIR}/doc" "${DIST_DIR}/completions"
 
 # ── CLI : dart compile exe ───────────────────────────────────────────────────
 echo "▶ Compilation du CLI (dart compile exe)…"
@@ -145,10 +178,52 @@ CLI_SIZE=$(du -sh "${DIST_DIR}/bin/check-script" | cut -f1)
 echo "  ✓ check-script (${CLI_SIZE})"
 echo ""
 
+# ── GUI : flutter build linux --release ─────────────────────────────────────
+if [[ "$BUILD_GUI" == true ]]; then
+  echo "▶ Build de l'interface Flutter (release)…"
+  mkdir -p "${DIST_DIR}/gui"
+  (
+    cd gui || exit 1
+    # flutter clean : le cache CMake mémorise le chemin absolu du projet.
+    flutter clean >/dev/null
+    flutter build linux --release ${FLUTTER_VERSION_ARGS[@]+"${FLUTTER_VERSION_ARGS[@]}"} 2>&1 |
+      { grep -E "^\s*(✓|error|Error)" || true; } | sed 's/^/  /'
+  )
+  cp -r gui/build/linux/x64/release/bundle/. "${DIST_DIR}/gui/"
+  chmod +x "${DIST_DIR}/gui/check_script_gui"
+  cp assets/check_script.svg "${DIST_DIR}/gui/"
+  cat >"${DIST_DIR}/gui/check_script.desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=CheckScript
+GenericName=Évaluation de scripts shell
+Comment=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell
+Exec=check-script-gui %F
+Icon=check_script
+Categories=Development;Security;Utility;
+Keywords=shell;bash;script;shellcheck;lint;security;
+MimeType=application/x-shellscript;text/x-shellscript;
+Terminal=false
+StartupNotify=true
+DESKTOP
+  echo "  ✓ check_script_gui + libs ($(du -sh "${DIST_DIR}/gui" | cut -f1))"
+  echo ""
+fi
+
 # ── Ressources ───────────────────────────────────────────────────────────────
 echo "▶ Ajout des ressources…"
 cp doc/user.adoc doc/developer.adoc doc/checkscript.example.yaml "${DIST_DIR}/doc/"
-echo "  ✓ doc/ (user.adoc, developer.adoc, checkscript.example.yaml)"
+cp -r doc/ci "${DIST_DIR}/doc/"
+echo "  ✓ doc/ (user.adoc, developer.adoc, checkscript.example.yaml, ci/)"
+cp completions/check-script.bash completions/_check-script "${DIST_DIR}/completions/"
+echo "  ✓ completions/ (bash, zsh)"
+if command -v asciidoctor &>/dev/null; then
+  mkdir -p "${DIST_DIR}/man"
+  asciidoctor -b manpage doc/check-script.1.adoc -o "${DIST_DIR}/man/check-script.1"
+  echo "  ✓ man/check-script.1"
+else
+  echo "  ⚠  asciidoctor absent : page de manuel non générée." >&2
+fi
 cp README.md CHANGELOG.md "${DIST_DIR}/"
 echo "  ✓ README.md / CHANGELOG.md"
 cp "${SCRIPT_DIR}/install.sh" "${SCRIPT_DIR}/uninstall.sh" "${DIST_DIR}/"
@@ -161,7 +236,9 @@ echo "  ✓ install.sh / uninstall.sh"
 if [[ "$HAVE_SBOM_GENERATOR" == true ]]; then
   SBOM_REFS="$(mktemp)"
   trap 'rm -f "$SBOM_REFS"' EXIT
-  echo "${PROJECT_DIR}/pubspec.lock" >"$SBOM_REFS"
+  find "$PROJECT_DIR" -name pubspec.lock -not -path '*/build/*' \
+    -not -path '*/.dart_tool/*' -not -path '*/dist/*' | sort >"$SBOM_REFS"
+  [[ "$BUILD_GUI" == true ]] && printf '%s\n' gtk3 glibc >>"$SBOM_REFS"
   if sbom-generator -i "$SBOM_REFS" -f cyclonedx \
     -o "${DIST_DIR}/sbom.cdx.json" \
     -n "${DIST_NAME}-sbom" 2>&1 | sed 's/^/  /'; then
@@ -185,6 +262,15 @@ TOTAL_SIZE=$(du -sh "$ARCHIVE" | cut -f1)
 echo "  ✓ ${ARCHIVE} (${TOTAL_SIZE})"
 echo ""
 
+# ── RPM (--rpm) ──────────────────────────────────────────────────────────────
+if [[ "$BUILD_RPM" == true ]]; then
+  _pkg=all
+  [[ "$BUILD_GUI" == true ]] || _pkg=cli
+  "${SCRIPT_DIR}/build-rpm.sh" --package="$_pkg" "$VERSION"
+  unset _pkg
+  echo ""
+fi
+
 # ── Installation locale (--install) ──────────────────────────────────────────
 if [[ "$DO_INSTALL" == true ]]; then
   echo "▶ Installation locale (~/.local)…"
@@ -204,9 +290,13 @@ fi
 if [[ -f "${DIST_DIR}/sbom.cdx.json" ]]; then
   echo "    └─ inclut sbom.cdx.json (SBOM CycloneDX : arbre pub)"
 fi
+if [[ "$BUILD_RPM" == true ]]; then
+  find "${PROJECT_DIR}/dist/rpm" -name '*.rpm' 2>/dev/null | sort |
+    while IFS= read -r r; do echo "  ${r#"${PROJECT_DIR}"/}"; done
+fi
 echo ""
 echo "Contenu de l'archive :"
-tar tf "$ARCHIVE" | sed 's/^/  /'
+tar tf "$ARCHIVE" | grep -v '/gui/.\+/' | sed 's/^/  /'
 echo ""
 echo "Pour installer sur la machine cible :"
 echo "  tar xzf ${DIST_NAME}.tar.gz"

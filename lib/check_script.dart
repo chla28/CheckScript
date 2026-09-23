@@ -16,6 +16,7 @@ export 'src/analyzers/shellcheck.dart';
 export 'src/baseline.dart';
 export 'src/config.dart';
 export 'src/diff.dart';
+export 'src/discovery.dart';
 export 'src/engine.dart';
 export 'src/fixer.dart';
 export 'src/i18n.dart';

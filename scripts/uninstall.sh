@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# uninstall.sh — Désinstallateur de CheckScript (CLI check-script)
+# uninstall.sh — Désinstallateur de CheckScript (CLI et interface graphique)
 set -euo pipefail
 
 # ── Parsing des options (mêmes options que install.sh) ───────────────────────
@@ -32,8 +32,17 @@ fi
 
 # ── Suppression du binaire et de la documentation ────────────────────────────
 echo "▶ Désinstallation de CheckScript (${PREFIX})…"
-for target in "${PREFIX}/bin/check-script" "${PREFIX}/share/doc/check-script"; do
-  if [[ -e "$target" ]]; then
+for target in \
+  "${PREFIX}/bin/check-script" \
+  "${PREFIX}/bin/check-script-gui" \
+  "${PREFIX}/lib/check_script" \
+  "${PREFIX}/share/doc/check-script" \
+  "${PREFIX}/share/man/man1/check-script.1" \
+  "${PREFIX}/share/bash-completion/completions/check-script" \
+  "${PREFIX}/share/zsh/site-functions/_check-script" \
+  "${PREFIX}/share/icons/hicolor/scalable/apps/check_script.svg" \
+  "${PREFIX}/share/applications/check_script.desktop"; do
+  if [[ -e "$target" || -L "$target" ]]; then
     rm -rf -- "${target:?}"
     echo "  ✓ supprimé : $target"
   fi
