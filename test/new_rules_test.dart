@@ -53,6 +53,15 @@ void main() {
         isNot(contains('SEC015')));
   });
 
+  test(
+      'ROB012 : la restauration depuis une variable n\'est pas signalée (faux positif corrigé)',
+      () {
+    // Cas réel (CyberAudit) : IFS="$_old_ifs" restaure la valeur sauvegardée.
+    expect(
+        ids(builtin(bash('local _old_ifs="\$IFS"; IFS=","\nIFS="\$_old_ifs"'))),
+        isNot(contains('ROB012')));
+  });
+
   test('ROB012 : IFS restauré → pas de signalement', () {
     expect(ids(builtin(bash('OLD_IFS=\$IFS\nIFS=,\necho a\nIFS=\$OLD_IFS'))),
         isNot(contains('ROB012')));

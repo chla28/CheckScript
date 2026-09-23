@@ -1,0 +1,39 @@
+# Exemple de job GitLab CI pour check-script.
+#
+# - Le rapport Code Quality s'affiche dans le widget des merge requests.
+# - Le rapport HTML est conservé comme artefact.
+# - Le job échoue si un script passe sous 6/10, ou sous 8/10 en sécurité.
+#
+# Variable à définir : CHECK_SCRIPT_URL (URL de l'archive
+# check_script-VERSION-linux-x86_64.tar.gz, ex. un package registry GitLab).
+
+check-script:
+  stage: test
+  image: registry.fedoraproject.org/fedora:44
+  before_script:
+    - dnf install -y --setopt=install_weak_deps=False ShellCheck shfmt
+      devscripts-checkbashisms python3-pip tar curl
+    - pip install --quiet bashate
+    - curl -fsSL "$CHECK_SCRIPT_URL" | tar xz
+    - ./check_script-*/install.sh --prefix=/usr/local
+  script:
+    - check-script --no-color --summary
+      -o gl-code-quality-report.json
+      -o check-script.html
+      --fail-under 6 --fail-under security=8
+      .
+  artifacts:
+    when: always
+    expire_in: 30 days
+    reports:
+      codequality: gl-code-quality-report.json
+    paths:
+      - check-script.html
+  rules:
+    - changes:
+        - "**/*.sh"
+        - "**/*.bash"
+
+# Variante « nouveaux problèmes seulement » (dette existante tolérée) :
+# conserver un rapport JSON de référence sur la branche principale, puis
+#   check-script -b reference.json --fail-on-new high -o gl-code-quality-report.json .

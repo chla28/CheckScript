@@ -1,0 +1,32 @@
+#compdef check-script
+# Complétion zsh pour check-script.
+# Installation : copier dans un dossier de $fpath (ex. ~/.zfunc) puis
+#   autoload -Uz compinit && compinit
+
+_arguments -s \
+  '*'{-o,--output}'[fichier de rapport]:fichier:_files' \
+  {-f,--format}'[format]:format:(terminal md adoc html json sarif codeclimate)' \
+  {-l,--lang}'[langue]:langue:(fr en)' \
+  {-s,--shell}'[dialecte]:dialecte:(sh bash dash ksh zsh)' \
+  {-p,--profile}'[profil]:profil:(strict default legacy)' \
+  '*--context[contexte d'"'"'exécution]:contexte:(root cron systemd interactive)' \
+  '--follow-source[suivre les fichiers sourcés]' \
+  {-c,--config}'[configuration YAML]:fichier:_files -g "*.y(a|)ml"' \
+  '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms gitleaks trufflehog syntax builtin)' \
+  '--no-external[règles intégrées seules]' \
+  {-b,--baseline}'[rapport JSON de référence]:fichier:_files -g "*.json"' \
+  '--fail-on-new[échec si nouveau problème]:sévérité:(low medium high critical)' \
+  '--fix[corriger les défauts sûrs]' \
+  '--dry-run[afficher le diff sans écrire]' \
+  '--backup[conserver FICHIER.orig]' \
+  '--details[tous les problèmes]' \
+  '--summary[synthèse seule]' \
+  '--color[forcer la couleur]' \
+  '--no-color[sans couleur]' \
+  {-q,--quiet}'[rien sur la sortie standard]' \
+  '*--fail-under[seuil de note]:seuil:' \
+  '--list-tools[outils détectés]' \
+  '--list-rules[règles intégrées]' \
+  {-v,--version}'[version]' \
+  {-h,--help}'[aide]' \
+  '*:script:_files'

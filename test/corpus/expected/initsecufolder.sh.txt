@@ -1,0 +1,7 @@
+ROB001@0 medium
+ROB003@0 low
+ROB005@14 medium
+ROB005@9 medium
+ROB011@12 low
+ROB011@18 low
+ROB011@7 low

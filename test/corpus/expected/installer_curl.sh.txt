@@ -1,0 +1,17 @@
+ROB001@0 medium
+ROB002@0 low
+ROB003@0 low
+ROB005@3 medium
+ROB011@12 low
+ROB011@7 low
+SEC001@5 critical
+SEC002@4 critical
+SEC003@11 high
+SEC004@7 high
+SEC005@5 high
+SEC006@5 medium
+SEC007@12 high
+SEC016@9 high
+SEC018@8 high
+SEC019@6 medium
+SEC021@10 low

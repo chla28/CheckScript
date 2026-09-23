@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 
 import '../i18n.dart';
+import 'codeclimate.dart';
 import 'html.dart';
 import 'sarif.dart';
 import '../model/finding.dart';
@@ -17,7 +18,8 @@ enum OutputFormat {
   asciidoc,
   json,
   sarif,
-  html;
+  html,
+  codeclimate;
 
   /// Format déduit de l'extension d'un fichier de sortie.
   static OutputFormat? fromPath(String path) {
@@ -25,6 +27,10 @@ enum OutputFormat {
     if (p.endsWith('.md') || p.endsWith('.markdown')) return markdown;
     if (p.endsWith('.adoc') || p.endsWith('.asciidoc')) return asciidoc;
     if (p.endsWith('.sarif') || p.endsWith('.sarif.json')) return sarif;
+    if (p.endsWith('.codeclimate.json') ||
+        p.endsWith('gl-code-quality-report.json')) {
+      return codeclimate;
+    }
     if (p.endsWith('.json')) return json;
     if (p.endsWith('.html') || p.endsWith('.htm')) return html;
     if (p.endsWith('.txt')) return terminal;
@@ -36,6 +42,7 @@ enum OutputFormat {
         'adoc' || 'asciidoc' => asciidoc,
         'json' => json,
         'sarif' => sarif,
+        'codeclimate' || 'gitlab' => codeclimate,
         'html' || 'htm' => html,
         'text' || 'txt' || 'terminal' => terminal,
         _ => null,
@@ -63,6 +70,7 @@ String render(
       OutputFormat.json => renderJson(reports),
       OutputFormat.sarif => renderSarif(reports),
       OutputFormat.html => renderHtml(reports, opts),
+      OutputFormat.codeclimate => renderCodeClimate(reports),
     };
 
 // ─────────────────────────────────────────────────────────────────────────────

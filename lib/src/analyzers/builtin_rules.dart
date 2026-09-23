@@ -154,10 +154,10 @@ final List<LineRule> lineRules = [
   LineRule('ROB011',
       r'^\s*(?:mkdir|cp|mv|rm|tar|chown|chmod|ln|install|rsync)\s(?!.*(?:\|\||&&))',
       when: (s) => !_hasErrexit(s) && s.codeLines >= 5, astCovered: true),
-  LineRule('ROB012', r'^\s*IFS=\S*\s*(?:;|$)', when: (s) {
-    return !RegExp(
-            r'unset\s+IFS|IFS="?\$(?:\{?(?:OLD|old|SAVED?|saved?|_?ifs|IFS_)\w*)')
-        .hasMatch(s.content);
+  // Affectation globale d'IFS à une valeur littérale (une affectation depuis
+  // une variable est une restauration).
+  LineRule('ROB012', r'^\s*IFS=(?!"?\$\{?\w)\S*\s*(?:;|$)', when: (s) {
+    return !RegExp(r'unset\s+IFS|IFS="?\$\{?\w|IFS=\$\x27').hasMatch(s.content);
   }),
   LineRule('ROB013',
       r'''(?:^\s*|[;&]\s*)trap\s+(?:'[^']+'|"[^"]+"|[^\s'"]+)\s+((?:SIG)?(?:INT|TERM|HUP|QUIT|ERR)(?:\s+(?:SIG)?\w+)*)\s*$''',

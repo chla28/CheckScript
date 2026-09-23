@@ -21,6 +21,7 @@ export 'src/fixer.dart';
 export 'src/i18n.dart';
 export 'src/model/finding.dart';
 export 'src/model/report.dart';
+export 'src/reporters/codeclimate.dart';
 export 'src/reporters/html.dart';
 export 'src/reporters/reporters.dart';
 export 'src/reporters/sarif.dart';

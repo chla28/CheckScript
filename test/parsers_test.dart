@@ -44,6 +44,16 @@ void main() {
           (Category.portability, Severity.medium));
     });
 
+    test('bashismes cassant dash classés High (calibrage)', () {
+      for (final code in [3010, 3011, 3020, 3030, 2112, 2113]) {
+        expect(classifyShellcheck(code, 'warning'),
+            (Category.portability, Severity.high),
+            reason: 'SC$code');
+      }
+      // local est pris en charge par dash : reste Medium.
+      expect(classifyShellcheck(3043, 'warning').$2, Severity.medium);
+    });
+
     test('ancien format json (liste) et sortie vide', () {
       expect(parseShellcheckJson(''), isEmpty);
       final f = parseShellcheckJson(

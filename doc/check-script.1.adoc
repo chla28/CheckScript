@@ -1,0 +1,136 @@
+= check-script(1)
+:doctype: manpage
+:manmanual: Manuel de check-script
+:mansource: check-script
+:lang: fr
+
+== NOM
+
+check-script - évalue la qualité et la sécurité de scripts shell
+
+== SYNOPSIS
+
+*check-script* [_OPTIONS_] _SCRIPT_|_DOSSIER_|*-*...
+
+== DESCRIPTION
+
+*check-script* note des scripts shell sur cinq catégories (Sécurité,
+Robustesse, Maintenabilité, Portabilité, Performance), chacune sur 10, avec le
+nombre de problèmes par sévérité (Critical, High, Medium, Low), une note
+globale et un niveau de A à E.
+
+Il exploite *shellcheck*(1), *shfmt*(1), *bashate*(1), *checkbashisms*(1),
+*gitleaks*(1), *trufflehog*(1) et *bash -n* lorsqu'ils sont installés, et les
+complète par des règles intégrées (voir *--list-rules*).
+
+Un _DOSSIER_ est parcouru récursivement (fichiers *.sh*, *.bash*, *.ksh*,
+*.dash*, *.zsh* et fichiers sans extension dont le shebang désigne un shell).
+*-* lit le script sur l'entrée standard.
+
+== OPTIONS
+
+*-o, --output* _FICHIER_::
+  Écrit le rapport dans _FICHIER_ ; format selon l'extension (*.md*, *.adoc*,
+  *.html*, *.json*, *.sarif*, *.codeclimate.json*, *.txt*). Répétable.
+
+*-f, --format* _FORMAT_::
+  *terminal*, *md*, *adoc*, *html*, *json*, *sarif* ou *codeclimate* (GitLab Code Quality) : format des fichiers
+  sans extension reconnue, ou de la sortie standard sans *-o*.
+
+*-l, --lang* *fr*|*en*::
+  Langue du rapport (défaut : *LC_ALL*, *LC_MESSAGES* puis *LANG*).
+
+*-s, --shell* _DIALECTE_::
+  Force le dialecte (*sh*, *bash*, *dash*, *ksh*, *zsh*).
+
+*-p, --profile* *strict*|*default*|*legacy*::
+  Profil de notation et de seuils.
+
+*--context* *root*|*cron*|*systemd*|*interactive*::
+  Contexte d'exécution : active des règles dédiées et relève certaines
+  sévérités. Répétable.
+
+*--follow-source*::
+  Suit les fichiers sourcés (*shellcheck -x*).
+
+*-c, --config* _FICHIER_::
+  Configuration YAML (défaut : *./.checkscript.yaml* puis
+  *~/.config/check-script/config.yaml*).
+
+*--without* _OUTIL_::
+  Désactive un outil. Répétable ou séparé par des virgules.
+
+*--no-external*::
+  N'utilise que les règles intégrées.
+
+*-b, --baseline* _RAPPORT.json_::
+  Rapport JSON de référence : seuls les nouveaux problèmes sont détaillés et
+  l'évolution des notes est affichée.
+
+*--fail-on-new* _SÉVÉRITÉ_::
+  Avec *--baseline* : code de sortie 1 si un nouveau problème atteint cette
+  sévérité.
+
+*--fix*::
+  Corrige les défauts sûrs dans le fichier (corrections ShellCheck,
+  corrections intégrées, formatage shfmt). Abandonne si la syntaxe devenait
+  invalide.
+
+*--dry-run*::
+  Avec *--fix* : affiche le diff unifié sans modifier le fichier.
+
+*--backup*::
+  Avec *--fix* : conserve l'original en _FICHIER_*.orig*.
+
+*--details*, *--summary*::
+  Terminal : tous les problèmes avec leur correction / synthèse seule.
+
+*--color*, *--no-color*::
+  Force ou désactive la couleur (défaut : automatique ; *NO_COLOR* respecté).
+
+*-q, --quiet*::
+  Aucun rapport sur la sortie standard.
+
+*--fail-under* _NOTE_|_CATÉGORIE_=_NOTE_::
+  Code de sortie 1 si la note globale, ou celle d'une catégorie, est
+  inférieure au seuil. Séparateur *,* ; décimales avec un point.
+
+*--list-tools*, *--list-rules*::
+  Outils détectés / règles intégrées.
+
+*-v, --version*, *-h, --help*::
+  Version / aide.
+
+== DIRECTIVES
+
+Dans le script :
+
+  # check-script disable=RÈGLE[,RÈGLE...]       (ligne courante, ou suivante si commentaire seul)
+  # check-script disable-next-line=RÈGLE[,...]
+  # check-script disable-file=RÈGLE[,...]
+
+Jokers : *SC20\**, *all*.
+
+== CODES DE SORTIE
+
+*0*:: Analyse effectuée.
+*1*:: Seuil non atteint (*--fail-under*, *--fail-on-new*).
+*2*:: Erreur d'usage ou de configuration.
+*3*:: Script introuvable ou illisible, rapport impossible à écrire.
+
+== EXEMPLES
+
+  check-script deploy.sh
+  check-script --profile strict --context root -o rapport.html deploy.sh
+  check-script --fix --dry-run scripts/
+  check-script -q --fail-under 7 --fail-under security=8 -o r.sarif scripts/
+  check-script -b ancien.json --fail-on-new high scripts/
+
+== FICHIERS
+
+_~/.config/check-script/config.yaml_, _./.checkscript.yaml_::
+  Configuration (exemple : _/usr/share/doc/check-script/checkscript.example.yaml_).
+
+== VOIR AUSSI
+
+*shellcheck*(1), *shfmt*(1), *bashate*(1), *checkbashisms*(1)

@@ -33,11 +33,19 @@ ArgParser buildParser(Lang lang) {
         abbr: 'o',
         valueHelp: 'FICHIER',
         help: t(
-            'Écrit le rapport dans FICHIER (.md, .adoc, .html, .json, .sarif, .txt) ; répétable.',
-            'Write the report to FILE (.md, .adoc, .html, .json, .sarif, .txt); repeatable.'))
+            'Écrit le rapport dans FICHIER (.md, .adoc, .html, .json, .sarif, .codeclimate.json, .txt) ; répétable.',
+            'Write the report to FILE (.md, .adoc, .html, .json, .sarif, .codeclimate.json, .txt); repeatable.'))
     ..addOption('format',
         abbr: 'f',
-        allowed: ['terminal', 'md', 'adoc', 'html', 'json', 'sarif'],
+        allowed: [
+          'terminal',
+          'md',
+          'adoc',
+          'html',
+          'json',
+          'sarif',
+          'codeclimate'
+        ],
         help: t(
             'Format des fichiers de sortie sans extension reconnue, ou de la '
                 'sortie standard si aucun -o.',

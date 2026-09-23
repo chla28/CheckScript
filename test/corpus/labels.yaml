@@ -1,0 +1,42 @@
+# Corpus de calibrage et de non-régression.
+#
+# Pour chaque script : plage de niveaux attendue (jugement a priori, établi
+# en lisant le script, indépendamment des notes calculées), contextes
+# d'exécution, règles qui DOIVENT apparaître et règles qui NE DOIVENT PAS
+# apparaître (faux positifs connus corrigés).
+#
+# Les scripts rhsa_*, audittools_*, checkplatform_*, cyberaudit_* et
+# initsecufolder.sh sont des copies figées de scripts de la suite AuditTools.
+
+installer_curl.sh:
+  grades: [E, E]
+  must: [SEC001, SEC002, SEC004, SEC005, SEC006, SEC016, SEC018, SEC019, SEC021, SEC003]
+legacy_backup_cron.sh:
+  grades: [D, E]
+  contexts: [cron]
+  must: [ROB001, ROB008, SEC009, MNT007, ROB014, ROB016, PERF002]
+posix_init.sh:
+  grades: [C, D]
+  must: [POR003]
+  mustNot: [ROB001, MNT004]
+clean_library.sh:
+  grades: [A, A]
+  mustNot: [ROB011, SEC022, PERF004, ROB005]
+initsecufolder.sh:
+  grades: [C, D]
+  must: [ROB001]
+rhsa_build-dist.sh:
+  grades: [A, B]
+  mustNot: [SEC007, SEC022, POR006]
+rhsa_install.sh:
+  grades: [A, B]
+rhsa_build-rpm.sh:
+  grades: [A, B]
+audittools_build-dist.sh:
+  grades: [A, B]
+checkplatform_security-check.sh:
+  grades: [A, C]
+checkplatform_weekly-report.sh:
+  grades: [A, C]
+cyberaudit_master_audit.sh:
+  grades: [A, C]

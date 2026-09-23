@@ -1,0 +1,13 @@
+MNT007@4 low
+MNT007@6 low
+PERF001@15 low
+PERF002@15 low
+ROB001@0 high
+ROB003@0 low
+ROB008@6 medium
+ROB011@10 low
+ROB011@5 low
+ROB011@8 low
+ROB014@0 medium
+ROB016@0 medium
+SEC009@15 high

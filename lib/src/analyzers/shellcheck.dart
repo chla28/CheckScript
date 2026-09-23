@@ -55,9 +55,23 @@ const Map<int, ScMapping> shellcheckMap = {
   1090: (Category.maintainability, Severity.low), // source non résolu
   // ── Portabilité ──────────────────────────────────────────────────────────
   2148: (Category.portability, Severity.medium), // pas de shebang
+  // Bashismes qui cassent réellement sous dash (/bin/sh de Debian/Ubuntu) :
+  // erreur de syntaxe, « not found » ou comportement silencieusement différent.
+  3010: (Category.portability, Severity.high), // [[ ]]
+  3011: (Category.portability, Severity.high), // <<<
+  3020: (Category.portability, Severity.high), // &> (arrière-plan en sh !)
+  3030: (Category.portability, Severity.high), // tableaux
+  3054: (Category.portability, Severity.high), // tableaux
+  3006: (Category.portability, Severity.high), // (( ))
+  3005: (Category.portability, Severity.high), // for (( ))
+  3018: (Category.portability, Severity.high), // ++ / --
+  3001: (Category.portability, Severity.high), // <( ) substitution de processus
   2039: (Category.portability, Severity.medium), // non défini en POSIX sh
-  2112: (Category.portability, Severity.low), // mot-clé function en sh
-  2113: (Category.portability, Severity.low),
+  2112: (
+    Category.portability,
+    Severity.high
+  ), // function : syntaxe invalide en dash
+  2113: (Category.portability, Severity.high),
   2166: (Category.portability, Severity.low), // -a / -o dans [ ]
   2196: (Category.portability, Severity.low), // egrep obsolète
   2197: (Category.portability, Severity.low), // fgrep obsolète
