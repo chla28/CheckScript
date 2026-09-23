@@ -1,0 +1,331 @@
+= check-script — Guide développeur
+:toc:
+:toc-title: Table des matières
+:toclevels: 2
+:lang: fr
+:source-highlighter: rouge
+:icons: font
+:sectnums:
+
+== Vue d'ensemble
+
+`check-script` est un CLI Dart qui orchestre des analyseurs de scripts shell
+(outils externes et règles intégrées), normalise leurs résultats en
+*problèmes* (`Finding`) classés par catégorie et sévérité, les dédoublonne,
+calcule des notes et produit des rapports (terminal, Markdown, AsciiDoc,
+JSON).
+
+=== Principes
+
+* *Exploiter les outils existants* (ShellCheck, shfmt, bashate,
+  checkbashisms, `bash -n`) plutôt que les réécrire ; les règles intégrées
+  couvrent ce qu'ils ne traitent pas (secrets, `curl | sh`, permissions,
+  structure…) et assurent une analyse minimale sans eux.
+* *Dégradation gracieuse* : un outil absent est signalé (`ToolStatus.missing`),
+  jamais bloquant.
+* *Bibliothèque d'abord* : toute la logique est dans `lib/` et n'écrit jamais
+  sur la console ; `bin/` ne fait que l'interface CLI. La future interface
+  Flutter appellera directement `Engine` (voir <<flutter>>).
+* *Testabilité* : l'exécution des commandes passe par l'abstraction
+  `CommandRunner`, remplacée par un faux dans les tests ; les parseurs sont des
+  fonctions pures testées sur des sorties réelles enregistrées.
+
+== Arborescence
+
+----
+bin/check_script.dart              CLI : options, découverte des scripts, sorties, codes retour
+lib/check_script.dart              Point d'entrée de la bibliothèque (exports)
+lib/src/
+  model/finding.dart               Category, Severity, Finding, ToolRun, ToolStatus
+  model/report.dart                ScriptReport (+ toJson)
+  script_info.dart                 ScriptInfo : shebang, Dialect, métriques de lignes, CRLF
+  config.dart                      CheckConfig (YAML) : outils, règles, notation, seuils
+  i18n.dart                        Lang, Tr (texte bilingue), Messages (libellés)
+  engine.dart                      Engine : orchestration, deduplicate, applyConfig, tri
+  scoring.dart                     scoreCategory, globalScore, sizeFactor, gradeFor
+  version.dart                     appVersion (à synchroniser avec pubspec.yaml)
+  analyzers/
+    analyzer.dart                  Analyzer, AnalysisContext, CommandRunner, ProcessCommandRunner
+    shellcheck.dart                ShellcheckAnalyzer, table de classement SCxxxx
+    external_tools.dart            SyntaxAnalyzer (bash -n), ShfmtAnalyzer, BashateAnalyzer,
+                                   CheckbashismsAnalyzer et leurs parseurs
+    shell_lexer.dart               lexScript : commentaires, chaînes, heredocs
+    builtin_rules.dart             Règles intégrées (LineRule + règles structurelles)
+  reporters/reporters.dart         renderTerminal / renderMarkdown / renderAsciidoc / renderJson
+scripts/                           build-dist.sh, install.sh, uninstall.sh
+test/                              Tests unitaires, CLI et intégration ; fixtures/
+doc/                               user.adoc, developer.adoc, checkscript.example.yaml
+----
+
+== Flux d'analyse
+
+----
+fichier ──► ScriptInfo.fromContent (shebang → Dialect, CRLF, lignes)
+              │
+              ▼
+Engine.analyze ── pour chaque Analyzer activé, dans l'ordre de priorité :
+              │     syntax → shellcheck → checkbashisms → builtin → shfmt → bashate
+              │     AnalyzerResult(ToolRun, List<Finding>)
+              ▼
+deduplicate  ── garde le premier de chaque groupe de doublons (ordre ci-dessus)
+applyConfig  ── retire rules.disabled, applique rules.overrides
+sortFindings ── catégorie, sévérité, ligne
+scoreCategory × 5, globalScore
+              ▼
+ScriptReport ──► render(format) ──► terminal / .md / .adoc / .json
+----
+
+Si le script provient de l'entrée standard, `Engine` l'écrit dans un fichier
+temporaire (supprimé ensuite) pour les outils externes.
+
+== Modèle
+
+`Finding`:: `tool`, `ruleId` (`SC2086`, `E003`, `SEC001`…), `category`,
+`severity`, `line` (0 = fichier entier), `column`, `message`, `snippet`
+facultatif, `equivalents` (codes d'autres outils désignant le même défaut).
+
+`ToolRun`:: compte rendu d'exécution d'un outil : `ok`, `missing`, `skipped`
+(non applicable, ex. checkbashisms sur un script bash), `failed`, `disabled` ;
+version et nombre de problèmes.
+
+`ScriptReport`:: script, outils, problèmes, 5 `CategoryScore`, note globale,
+niveau, date ; `toJson()` définit le format JSON.
+
+== Analyseurs
+
+Contrat (`analyzers/analyzer.dart`) :
+
+[source,dart]
+----
+abstract class Analyzer {
+  String get name;                                   // clé de configuration
+  Future<AnalyzerResult> analyze(AnalysisContext ctx);
+  Future<String?> version(CommandRunner runner, CheckConfig config); // null = absent, '?' = illisible
+}
+----
+
+`CommandRunner.run` renvoie `null` si l'exécutable est introuvable
+(`ProcessException`) ; `ProcessCommandRunner` force `LC_ALL=C` pour obtenir des
+messages analysables (ex. `bash -n` localisé).
+
+=== Invocations et parseurs
+
+[cols="1,3,3",options="header"]
+|===
+|Outil |Invocation |Parseur
+|syntax |`bash\|sh\|ksh\|zsh -n FICHIER` selon le dialecte |`parseSyntaxErrors` (formats bash et dash) → `SYNTAX`, Robustesse/Critical
+|shellcheck |`--format=json1 --enable=<optionnels> --exclude=… --shell=<dialecte> FICHIER` |`parseShellcheckJson` + `classifyShellcheck`
+|shfmt |`-d -ln=<posix\|bash\|mksh\|auto> -i=<unité détectée> FICHIER` ; relance en `-ln=bash` si l'analyse POSIX échoue |`parseShfmtDiff` (un `FORMAT` par bloc), `parseShfmtErrors` (`PARSE` ou `DIALECT`)
+|bashate |`--ignore=… --max-line-length=N FICHIER` (E003 ignoré si indentation ≠ 4) |`parseBashate` (formats 2.x et 0.x)
+|checkbashisms |`--extra [--force] FICHIER`, scripts sh/dash/sans shebang uniquement |`parseCheckbashisms` → `CB`, Portabilité/Medium
+|===
+
+=== Classement des codes ShellCheck
+
+`shellcheckMap` (dans `shellcheck.dart`) classe explicitement les codes les
+plus significatifs ; les autres sont classés par `classifyShellcheck` :
+
+[cols="2,3",options="header"]
+|===
+|Cas |Classement
+|Présent dans `shellcheckMap` |Catégorie et sévérité de la table (ex. 2115 → Sécurité/Critical, 2164 → Robustesse/High, 2002 → Performance/Low)
+|SC3000–SC3999 (non POSIX) |Portabilité ; Medium si `error`/`warning`, sinon Low
+|SC1xxx de niveau `error` (analyse) |Robustesse/High
+|Niveau `style` |Maintenabilité/Low
+|Autres |Robustesse ; `error` → High, `warning` → Medium, `info` → Low
+|===
+
+Le classement reste modifiable par l'utilisateur (`rules.overrides`).
+
+=== Dédoublonnage
+
+Deux problèmes sont doublons si :
+
+* ils portent sur la même ligne, ou l'un est « fichier » (ligne 0), ou l'un
+  est une erreur de syntaxe (`SYNTAX`, qui couvre tout le fichier) ;
+* *et* l'un des `equivalents` de l'un correspond au `ruleId` de l'autre
+  (motif exact ou préfixe avec `*`, ex. `SC3*`), ou ils ont même outil, même
+  règle et même ligne.
+
+Le premier rencontré est conservé ; l'ordre des analyseurs
+(`defaultAnalyzers()`) fixe donc la priorité. Exemple : `PERF001`
+(équivalent `SC2002`) disparaît si ShellCheck a signalé `SC2002` sur la même
+ligne, mais reste actif quand ShellCheck est absent.
+
+== Règles intégrées
+
+=== Lexer
+
+`lexScript` produit pour chaque ligne une `CodeLine` :
+
+* `code` : ligne sans commentaire (un `#` ne commence un commentaire qu'en
+  début de mot, hors chaîne et hors `${…}`) ;
+* `bare` : `code` dont le contenu des chaînes et des `${…}` est remplacé par
+  des espaces (même longueur que `code`) — pour repérer mots-clés, accolades,
+  pipes sans être trompé par des chaînes ;
+* `inHeredoc` : corps de heredoc (`<<`, `<<-`, délimiteur quoté ou non ;
+  `<<<` exclu) ;
+* `continuesString` : ligne commençant dans une chaîne multi-lignes.
+
+C'est volontairement un découpage heuristique, pas un parseur complet.
+
+=== Règles ligne à ligne
+
+Une `LineRule` associe un identifiant, une catégorie, une sévérité, un titre
+bilingue (`Tr`) et une expression régulière appliquée à `code` (ou à `raw`
+avec `onRaw: true`, ex. clés privées dans un heredoc). Options : `when`
+(condition sur le script, ex. `_posix`), `accept` (filtre sur la
+correspondance), `hideSnippet` (secrets), `equivalents`.
+
+La constante `_cmd` exprime la « position de commande » (début de ligne,
+après `;`, `&&`, `|`, `$(`, `then`, `do`…) pour éviter de déclencher sur un
+argument.
+
+=== Règles structurelles
+
+Calculées dans `runBuiltinRules` : options `set` (ROB001–003), `mktemp`/`trap`,
+CRLF, shebang, en-tête et densité de commentaires, longueur des fonctions
+(suivi des accolades sur `bare`), imbrication (pile des `if/for/while/until/
+case/select` et `fi/done/esac`), commande externe en boucle, gestionnaires de
+paquets, indentation mixte.
+
+=== Ajouter une règle
+
+. Choisir un identifiant libre dans la catégorie (`SECnnn`, `ROBnnn`,
+  `MNTnnn`, `PORnnn`, `PERFnnn`).
+. Ajouter une `LineRule` dans `lineRules` (ou une `RuleInfo` dans
+  `structuralRules` et sa logique dans `runBuiltinRules`), avec les titres
+  français et anglais et les `equivalents` ShellCheck/bashate s'il y en a.
+. Ajouter un cas `(règle, code déclencheur, code sain)` dans
+  `test/builtin_rules_test.dart` (ou un test dédié).
+. Mettre à jour le tableau des règles de `doc/user.adoc`.
+
+== Notation
+
+`scoring.dart` :
+
+----
+facteur(n)  = √(référence / max(référence, lignes de code))       référence = 100
+pénalité    = Σ_règles poids(sévérité) × (1 + log2 occurrences) × (facteur si Medium/Low)
+note        = clamp(10 − pénalité, 0, 10), arrondie au dixième
+globale     = min(moyenne pondérée des catégories, pire catégorie + 2,5)
+niveau      = A ≥ 9, B ≥ 7,5, C ≥ 6, D ≥ 4, E
+----
+
+Les règles sont regroupées par `(outil, ruleId, sévérité)`. Poids, référence
+et poids de catégorie sont configurables (`ScoringConfig`).
+
+== Rapports
+
+`render(reports, format, RenderOptions)` : `RenderOptions.lang`, `color`
+(terminal uniquement) et `maxDetails` (terminal : `null` = tout, `0` =
+synthèse seule, défaut CLI 10).
+
+Format JSON (clé `reports`, un objet par script) :
+
+[source,json]
+----
+{
+  "tool": "check-script", "version": "0.1.0",
+  "reports": [{
+    "file": "deploy.sh", "dialect": "bash",
+    "lines": {"total": 16, "code": 15, "comments": 0},
+    "date": "2026-09-23T21:40:00.000",
+    "global": {"score": 2.5, "grade": "E"},
+    "categories": [{"category": "security", "score": 0.0, "total": 9,
+                    "critical": 3, "high": 3, "medium": 3, "low": 0}],
+    "tools": [{"tool": "shellcheck", "status": "ok", "version": "0.11.0", "findings": 14}],
+    "findings": [{"tool": "builtin", "rule": "SEC001", "category": "security",
+                  "severity": "critical", "line": 5, "column": 0,
+                  "message": "…", "snippet": "…"}]
+  }]
+}
+----
+
+== Internationalisation
+
+* `Lang.fromEnvironment` : `LC_ALL` > `LC_MESSAGES` > `LANG`, français si
+  `fr*`, anglais sinon ; `--lang` prime.
+* Libellés de l'outil : `Messages` (`i18n.dart`). Titres des règles
+  intégrées : `Tr(fr, en)` dans leur définition.
+* Messages des outils externes : non traduits.
+* Nombres décimaux : virgule en français (`fmtScore`).
+
+== Tests
+
+[source,bash]
+----
+dart test                          # toute la suite
+dart test test/builtin_rules_test.dart
+dart analyze --fatal-infos
+----
+
+[cols="2,5",options="header"]
+|===
+|Fichier |Contenu
+|`script_info_test.dart` |Dialectes, métriques, CRLF
+|`shell_lexer_test.dart` |Commentaires, chaînes, heredocs
+|`builtin_rules_test.dart` |Chaque règle : un cas déclencheur et un cas sain ; dialectes ; règles fichier et structurelles
+|`parsers_test.dart` |Parseurs sur les sorties *réelles* des outils (`test/fixtures/outputs/`)
+|`scoring_test.dart` |Poids, atténuations, plafond de la note globale, niveaux
+|`engine_test.dart` |Dédoublonnage, configuration, orchestration avec `FakeRunner`
+|`config_test.dart`, `example_config_test.dart` |Lecture YAML, erreurs, validité de l'exemple fourni
+|`reporters_test.dart` |Structure des rapports Markdown/AsciiDoc/JSON/terminal, fr/en
+|`cli_test.dart` |Options, codes de sortie, fichiers produits, découverte des scripts
+|`integration_test.dart` |Vrais outils ; chaque test est ignoré si l'outil est absent
+|===
+
+`test/helpers.dart` fournit `FakeRunner` (réponses préenregistrées par
+exécutable, absent = non installé), `noTools()`, `builtin(...)` et
+`ids(...)`.
+
+Pour régénérer une sortie de référence après une mise à jour d'outil :
+
+[source,bash]
+----
+cd test/fixtures
+shellcheck -f json1 --shell=bash bad.sh > outputs/shellcheck_bad.json
+checkbashisms --extra posix.sh 2> outputs/checkbashisms_posix.txt
+LC_ALL=C bash -n syntax_error.sh 2> outputs/bash_n.txt
+----
+
+Toute correction de règle doit être accompagnée d'un test qui échoue avant
+la correction.
+
+== Build et packaging
+
+`scripts/build-dist.sh [VERSION] [--install] [--skip-tests]` (appelé aussi
+par l'orchestrateur `AuditTools/scripts/build-dist.sh`) :
+
+. `dart pub get`, `dart analyze --fatal-infos`, `dart test` (sauf
+  `--skip-tests`) ;
+. `dart compile exe` → `bin/check-script` ;
+. ajout de `doc/`, README, CHANGELOG, `install.sh`, `uninstall.sh` ;
+. SBOM CycloneDX et rapport CVE si `sbom-generator` est présent ;
+. archive `dist/check_script-VERSION-linux-ARCH.tar.gz`.
+
+Le script vérifie que `lib/src/version.dart` et `pubspec.yaml` portent la
+même version : les deux, ainsi que `CHANGELOG.md`, sont mis à jour à chaque
+publication.
+
+[[flutter]]
+== Préparation de l'interface Flutter
+
+L'interface graphique prévue réutilisera la bibliothèque telle quelle :
+
+[source,dart]
+----
+import 'package:check_script/check_script.dart';
+
+final engine = Engine(lang: Lang.fr, config: await loadMyConfig());
+final report = await engine.analyzeFile('/chemin/script.sh');
+for (final s in report.scores) {
+  print('${Messages(Lang.fr).category(s.category)} ${s.score} ${s.counts}');
+}
+final markdown = render([report], OutputFormat.markdown, const RenderOptions());
+----
+
+Points d'attention : `Engine` et les analyseurs n'écrivent jamais sur la
+console ; `ProcessCommandRunner` utilise `dart:io` (disponible sur Flutter
+desktop Linux) ; `ScriptReport.toJson()` permet de persister ou d'échanger
+les résultats.

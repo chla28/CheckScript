@@ -1,0 +1,8 @@
+possible bashism in posix.sh line 5 ('function' is useless):
+function show {
+possible bashism in posix.sh line 7 (alternative test command ([[ foo ]] should be [ foo ])):
+  if [[ $name == root ]]; then
+possible bashism in posix.sh line 7 (should be 'b = a'):
+  if [[ $name == root ]]; then
+possible bashism in posix.sh line 8 (echo -e):
+    echo -e "admin:\t$name"

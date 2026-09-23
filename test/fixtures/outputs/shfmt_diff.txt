@@ -1,0 +1,10 @@
+diff unformatted.sh.orig unformatted.sh
+--- unformatted.sh.orig
++++ unformatted.sh
+@@ -1,4 +1,4 @@
+ #!/bin/bash
+ if true; then
+-echo a
+-  fi
++  echo a
++fi

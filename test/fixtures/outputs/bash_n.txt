@@ -1,0 +1,2 @@
+syntax_error.sh: line 4: syntax error near unexpected token `}'
+syntax_error.sh: line 4: `}'

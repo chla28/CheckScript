@@ -1,0 +1,4 @@
+style.sh:2:1: E001 Trailing Whitespace
+style.sh:3:1: E002 Tab indents
+style.sh:3:1: E003 Indent not multiple of 4
+3 bashate error(s) found

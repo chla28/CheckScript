@@ -1,0 +1,1 @@
+posix.sh:5:15: the "function" builtin is a bash feature; tried parsing as posix
