@@ -90,8 +90,15 @@ specs=()
 
 for spec in "${specs[@]}"; do
   echo "▶ rpmbuild : ${spec}"
-  rpmbuild -bb --define "_topdir ${TOPDIR}" --define "version ${VERSION}" \
-    "${SPEC_DIR}/${spec}" 2>&1 | { grep -E "^(Wrote|error|Erreur)|RPM build errors" || true; } | sed 's/^/  /'
+  log="${TOPDIR}/${spec%.spec}.log"
+  # LC_ALL=C : messages en anglais (filtrage fiable) ; journal complet conservé.
+  if ! LC_ALL=C rpmbuild -bb --define "_topdir ${TOPDIR}" --define "version ${VERSION}" \
+    "${SPEC_DIR}/${spec}" >"$log" 2>&1; then
+    echo "  ✗ échec — dernières lignes de ${log#"${PROJECT_DIR}"/} :" >&2
+    tail -n 20 "$log" | sed 's/^/    /' >&2
+    exit 1
+  fi
+  grep -E '^Wrote:' "$log" | sed 's|^Wrote: .*/|  ✓ |'
 done
 find "${TOPDIR}/RPMS" -name '*.rpm' -exec cp {} "$OUTDIR/" \;
 echo ""

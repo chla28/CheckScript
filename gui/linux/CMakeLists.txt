@@ -74,6 +74,16 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# Greffons : RUNPATH relatif ($ORIGIN, leur dossier lib/) au lieu du dossier de
+# build absolu que CMake y inscrit sinon (fuite de chemin, refusée par le
+# contrôle check-rpaths de rpmbuild). libflutter_linux_gtk.so est de toute
+# façon déjà chargée par l'exécutable ($ORIGIN/lib).
+foreach(plugin ${FLUTTER_PLUGIN_LIST})
+  set_target_properties(${plugin}_plugin PROPERTIES
+    BUILD_WITH_INSTALL_RPATH ON
+    INSTALL_RPATH "$ORIGIN")
+endforeach(plugin)
+
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build
