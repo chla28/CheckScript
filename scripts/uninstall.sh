@@ -47,4 +47,9 @@ for target in \
     echo "  ✓ supprimé : $target"
   fi
 done
+# Cache des types MIME partagé avec les autres applications : régénéré, pas
+# supprimé.
+if [[ -d "${PREFIX}/share/applications" ]] && command -v update-desktop-database &>/dev/null; then
+  update-desktop-database "${PREFIX}/share/applications" 2>/dev/null || true
+fi
 echo "✅ Désinstallation terminée."

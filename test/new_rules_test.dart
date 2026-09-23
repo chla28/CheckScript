@@ -62,6 +62,18 @@ void main() {
         isNot(contains('ROB012')));
   });
 
+  test(
+      'SEC015 : un « sudo » cité dans un message n\'est pas une commande (faux positif corrigé)',
+      () {
+    // Cas réel (build-rpm.sh) : echo "… (sudo dnf install rpm-build)."
+    const s =
+        '#!/bin/bash\n# t\nset -eu\necho "Erreur (sudo dnf install rpm-build)." >&2\n';
+    expect(ids(builtin(s)), isNot(contains('SEC015')));
+    expect(
+        ids(builtin('#!/bin/bash\n# t\nset -eu\nls && sudo dnf install x\n')),
+        contains('SEC015'));
+  });
+
   test('ROB012 : IFS restauré → pas de signalement', () {
     expect(ids(builtin(bash('OLD_IFS=\$IFS\nIFS=,\necho a\nIFS=\$OLD_IFS'))),
         isNot(contains('ROB012')));

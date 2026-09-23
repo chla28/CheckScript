@@ -49,6 +49,11 @@ class LineRule {
   /// Ne pas recopier la ligne dans le rapport (secrets).
   final bool hideSnippet;
 
+  /// Applique la règle à la ligne dont le contenu des chaînes est masqué :
+  /// pour les règles sur un nom de commande (un « sudo » cité dans un
+  /// message n'est pas une commande).
+  final bool onBare;
+
   /// Règle portant sur un nom de commande : remplacée par sa version fondée
   /// sur l'arbre syntaxique quand celui-ci est disponible.
   final bool astCovered;
@@ -59,6 +64,7 @@ class LineRule {
       this.when,
       this.accept,
       this.hideSnippet = false,
+      this.onBare = false,
       this.astCovered = false,
       bool caseSensitive = true})
       : pattern = RegExp(re, caseSensitive: caseSensitive);
@@ -115,14 +121,14 @@ final List<LineRule> lineRules = [
   LineRule(
       'SEC011', '$_cmd(?:source|\\.)\\s+["\']?(?:/tmp/|/var/tmp/|https?://)'),
   LineRule('SEC012', '${_cmd}set\\s+(?:-[a-wyzA-Z]*x|-o\\s+xtrace)\\b',
-      astCovered: true),
+      astCovered: true, onBare: true),
   LineRule('SEC013',
       r'\bchmod\s+(?:-\w+\s+)*(?:[ugoa]*\+[rwxX]*s|0*[2467][0-7]{3})\b'),
   LineRule('SEC014',
       r'\bread\b(?![^;|&]*\s-[a-zA-Z]*s)[^;|&]*\b(?:pass(?:word|wd)?|secret|token|pin)\b',
       caseSensitive: false),
   LineRule('SEC015', '${_cmd}sudo\\s+(?:-[a-zA-Z]+\\s+)*(?![/-])[A-Za-z]',
-      when: (s) => !_setsPath(s)),
+      when: (s) => !_setsPath(s), onBare: true),
   LineRule(
       'SEC016', r'''(?:^|[\s;])(?:export\s+)?PATH=("[^"]*"|'[^']*'|[^\s;]+)''',
       accept: (m, l) {
@@ -141,12 +147,15 @@ final List<LineRule> lineRules = [
 
   // ── Robustesse ────────────────────────────────────────────────────────────
   LineRule('ROB005', '${_cmd}cd(?:\\s+[^;&|]*)?\\s*\$',
-      equivalents: ['SC2164'], when: (s) => !_hasErrexit(s), astCovered: true),
+      equivalents: ['SC2164'],
+      when: (s) => !_hasErrexit(s),
+      astCovered: true,
+      onBare: true),
   LineRule('ROB006',
       r'(?:^|\s)\[\s+\$\{?\w+\}?\s+(?:==?|!=|-(?:eq|ne|lt|gt|le|ge))\s',
       equivalents: ['SC2086']),
   LineRule('ROB007', '$_cmd(?:IFS=\\S*\\s+)?read\\b(?![^;|&]*\\s-[a-zA-Z]*r)',
-      equivalents: ['SC2162'], astCovered: true),
+      equivalents: ['SC2162'], astCovered: true, onBare: true),
   LineRule('ROB008', r'\bfor\s+\w+\s+in\s+(?:\$\(|`)\s*ls\b',
       equivalents: ['SC2045']),
   LineRule('ROB010', r'(?<!["\w$\\])\$[@*](?![\w"])',
@@ -179,18 +188,18 @@ final List<LineRule> lineRules = [
       when: _posix,
       equivalents: ['SC3*', 'SC2039', 'SC2112', 'SC2113', 'CB', 'DIALECT']),
   LineRule('POR004', '${_cmd}which\\s',
-      equivalents: ['SC2230'], astCovered: true),
+      equivalents: ['SC2230'], astCovered: true, onBare: true),
   LineRule('POR005', '$_cmd[ef]grep\\b',
-      equivalents: ['SC2196', 'SC2197'], astCovered: true),
+      equivalents: ['SC2196', 'SC2197'], astCovered: true, onBare: true),
   LineRule('POR007', '$_cmd(?:ifconfig|netstat|route|arp|iwconfig)\\b',
-      astCovered: true),
+      astCovered: true, onBare: true),
 
   // ── Performance ───────────────────────────────────────────────────────────
   LineRule('PERF001', '${_cmd}cat\\s+"?[^\\s|;&<>(-][^\\s|;&<>]*"?\\s*\\|',
       equivalents: ['SC2002']),
   LineRule('PERF002', r'\bgrep\b[^|]*\|\s*wc\s+-l\b', equivalents: ['SC2126']),
   LineRule('PERF003', '${_cmd}expr\\s',
-      equivalents: ['SC2003'], astCovered: true),
+      equivalents: ['SC2003'], astCovered: true, onBare: true),
   LineRule(
       'PERF005', r'\bgrep\b[^|]*\|\s*(?:grep|awk)\b|\bsed\b[^|]*\|\s*sed\b'),
   LineRule('PERF006', r'\bps\b[^|]*\|\s*grep\b', equivalents: ['SC2009']),
@@ -301,7 +310,7 @@ List<Finding> runBuiltinRules(ScriptInfo s, CheckConfig config, Lang lang,
     // Le shebang n'est pas du code.
     if (l.number == 1 && s.shebang != null) continue;
     for (final r in applicable) {
-      final text = r.onRaw ? l.raw : l.code;
+      final text = r.onRaw ? l.raw : (r.onBare ? l.bare : l.code);
       if (text.isEmpty) continue;
       final m = r.pattern.firstMatch(text);
       if (m == null) continue;
