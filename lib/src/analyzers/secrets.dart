@@ -10,6 +10,7 @@ import 'dart:convert';
 import '../config.dart';
 import '../model/finding.dart';
 import 'analyzer.dart';
+import '../json_num.dart';
 
 const _secretEquivalents = [
   'SEC002',
@@ -77,8 +78,8 @@ List<Finding> parseGitleaks(String output) {
         ruleId: 'GL:${l['RuleID']}',
         category: Category.security,
         severity: Severity.critical,
-        line: (l['StartLine'] as num?)?.toInt() ?? 0,
-        column: (l['StartColumn'] as num?)?.toInt() ?? 0,
+        line: jsonInt(l['StartLine']) ?? 0,
+        column: jsonInt(l['StartColumn']) ?? 0,
         message: 'Secret detected: ${l['Description'] ?? l['RuleID']}',
         equivalents: _secretEquivalents,
       ),
@@ -133,7 +134,7 @@ List<Finding> parseTrufflehog(String output) {
       ruleId: 'TH:${j['DetectorName']}',
       category: Category.security,
       severity: verified ? Severity.critical : Severity.high,
-      line: (fs?['line'] as num?)?.toInt() ?? 0,
+      line: jsonInt(fs?['line']) ?? 0,
       message:
           '${verified ? 'Verified' : 'Potential'} secret: ${j['DetectorName']}',
       equivalents: _secretEquivalents,

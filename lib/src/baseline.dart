@@ -14,6 +14,7 @@ import 'package:path/path.dart' as p;
 
 import 'model/finding.dart';
 import 'model/report.dart';
+import 'json_num.dart';
 
 /// FNV-1a 64 bits (hexadécimal) : empreinte courte et stable, sans
 /// dépendance cryptographique (ce n'est pas un usage de sécurité).
@@ -81,13 +82,13 @@ class Baseline {
             }
             return m;
           }(),
-          ((r['global'] as Map?)?['score'] as num?)?.toDouble() ?? 0,
+          jsonDouble((r['global'] as Map?)?['score']) ?? 0,
           {
             for (final c
                 in (r['categories'] as List? ?? const []).whereType<Map>())
               if (Category.tryParse('${c['category']}') != null)
                 Category.tryParse('${c['category']}')!:
-                    (c['score'] as num?)?.toDouble() ?? 0,
+                    jsonDouble(c['score']) ?? 0,
           },
         ),
     ]);

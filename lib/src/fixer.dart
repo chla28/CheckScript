@@ -19,6 +19,7 @@ import 'analyzers/shell_lexer.dart';
 import 'analyzers/shellcheck.dart';
 import 'config.dart';
 import 'script_info.dart';
+import 'json_num.dart';
 
 class FixResult {
   final String original;
@@ -56,10 +57,10 @@ List<TextEdit> parseShellcheckFixes(String json) {
     if (fix is! Map || fix['replacements'] is! List) continue;
     for (final r in (fix['replacements'] as List).whereType<Map>()) {
       out.add(TextEdit(
-        (r['line'] as num).toInt(),
-        (r['column'] as num).toInt(),
-        (r['endLine'] as num).toInt(),
-        (r['endColumn'] as num).toInt(),
+        jsonInt(r['line'])!,
+        jsonInt(r['column'])!,
+        jsonInt(r['endLine'])!,
+        jsonInt(r['endColumn'])!,
         '${r['replacement']}',
         'SC${c['code']}',
       ));

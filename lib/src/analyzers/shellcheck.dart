@@ -6,6 +6,7 @@ import 'dart:convert';
 import '../config.dart';
 import '../model/finding.dart';
 import 'analyzer.dart';
+import '../json_num.dart';
 
 /// Classement d'un code ShellCheck. Sévérité null : déduite du niveau
 /// ShellCheck (error → High, warning → Medium, info/style → Low).
@@ -190,7 +191,7 @@ List<Finding> parseShellcheckJson(String json) {
   return [
     for (final c in comments.whereType<Map>())
       () {
-        final code = (c['code'] as num).toInt();
+        final code = jsonInt(c['code'])!;
         final level = '${c['level']}';
         final (cat, sev) = classifyShellcheck(code, level);
         return Finding(
@@ -198,8 +199,8 @@ List<Finding> parseShellcheckJson(String json) {
           ruleId: 'SC$code',
           category: cat,
           severity: sev,
-          line: (c['line'] as num?)?.toInt() ?? 0,
-          column: (c['column'] as num?)?.toInt() ?? 0,
+          line: jsonInt(c['line']) ?? 0,
+          column: jsonInt(c['column']) ?? 0,
           message: '${c['message']}',
         );
       }(),

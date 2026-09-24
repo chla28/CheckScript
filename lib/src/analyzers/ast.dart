@@ -9,6 +9,7 @@ library;
 import 'dart:convert';
 
 import 'analyzer.dart';
+import '../json_num.dart';
 
 class FunctionFact {
   final String name;
@@ -99,7 +100,7 @@ class _Ctx {
 
 int _line(Object? n, [String key = 'Pos']) {
   if (n is Map && n[key] is Map) {
-    return ((n[key] as Map)['Line'] as num).toInt();
+    return jsonInt((n[key] as Map)['Line']) ?? 0;
   }
   return 0;
 }
@@ -131,8 +132,13 @@ class _Walker {
         functions.add(FunctionFact(name, _line(n), _line(n, 'End')));
         node(n['Body'], c.copy(checked: false));
       case 'BinaryCmd':
-        final op = (n['Op'] as num?)?.toInt();
-        final guard = op == _opAnd || op == _opOr;
+        final op = n['Op'];
+        final guard = op == _opAnd ||
+            op == _opOr ||
+            op == '&&' ||
+            op == '||' ||
+            jsonInt(op) == _opAnd ||
+            jsonInt(op) == _opOr;
         node(n['X'], guard ? c.copy(checked: true) : c);
         node(n['Y'], c);
       case 'IfClause':

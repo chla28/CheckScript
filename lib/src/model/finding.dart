@@ -1,6 +1,8 @@
 /// Modèle de base : catégories, sévérités et problèmes détectés.
 library;
 
+import '../json_num.dart';
+
 /// Les cinq axes du classement, dans l'ordre d'affichage.
 enum Category {
   security,
@@ -115,8 +117,8 @@ class Finding {
         ruleId: '${j['rule']}',
         category: Category.tryParse('${j['category']}') ?? Category.robustness,
         severity: Severity.tryParse('${j['severity']}') ?? Severity.low,
-        line: (j['line'] as num?)?.toInt() ?? 0,
-        column: (j['column'] as num?)?.toInt() ?? 0,
+        line: jsonInt(j['line']) ?? 0,
+        column: jsonInt(j['column']) ?? 0,
         message: '${j['message']}',
         snippet: j['snippet'] as String?,
         hint: j['hint'] as String?,
