@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — 2026-09-24
+
+- **Correctif** : plantage « type 'String' is not a subtype of type 'num?' »
+  sur Rocky 9 ; les positions, codes et scores lus dans le JSON des outils
+  externes (gitleaks, trufflehog, ShellCheck, shfmt) et de la référence sont
+  acceptés en nombre comme en chaîne.
+
 ## 0.2.0 — 2026-09-24
 
 - **Interface graphique** Flutter `check-script-gui` : source annoté, radar
