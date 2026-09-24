@@ -13,6 +13,7 @@ import '../strings.dart';
 import '../widgets/findings_list.dart';
 import '../widgets/score_panel.dart';
 import '../widgets/source_view.dart';
+import '../widgets/split_view.dart';
 
 class AnalysisScreen extends StatefulWidget {
   const AnalysisScreen({super.key, required this.state});
@@ -77,38 +78,35 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             ? Center(child: Text(s.dropHere, textAlign: TextAlign.center))
             : LayoutBuilder(builder: (context, c) {
                 final issues = detailFindings(report);
-                final side = SizedBox(
-                  width: c.maxWidth > 1000 ? 480 : c.maxWidth,
-                  child: DefaultTabController(
-                    length: 2,
-                    child: Column(children: [
-                      TabBar(tabs: [
-                        Tab(text: s.summary),
-                        Tab(text: '${s.issues} (${issues.length})'),
-                      ]),
-                      Expanded(
-                        child: TabBarView(children: [
-                          SingleChildScrollView(
-                            padding: const EdgeInsets.all(12),
-                            child: ScorePanel(report: report, lang: state.lang),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: FindingsList(
-                              findings: issues,
-                              lang: state.lang,
-                              lines: report.script.lines,
-                              onSelect: (f) =>
-                                  setState(() => _selectedLine = f.line),
-                              onApplyFix: state.busy
-                                  ? null
-                                  : (f) => _applyOne(context, f),
-                            ),
-                          ),
-                        ]),
-                      ),
+                final side = DefaultTabController(
+                  length: 2,
+                  child: Column(children: [
+                    TabBar(tabs: [
+                      Tab(text: s.summary),
+                      Tab(text: '${s.issues} (${issues.length})'),
                     ]),
-                  ),
+                    Expanded(
+                      child: TabBarView(children: [
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.all(12),
+                          child: ScorePanel(report: report, lang: state.lang),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: FindingsList(
+                            findings: issues,
+                            lang: state.lang,
+                            lines: report.script.lines,
+                            onSelect: (f) =>
+                                setState(() => _selectedLine = f.line),
+                            onApplyFix: state.busy
+                                ? null
+                                : (f) => _applyOne(context, f),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ]),
                 );
                 final source = SourceView(
                   lines: report.script.lines,
@@ -116,18 +114,28 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   selectedLine: _selectedLine,
                   onLineTap: (l) => setState(() => _selectedLine = l),
                 );
-                if (c.maxWidth > 1000) {
-                  return Row(children: [
-                    Expanded(child: source),
-                    const VerticalDivider(width: 1),
-                    side,
-                  ]);
-                }
-                return Column(children: [
-                  SizedBox(height: c.maxHeight * 0.35, child: source),
-                  const Divider(height: 1),
-                  Expanded(child: side),
-                ]);
+                // Code et résultats séparés par une barre déplaçable ;
+                // répartition mémorisée par disposition.
+                final wide = c.maxWidth > 1000;
+                final g = state.settings;
+                return SplitView(
+                  key: ValueKey(wide),
+                  axis: wide ? Axis.horizontal : Axis.vertical,
+                  first: source,
+                  second: side,
+                  state: wide ? g.wideSplit : g.narrowSplit,
+                  defaultState: wide
+                      ? GuiSettings.defaultWideSplit
+                      : GuiSettings.defaultNarrowSplit,
+                  minFirst: wide ? 240 : 120,
+                  minSecond: wide ? 360 : 200,
+                  collapseFirstTooltip: s.hideSource,
+                  collapseSecondTooltip: s.hideResults,
+                  restoreTooltip: s.showBoth,
+                  onChanged: (v) => state.updateSettings(wide
+                      ? g.copyWith(wideSplit: v)
+                      : g.copyWith(narrowSplit: v)),
+                );
               }),
       ),
     ]);

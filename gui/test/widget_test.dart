@@ -8,6 +8,7 @@ import 'package:check_script_gui/widgets/findings_list.dart';
 import 'package:check_script_gui/widgets/radar_chart.dart';
 import 'package:check_script_gui/widgets/score_panel.dart';
 import 'package:check_script_gui/widgets/source_view.dart';
+import 'package:check_script_gui/widgets/split_view.dart';
 import 'package:flutter/material.dart' hide Baseline;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -241,4 +242,150 @@ void main() {
     expect(find.text('Appliquer cette correction'), findsNothing);
     expect(find.text('Copier'), findsOneWidget);
   });
+
+  group('séparateur code / résultats', () {
+    test('sérialisation et valeurs invalides', () {
+      const st = SplitState(0.4, SplitCollapse.second);
+      expect(SplitState.decode(st.encode(), const SplitState(0.5)), st);
+      expect(SplitState.decode(null, const SplitState(0.5)),
+          const SplitState(0.5));
+      expect(SplitState.decode('1.7;none', const SplitState(0.5)),
+          const SplitState(0.5));
+      expect(SplitState.decode('0.3;inconnu', const SplitState(0.5)),
+          const SplitState(0.3));
+    });
+
+    /// Barre horizontale de 1010 px : 1000 px utiles.
+    Future<List<SplitState>> pumpSplit(WidgetTester tester, SplitState st,
+        {Axis axis = Axis.horizontal}) async {
+      final changes = <SplitState>[];
+      var current = st;
+      await tester.pumpWidget(MaterialApp(
+        home: Center(
+            child: StatefulBuilder(
+          builder: (context, setState) => SizedBox(
+            width: 1000 + SplitView.handle,
+            height: 1000 + SplitView.handle,
+            child: SplitView(
+              axis: axis,
+              first: const _Counter(key: Key('first')),
+              second: const ColoredBox(
+                  key: Key('second'), color: Colors.transparent),
+              state: current,
+              defaultState: const SplitState(0.5),
+              minFirst: 100,
+              minSecond: 200,
+              onChanged: (v) => setState(() {
+                changes.add(v);
+                current = v;
+              }),
+            ),
+          ),
+        )),
+      ));
+      return changes;
+    }
+
+    double width(WidgetTester t, String key) =>
+        t.getSize(find.byKey(Key(key))).width;
+
+    /// Point de la barre éloigné des boutons (placés en son centre).
+    Offset grip(WidgetTester t) =>
+        t.getTopLeft(find.byKey(const Key('split-handle'))) +
+        const Offset(SplitView.handle / 2, SplitView.handle / 2 + 20);
+
+    testWidgets('glisser, bornes, double-clic', (tester) async {
+      tester.view.physicalSize = const Size(1200, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final changes = await pumpSplit(tester, const SplitState(0.5));
+      expect(width(tester, 'first'), 500);
+      await tester.dragFrom(grip(tester), const Offset(-200, 0));
+      await tester.pumpAndSettle();
+      expect(width(tester, 'first'), closeTo(300, 25));
+      // Une seule notification, en fin de glissement.
+      expect(changes, hasLength(1));
+      // Au-delà de la taille minimale du second panneau (200 px) : bornée.
+      await tester.dragFrom(grip(tester), const Offset(900, 0));
+      await tester.pumpAndSettle();
+      expect(width(tester, 'second'), closeTo(200, 1));
+      await tester.tapAt(grip(tester));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(grip(tester));
+      await tester.pumpAndSettle();
+      expect(changes.last, const SplitState(0.5));
+      expect(width(tester, 'first'), 500);
+    });
+
+    testWidgets('replier puis rétablir sans perdre l\'état', (tester) async {
+      tester.view.physicalSize = const Size(1200, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpSplit(tester, const SplitState(0.5));
+      await tester.tap(find.text('0'));
+      await tester.pump();
+      expect(find.text('1'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.chevron_left)); // replier le 1er
+      await tester.pumpAndSettle();
+      expect(find.text('1'), findsNothing); // hors écran
+      expect(width(tester, 'second'), 1000);
+      await tester.tap(find.byIcon(Icons.chevron_right)); // rétablir
+      await tester.pumpAndSettle();
+      expect(find.text('1'), findsOneWidget); // compteur conservé
+      await tester.tap(find.byIcon(Icons.chevron_right)); // replier le 2nd
+      await tester.pumpAndSettle();
+      expect(width(tester, 'first'), 1000);
+    });
+
+    testWidgets('disposition verticale', (tester) async {
+      tester.view.physicalSize = const Size(1200, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpSplit(tester, const SplitState(0.35), axis: Axis.vertical);
+      expect(tester.getSize(find.byKey(const Key('first'))).height, 350);
+      final top = tester.getTopLeft(find.byKey(const Key('split-handle')));
+      await tester.dragFrom(
+          top + const Offset(20, SplitView.handle / 2), const Offset(0, 150));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byKey(const Key('first'))).height,
+          closeTo(500, 25));
+      expect(find.byIcon(Icons.expand_less), findsOneWidget);
+    });
+
+    testWidgets('écran d\'analyse : répartition mémorisée', (tester) async {
+      tester.view.physicalSize = const Size(1500, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final f = File('${tmp.path}/split.sh')..writeAsStringSync(badScript);
+      final state = AppState(runner: NoTools());
+      await tester.runAsync(() => state.analyzeFile(f.path));
+      await tester.pumpWidget(CheckScriptApp(state: state));
+      await tester.pumpAndSettle();
+      expect(state.settings.wideSplit, GuiSettings.defaultWideSplit);
+      await tester.dragFrom(grip(tester), const Offset(-300, 0));
+      await tester.pumpAndSettle();
+      final r = state.settings.wideSplit.ratio;
+      expect(r, lessThan(GuiSettings.defaultWideSplit.ratio));
+      final loaded = await tester.runAsync(GuiSettings.load);
+      expect(loaded!.wideSplit.ratio, closeTo(r, 1e-4));
+      await tester.tap(find.byTooltip('Masquer le code'));
+      await tester.pumpAndSettle();
+      expect(state.settings.wideSplit.collapsed, SplitCollapse.first);
+    });
+  });
+}
+
+/// Compteur à état local : vérifie qu'un panneau replié n'est pas recréé.
+class _Counter extends StatefulWidget {
+  const _Counter({super.key});
+  @override
+  State<_Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<_Counter> {
+  var _n = 0;
+  @override
+  Widget build(BuildContext context) => Center(
+      child: TextButton(
+          onPressed: () => setState(() => _n++), child: Text('$_n')));
 }

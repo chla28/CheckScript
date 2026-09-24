@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-09-24
+
+- Interface : barre déplaçable entre le code et les résultats (fenêtre
+  large ou étroite), double-clic pour revenir à la répartition par défaut,
+  flèches pour replier le code ou les résultats sans perdre leur état ;
+  répartition mémorisée d'une session à l'autre.
+
 ## 0.5.0 — 2026-09-24
 
 - **Scripts Python 3** : détectés par le shebang (`python`, `python3`,

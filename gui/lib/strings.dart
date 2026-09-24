@@ -91,6 +91,9 @@ class S {
   String get summary => _t('Synthèse', 'Summary');
   String get wholeFile => _t('fichier entier', 'whole file');
   String get copy => _t('Copier', 'Copy');
+  String get hideSource => _t('Masquer le code', 'Hide the code');
+  String get hideResults => _t('Masquer les résultats', 'Hide the results');
+  String get showBoth => _t('Réafficher les deux panneaux', 'Show both panels');
   String get copied => _t('Code copié.', 'Code copied.');
   String get applyThisFix => _t('Appliquer cette correction', 'Apply this fix');
   String before(int line) => _t('Avant (ligne $line)', 'Before (line $line)');

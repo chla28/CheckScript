@@ -8,6 +8,8 @@ import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart' hide Baseline;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'widgets/split_view.dart';
+
 /// Réglages de l'interface (persistés dans shared_preferences).
 class GuiSettings {
   final Lang? lang; // null : langue du système
@@ -24,6 +26,14 @@ class GuiSettings {
   /// Version minimale de Python ; null : celle de la configuration (3.9).
   final String? pythonTarget;
 
+  /// Répartition code / résultats de l'écran d'analyse, en disposition
+  /// large (côte à côte) et étroite (l'un au-dessus de l'autre).
+  final SplitState wideSplit;
+  final SplitState narrowSplit;
+
+  static const defaultWideSplit = SplitState(0.66);
+  static const defaultNarrowSplit = SplitState(0.35);
+
   const GuiSettings({
     this.lang,
     this.theme = ThemeMode.system,
@@ -34,6 +44,8 @@ class GuiSettings {
     this.followSource = false,
     this.configPath,
     this.pythonTarget,
+    this.wideSplit = defaultWideSplit,
+    this.narrowSplit = defaultNarrowSplit,
   });
 
   /// Outil actif selon ces réglages (sa valeur par défaut, sauf choix
@@ -62,6 +74,8 @@ class GuiSettings {
     bool? followSource,
     String? Function()? configPath,
     String? Function()? pythonTarget,
+    SplitState? wideSplit,
+    SplitState? narrowSplit,
   }) =>
       GuiSettings(
         lang: lang == null ? this.lang : lang(),
@@ -73,6 +87,8 @@ class GuiSettings {
         followSource: followSource ?? this.followSource,
         configPath: configPath == null ? this.configPath : configPath(),
         pythonTarget: pythonTarget == null ? this.pythonTarget : pythonTarget(),
+        wideSplit: wideSplit ?? this.wideSplit,
+        narrowSplit: narrowSplit ?? this.narrowSplit,
       );
 
   static Future<GuiSettings> load() async {
@@ -94,6 +110,9 @@ class GuiSettings {
       followSource: p.getBool('followSource') ?? false,
       configPath: p.getString('configPath'),
       pythonTarget: p.getString('pythonTarget'),
+      wideSplit: SplitState.decode(p.getString('wideSplit'), defaultWideSplit),
+      narrowSplit:
+          SplitState.decode(p.getString('narrowSplit'), defaultNarrowSplit),
     );
   }
 
@@ -120,6 +139,8 @@ class GuiSettings {
     } else {
       await p.setString('pythonTarget', pythonTarget!);
     }
+    await p.setString('wideSplit', wideSplit.encode());
+    await p.setString('narrowSplit', narrowSplit.encode());
   }
 }
 

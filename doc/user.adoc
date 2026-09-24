@@ -665,7 +665,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.5.0
+    rev: v0.5.1
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----
@@ -693,7 +693,11 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
   globale, radar des cinq catégories, compteurs par sévérité) et onglet
   *Problèmes* (filtres par catégorie et sévérité, conseil, lien vers la
   documentation ; un clic place le source sur la ligne et déplie le code à
-  écrire, voir <<code-correction>>) ;
+  écrire, voir <<code-correction>>) ; la barre entre le code et les
+  résultats se déplace à la souris (double-clic : répartition par défaut),
+  ses flèches replient l'un ou l'autre panneau ; la répartition est
+  mémorisée, séparément pour une fenêtre large (côte à côte) et étroite
+  (l'un au-dessus de l'autre) ;
 * *Corriger…* : aperçu du diff puis application ;
 * *Dossier* : tableau triable de tous les scripts d'un dossier ; avec une
   référence chargée, colonne *Tendance* (évolution de la note) ;
