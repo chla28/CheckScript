@@ -21,6 +21,7 @@ _arguments -s \
   '--backup[conserver FICHIER.orig]' \
   '--details[tous les problèmes]' \
   '--summary[synthèse seule]' \
+  '--no-source[sans la ligne de code sous chaque problème]' \
   '--color[forcer la couleur]' \
   '--no-color[sans couleur]' \
   {-q,--quiet}'[rien sur la sortie standard]' \

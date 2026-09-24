@@ -14,7 +14,7 @@ _check_script() {
 
   opts="--output -o --format -f --lang -l --shell -s --profile -p --context \
 --follow-source --config -c --without --no-external --baseline -b --fail-on-new \
---fix --dry-run --backup --details --summary --color --no-color --quiet -q \
+--fix --dry-run --backup --details --summary --source --no-source --color --no-color --quiet -q \
 --fail-under --list-tools --list-rules --version -v --help -h"
 
   case "$prev" in

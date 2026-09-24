@@ -1,3 +1,3 @@
 /// Version de l'outil (`--version`), à synchroniser avec pubspec.yaml et
 /// CHANGELOG.md.
-const appVersion = '0.2.1';
+const appVersion = '0.3.0';

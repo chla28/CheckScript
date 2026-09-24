@@ -55,7 +55,8 @@ void main() {
       expect(h, contains('data-sev="critical"'));
       expect(h, contains('id="s0-L5"'));
       expect(h, isNot(contains('<script src')));
-      expect(h, contains('&quot;S3cr3tP@ss&quot;')); // source échappée
+      expect(h, contains('eval &quot;\$USER_CMD&quot;')); // source échappée
+      expect(h, isNot(contains('S3cr3tP@ss'))); // ligne du secret masquée
       expect(h, contains('prefers-color-scheme:dark'));
     });
     test('multi-scripts : tableau de synthèse', () async {

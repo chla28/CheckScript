@@ -282,13 +282,16 @@ const Map<String, (Category, Severity)> bashateMap = {
 /// Formats pris en charge :
 ///   bashate ≥ 2 : `f.sh:4:1: E003 Indent not multiple of 4`
 ///   bashate 0.x : `[E] E003: Indent not multiple of 4: '  x'` puis ` - f.sh : L4`
+///
+/// bashate indique toujours la colonne 1, quel que soit le défaut : la
+/// colonne est donc tenue pour inconnue (0).
 List<Finding> parseBashate(String output) {
   final modern = RegExp(r'^.*?:(\d+):(\d+):\s*([EW]\d{3})\s+(.*)$');
   final legacy = RegExp(r'^\[[EW]\]\s*([EW]\d{3}):\s*(.*)$');
   final legacyLoc = RegExp(r'^\s*-\s*.*:\s*L(\d+)\s*$');
   final out = <Finding>[];
   final lines = output.split('\n');
-  Finding make(String code, int line, int col, String msg) {
+  Finding make(String code, int line, String msg) {
     final m = bashateMap[code];
     return Finding(
       tool: 'bashate',
@@ -296,7 +299,6 @@ List<Finding> parseBashate(String output) {
       category: m?.$1 ?? Category.maintainability,
       severity: m?.$2 ?? Severity.low,
       line: line,
-      column: col,
       message: msg.trim(),
       equivalents: code == 'E040' ? const ['SYNTAX', 'SC1*'] : const [],
     );
@@ -306,8 +308,7 @@ List<Finding> parseBashate(String output) {
     final l = lines[i].trim();
     final m = modern.firstMatch(l);
     if (m != null) {
-      out.add(make(m.group(3)!, int.parse(m.group(1)!), int.parse(m.group(2)!),
-          m.group(4)!));
+      out.add(make(m.group(3)!, int.parse(m.group(1)!), m.group(4)!));
       continue;
     }
     final g = legacy.firstMatch(l);
@@ -320,7 +321,7 @@ List<Finding> parseBashate(String output) {
           i++;
         }
       }
-      out.add(make(g.group(1)!, line, 0, g.group(2)!));
+      out.add(make(g.group(1)!, line, g.group(2)!));
     }
   }
   return out;

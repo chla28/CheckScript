@@ -126,6 +126,11 @@ ArgParser buildParser(Lang lang) {
         negatable: false,
         help: t('Terminal : synthèse seule, sans détail des problèmes.',
             'Terminal: summary only, without issue details.'))
+    ..addFlag('source',
+        defaultsTo: true,
+        help: t(
+            'Terminal : affiche la ligne de code sous chaque problème (défaut ; --no-source pour la masquer).',
+            'Terminal: show the code line under each issue (default; --no-source to hide it).'))
     ..addFlag('color',
         defaultsTo: null,
         help: t(
@@ -437,7 +442,8 @@ Future<int> run(List<String> argv,
         RenderOptions(
             lang: lang,
             color: color && fmt == OutputFormat.terminal,
-            maxDetails: maxDetails)));
+            maxDetails: maxDetails,
+            showSource: a['source'] as bool)));
   }
   for (final path in outputs) {
     final fmt = forced ?? OutputFormat.fromPath(path) ?? OutputFormat.markdown;

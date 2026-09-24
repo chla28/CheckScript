@@ -138,9 +138,13 @@ class Engine {
         for (final f in deduped)
           if (!suppressions.suppresses(f)) f
       ];
-      final findings = sortFindings(fingerprintAll(
-          applyConfig(escalate(enrich(kept, lang), config.contexts), config),
-          script.lines));
+      final findings = sortFindings(attachSource(
+          fingerprintAll(
+              applyConfig(
+                  escalate(enrich(kept, lang), config.contexts), config),
+              script.lines),
+          script.lines,
+          detected: raw));
       final scores = [
         for (final c in Category.values)
           scoreCategory(c, findings, script.codeLines, config.scoring)
@@ -195,6 +199,41 @@ List<Finding> deduplicate(List<Finding> findings) {
     if (!kept.any((k) => isDuplicate(k, f))) kept.add(f);
   }
   return kept;
+}
+
+/// Règles signalant un secret : la ligne concernée n'est jamais recopiée
+/// dans le rapport, quel que soit le problème qui la désigne.
+final Set<String> _secretRules = {
+  for (final r in lineRules)
+    if (r.hideSnippet) r.id,
+  'SEC022',
+};
+
+bool _revealsSecret(Finding f) =>
+    f.tool == 'gitleaks' ||
+    f.tool == 'trufflehog' ||
+    (f.tool == 'builtin' && _secretRules.contains(f.ruleId));
+
+/// Rattache à chaque problème la ligne de code qu'il désigne (sans les
+/// blancs de fin). Les lignes où un secret a été détecté sont masquées pour
+/// tous les problèmes qui les désignent, y compris quand le secret lui-même
+/// a été écarté (directive, configuration) : [detected] liste alors tous les
+/// problèmes bruts.
+List<Finding> attachSource(List<Finding> findings, List<String> lines,
+    {List<Finding>? detected}) {
+  final secretLines = {
+    for (final f in detected ?? findings)
+      if (_revealsSecret(f)) f.line,
+  };
+  return [
+    for (final f in findings)
+      f.line < 1 || f.line > lines.length
+          ? f
+          : f.copyWith(
+              snippet: () => secretLines.contains(f.line)
+                  ? null
+                  : lines[f.line - 1].trimRight()),
+  ];
 }
 
 /// Complète conseils et liens de documentation manquants.

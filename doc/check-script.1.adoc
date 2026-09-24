@@ -85,6 +85,10 @@ Un _DOSSIER_ est parcouru récursivement (fichiers *.sh*, *.bash*, *.ksh*,
 *--details*, *--summary*::
   Terminal : tous les problèmes avec leur correction / synthèse seule.
 
+*--no-source*::
+  Terminal : n'affiche pas la ligne de code (et le repère de colonne) sous
+  chaque problème.
+
 *--color*, *--no-color*::
   Force ou désactive la couleur (défaut : automatique ; *NO_COLOR* respecté).
 

@@ -95,7 +95,8 @@ class Finding {
           Severity? severity,
           String? hint,
           String? url,
-          String? fingerprint}) =>
+          String? fingerprint,
+          String? Function()? snippet}) =>
       Finding(
         tool: tool,
         ruleId: ruleId,
@@ -104,7 +105,7 @@ class Finding {
         line: line,
         column: column,
         message: message,
-        snippet: snippet,
+        snippet: snippet == null ? this.snippet : snippet(),
         equivalents: equivalents,
         hint: hint ?? this.hint,
         url: url ?? this.url,

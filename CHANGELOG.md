@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 — 2026-09-24
+
+- **Ligne de code sous chaque problème** (terminal) avec un repère `^` sous
+  la colonne signalée ; `--no-source` pour la masquer. L'extrait figure aussi
+  dans les rapports Markdown, AsciiDoc, HTML, JSON et SARIF
+  (`region.snippet`).
+- Une ligne où un secret est détecté n'est jamais recopiée, quel que soit le
+  problème qui la désigne (y compris dans la source du rapport HTML).
+- bashate : colonne ignorée (toujours 1).
+
 ## 0.2.1 — 2026-09-24
 
 - **Correctif** : plantage « type 'String' is not a subtype of type 'num?' »

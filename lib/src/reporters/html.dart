@@ -36,6 +36,7 @@ pre.src{background:var(--code);border-radius:8px;padding:8px 0;overflow-x:auto;m
 .src .l[data-sev=medium]{border-color:var(--med)}.src .l[data-sev=low]{border-color:var(--low)}
 .src .no{display:inline-block;width:3.5em;color:var(--muted);user-select:none}
 .src .l:target{background:rgba(127,127,127,.18)}details summary{cursor:pointer}
+pre.snip{background:var(--code);border-radius:6px;padding:4px 8px;margin:4px 0;overflow-x:auto;white-space:pre}
 ''';
 
 const _js = r'''
@@ -159,6 +160,11 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
         final line = f.line == 0
             ? t.wholeFile
             : '<a href="#$sid-L${f.line}">${f.line}</a>';
+        final snip = f.line == 0
+            ? ''
+            : f.snippet == null
+                ? '<div class="hint">${_e(t.maskedSecret)}</div>'
+                : '<pre class="snip">${_e(f.snippet!.trimLeft())}</pre>';
         final rule = f.url == null
             ? '<code>${_e(f.ruleId)}</code>'
             : '<a href="${_e(f.url!)}"><code>${_e(f.ruleId)}</code></a>';
@@ -166,16 +172,19 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
             '<tr class="finding" data-cat="${f.category.name}" data-sev="${f.severity.name}">'
             '<td class="n">$line</td><td class="sev ${f.severity.name}">${f.severity.label}</td>'
             '<td>${_e(t.category(f.category))}</td><td>$rule<br><span class="muted">${_e(f.tool)}</span></td>'
-            '<td>${_e(f.message)}${f.hint == null ? '' : '<div class="hint">→ ${_e(f.hint!)}</div>'}</td></tr>');
+            '<td>${_e(f.message)}$snip${f.hint == null ? '' : '<div class="hint">→ ${_e(f.hint!)}</div>'}</td></tr>');
       }
       b.writeln('</table></div>');
     }
 
-    // Source annotée : chaque ligne porte la sévérité la plus forte.
+    // Source annotée : chaque ligne porte la sévérité la plus forte ; les
+    // lignes masquées par le moteur (secret potentiel) ne sont pas recopiées.
     final worst = <int, Severity>{};
     final notes = <int, List<Finding>>{};
+    final masked = <int>{};
     for (final f in r.findings) {
       if (f.line < 1) continue;
+      if (f.snippet == null) masked.add(f.line);
       final w = worst[f.line];
       if (w == null || f.severity.index < w.index) worst[f.line] = f.severity;
       (notes[f.line] ??= []).add(f);
@@ -187,7 +196,7 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
       final tip = notes[n]?.map((f) => '${f.ruleId}: ${f.message}').join('\n');
       b.write('<span class="l" id="$sid-L$n"'
           '${sev == null ? '' : ' data-sev="${sev.name}" title="${_e(tip!)}"'}>'
-          '<span class="no">$n</span>${_e(r.script.lines[n - 1])}</span>');
+          '<span class="no">$n</span>${masked.contains(n) ? '<span class="muted">${_e(t.maskedSecret)}</span>' : _e(r.script.lines[n - 1])}</span>');
     }
     b.writeln('</pre></details></section>');
   }

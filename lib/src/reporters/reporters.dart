@@ -57,8 +57,14 @@ class RenderOptions {
   /// synthèse seule). Ne concerne que la sortie terminal.
   final int? maxDetails;
 
+  /// Affiche sous chaque problème la ligne de code concernée (terminal).
+  final bool showSource;
+
   const RenderOptions(
-      {this.lang = Lang.fr, this.color = false, this.maxDetails});
+      {this.lang = Lang.fr,
+      this.color = false,
+      this.maxDetails,
+      this.showSource = true});
 }
 
 String render(
@@ -168,6 +174,37 @@ String _bar(double score) {
   return '${'█' * n}${'░' * (10 - n)}';
 }
 
+/// Largeur maximale de code affichée sous un problème.
+const _sourceWidth = 100;
+
+/// Ligne de code d'un problème, avec un repère « ^ » sous la colonne
+/// signalée. L'indentation est retirée et une ligne trop longue est cadrée
+/// autour de la colonne.
+void _writeSource(StringBuffer b, Finding f, _Ansi a, Messages t) {
+  final gutter = '    ${_pad('${f.line}', 5, left: true)} │ ';
+  final blank = '${' ' * (gutter.length - 2)}│ ';
+  final src = f.snippet;
+  if (src == null) {
+    b.writeln(a.dim('$gutter${t.maskedSecret}'));
+    return;
+  }
+  final indent = src.length - src.trimLeft().length;
+  var code = src.substring(indent).replaceAll('\t', ' ');
+  var col = f.column > 0 ? f.column - 1 - indent : -1;
+  var start = 0;
+  if (code.length > _sourceWidth) {
+    if (col >= _sourceWidth - 10) start = col - _sourceWidth ~/ 2;
+    final end = (start + _sourceWidth).clamp(0, code.length);
+    code = '${start > 0 ? '…' : ''}${code.substring(start, end)}'
+        '${end < code.length ? '…' : ''}';
+    if (col >= 0) col = col - start + (start > 0 ? 1 : 0);
+  }
+  b.writeln('${a.dim(gutter)}$code');
+  if (col >= 0 && col <= code.length) {
+    b.writeln('${a.dim(blank)}${' ' * col}${a.severity(f.severity, '^')}');
+  }
+}
+
 String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
   final t = Messages(o.lang);
   final a = _Ansi(o.color);
@@ -228,6 +265,7 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
           b.writeln('  ${_pad(f.line == 0 ? t.wholeFile : 'L${f.line}', 9)}'
               '${a.severity(f.severity, _pad(f.severity.label, 9))}'
               '${a.dim(_pad('${f.ruleId} [${f.tool}]', 26))}${f.message}');
+          if (o.showSource && f.line > 0) _writeSource(b, f, a, t);
           final help = f.hint ?? f.url;
           if (o.maxDetails == null && help != null) {
             b.writeln(a.dim('${' ' * 46}→ $help'));
@@ -338,9 +376,11 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
           '| ${t.line} | ${t.severity} | ${t.tool} | ${t.rule} | ${t.message} |');
       b.writeln('|---:|---|---|---|---|');
       for (final f in fs) {
-        final snippet = f.snippet == null
+        final snippet = f.line == 0
             ? ''
-            : '<br>`${_mdCell(f.snippet!.replaceAll('`', "'"))}`';
+            : f.snippet == null
+                ? '<br>_${t.maskedSecret}_'
+                : '<br>`${_mdCell(f.snippet!.trimLeft().replaceAll('`', "'"))}`';
         final rule =
             f.url == null ? '`${f.ruleId}`' : '[`${f.ruleId}`](${f.url})';
         final hint = f.hint == null ? '' : '<br>→ _${_mdCell(f.hint!)}_';
@@ -442,8 +482,11 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
       b.writeln(
           '|${t.line} |${t.severity} |${t.tool} |${t.rule} |${t.message}');
       for (final f in fs) {
-        final snippet =
-            f.snippet == null ? '' : ' +\n`+${_adocCell(f.snippet!)}+`';
+        final snippet = f.line == 0
+            ? ''
+            : f.snippet == null
+                ? ' +\n_${_adocCell(t.maskedSecret)}_'
+                : ' +\n`+${_adocCell(f.snippet!.trimLeft())}+`';
         final rule =
             f.url == null ? '`${f.ruleId}`' : '${f.url}[`${f.ruleId}`]';
         final hint = f.hint == null ? '' : ' +\n_→ ${_adocCell(f.hint!)}_';

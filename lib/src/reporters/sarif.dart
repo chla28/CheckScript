@@ -62,6 +62,8 @@ String renderSarif(List<ScriptReport> reports) {
               'region': {
                 'startLine': f.line < 1 ? 1 : f.line,
                 if (f.column > 0) 'startColumn': f.column,
+                if (f.line > 0 && f.snippet != null)
+                  'snippet': {'text': f.snippet},
               },
             }
           }
