@@ -4,9 +4,11 @@ library;
 
 import 'dart:convert';
 
+import '../fixer.dart';
 import '../i18n.dart';
 import '../model/finding.dart';
 import '../model/report.dart';
+import '../rules/examples.dart';
 import '../version.dart';
 import 'reporters.dart';
 
@@ -37,6 +39,11 @@ pre.src{background:var(--code);border-radius:8px;padding:8px 0;overflow-x:auto;m
 .src .no{display:inline-block;width:3.5em;color:var(--muted);user-select:none}
 .src .l:target{background:rgba(127,127,127,.18)}details summary{cursor:pointer}
 pre.snip{background:var(--code);border-radius:6px;padding:4px 8px;margin:4px 0;overflow-x:auto;white-space:pre}
+.lbl{font-size:.8em;font-weight:600;color:var(--muted);margin-top:6px}
+pre.diff{background:var(--code);border-radius:6px;padding:4px 0;margin:4px 0;overflow-x:auto}
+.diff>span{display:block;padding:0 8px;white-space:pre}
+.diff .del,pre.bad{background:rgba(220,38,38,.12)}.diff .add,pre.good{background:rgba(22,163,74,.14)}
+details.ex{margin-top:4px}details.ex summary{font-size:.9em;color:var(--muted)}
 ''';
 
 const _js = r'''
@@ -172,7 +179,8 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
             '<tr class="finding" data-cat="${f.category.name}" data-sev="${f.severity.name}">'
             '<td class="n">$line</td><td class="sev ${f.severity.name}">${f.severity.label}</td>'
             '<td>${_e(t.category(f.category))}</td><td>$rule<br><span class="muted">${_e(f.tool)}</span></td>'
-            '<td>${_e(f.message)}$snip${f.hint == null ? '' : '<div class="hint">→ ${_e(f.hint!)}</div>'}</td></tr>');
+            '<td>${_e(f.message)}$snip${f.hint == null ? '' : '<div class="hint">→ ${_e(f.hint!)}</div>'}'
+            '${_fixHtml(f, r.script.lines, t, o.lang)}</td></tr>');
       }
       b.writeln('</table></div>');
     }
@@ -204,4 +212,24 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
   b.writeln(
       '<p class="muted">check-script $appVersion</p></main><script>$_js</script></body></html>');
   return b.toString();
+}
+
+/// Correction concrète (lignes avant / après) ou, à défaut, exemple générique
+/// de la règle ; chaîne vide si aucun des deux n'existe.
+String _fixHtml(Finding f, List<String> lines, Messages t, Lang lang) {
+  final p = fixPreview(f, lines);
+  if (p != null) {
+    final (_, before, after) = p;
+    String part(String text, String cls, String sign) => [
+          for (final l in text.split('\n'))
+            '<span class="$cls">$sign ${_e(l)}</span>'
+        ].join();
+    return '<div class="lbl">${_e(t.suggestedFix)}</div><pre class="diff">'
+        '${part(before, 'del', '-')}${part(after, 'add', '+')}</pre>';
+  }
+  final ex = exampleFor(f.ruleId);
+  if (ex == null) return '';
+  return '<details class="ex"><summary>${_e(t.fixExample)}</summary>'
+      '<div class="lbl">${_e(t.avoid)}</div><pre class="snip bad">${_e(ex.badOf(lang))}</pre>'
+      '<div class="lbl">${_e(t.writeInstead)}</div><pre class="snip good">${_e(ex.goodOf(lang))}</pre></details>';
 }

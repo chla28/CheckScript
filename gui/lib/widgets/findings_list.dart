@@ -1,5 +1,6 @@
 /// Liste des problèmes avec filtres par catégorie et sévérité ; un clic
-/// sélectionne la ligne dans le source, le lien ouvre la documentation.
+/// sélectionne la ligne dans le source et déplie le code à écrire pour
+/// résoudre le problème ; le lien ouvre la documentation.
 library;
 
 import 'package:check_script/check_script.dart';
@@ -8,18 +9,27 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../strings.dart';
 import 'common.dart';
+import 'fix_panel.dart';
 
 class FindingsList extends StatefulWidget {
   const FindingsList({
     super.key,
     required this.findings,
     required this.lang,
+    this.lines = const [],
     this.onSelect,
+    this.onApplyFix,
   });
 
   final List<Finding> findings;
   final Lang lang;
+
+  /// Lignes du script (aperçu des corrections concrètes).
+  final List<String> lines;
   final void Function(Finding f)? onSelect;
+
+  /// Applique la correction concrète d'un problème ; null : pas de bouton.
+  final void Function(Finding f)? onApplyFix;
 
   @override
   State<FindingsList> createState() => _FindingsListState();
@@ -28,6 +38,15 @@ class FindingsList extends StatefulWidget {
 class _FindingsListState extends State<FindingsList> {
   final _categories = Category.values.toSet();
   final _severities = Severity.values.toSet();
+
+  /// Problème déplié (code de correction affiché).
+  Finding? _open;
+
+  @override
+  void didUpdateWidget(FindingsList old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.findings, widget.findings)) _open = null;
+  }
 
   /// Filtre pur, exposé pour les tests.
   static List<Finding> filter(
@@ -80,11 +99,14 @@ class _FindingsListState extends State<FindingsList> {
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, i) {
                   final f = shown[i];
+                  final open = identical(f, _open);
                   return ListTile(
                     dense: true,
-                    onTap: widget.onSelect == null
-                        ? null
-                        : () => widget.onSelect!(f),
+                    selected: open,
+                    onTap: () {
+                      setState(() => _open = open ? null : f);
+                      widget.onSelect?.call(f);
+                    },
                     leading: SizedBox(
                       width: 64,
                       child: Column(
@@ -104,6 +126,15 @@ class _FindingsListState extends State<FindingsList> {
                               '${f.ruleId} · ${f.tool} · ${t.category(f.category)}',
                               style: Theme.of(context).textTheme.labelSmall),
                           if (f.hint != null) Text('→ ${f.hint}'),
+                          if (open)
+                            FixPanel(
+                              finding: f,
+                              lines: widget.lines,
+                              lang: widget.lang,
+                              onApply: widget.onApplyFix == null
+                                  ? null
+                                  : () => widget.onApplyFix!(f),
+                            ),
                         ]),
                     trailing: f.url == null
                         ? null

@@ -42,6 +42,33 @@ enum Severity {
       };
 }
 
+/// Remplacement de texte (positions 1-based, fin exclusive, tabulation = 1
+/// colonne), tel que ShellCheck le propose dans sa sortie `json1`.
+class TextEdit {
+  final int line, column, endLine, endColumn;
+  final String replacement;
+  final String rule;
+  const TextEdit(this.line, this.column, this.endLine, this.endColumn,
+      this.replacement, this.rule);
+
+  factory TextEdit.fromJson(Map<String, Object?> j, String rule) => TextEdit(
+        jsonInt(j['line']) ?? 1,
+        jsonInt(j['column']) ?? 1,
+        jsonInt(j['endLine']) ?? 1,
+        jsonInt(j['endColumn']) ?? 1,
+        '${j['replacement']}',
+        rule,
+      );
+
+  Map<String, Object?> toJson() => {
+        'line': line,
+        'column': column,
+        'endLine': endLine,
+        'endColumn': endColumn,
+        'replacement': replacement,
+      };
+}
+
 /// Un problème détecté dans un script, quel que soit l'outil d'origine.
 class Finding {
   /// Outil ayant produit le problème (`shellcheck`, `builtin`, `bashate`…).
@@ -75,6 +102,9 @@ class Finding {
   /// deux analyses (baseline) ; calculée par le moteur.
   final String? fingerprint;
 
+  /// Correction concrète de ce problème (vide si aucune correction sûre).
+  final List<TextEdit> edits;
+
   const Finding({
     required this.tool,
     required this.ruleId,
@@ -88,6 +118,7 @@ class Finding {
     this.hint,
     this.url,
     this.fingerprint,
+    this.edits = const [],
   });
 
   Finding copyWith(
@@ -96,7 +127,8 @@ class Finding {
           String? hint,
           String? url,
           String? fingerprint,
-          String? Function()? snippet}) =>
+          String? Function()? snippet,
+          List<TextEdit>? edits}) =>
       Finding(
         tool: tool,
         ruleId: ruleId,
@@ -110,6 +142,7 @@ class Finding {
         hint: hint ?? this.hint,
         url: url ?? this.url,
         fingerprint: fingerprint ?? this.fingerprint,
+        edits: edits ?? this.edits,
       );
 
   /// Relit un problème sérialisé par [toJson] (baseline, interface Flutter).
@@ -125,6 +158,11 @@ class Finding {
         hint: j['hint'] as String?,
         url: j['url'] as String?,
         fingerprint: j['fingerprint'] as String?,
+        edits: [
+          if (j['edits'] case final List l)
+            for (final e in l.whereType<Map<String, Object?>>())
+              TextEdit.fromJson(e, '${j['rule']}'),
+        ],
       );
 
   Map<String, Object?> toJson() => {
@@ -139,6 +177,7 @@ class Finding {
         if (hint != null) 'hint': hint,
         if (url != null) 'url': url,
         if (fingerprint != null) 'fingerprint': fingerprint,
+        if (edits.isNotEmpty) 'edits': [for (final e in edits) e.toJson()],
       };
 
   @override

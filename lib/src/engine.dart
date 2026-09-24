@@ -11,6 +11,7 @@ import 'analyzers/secrets.dart';
 import 'analyzers/shellcheck.dart';
 import 'baseline.dart';
 import 'config.dart';
+import 'fixer.dart';
 import 'i18n.dart';
 import 'model/finding.dart';
 import 'model/report.dart';
@@ -138,13 +139,15 @@ class Engine {
         for (final f in deduped)
           if (!suppressions.suppresses(f)) f
       ];
-      final findings = sortFindings(attachSource(
-          fingerprintAll(
-              applyConfig(
-                  escalate(enrich(kept, lang), config.contexts), config),
-              script.lines),
-          script.lines,
-          detected: raw));
+      final findings = sortFindings(attachFixes(
+          attachSource(
+              fingerprintAll(
+                  applyConfig(
+                      escalate(enrich(kept, lang), config.contexts), config),
+                  script.lines),
+              script.lines,
+              detected: raw),
+          script.lines));
       final scores = [
         for (final c in Category.values)
           scoreCategory(c, findings, script.codeLines, config.scoring)
@@ -218,21 +221,27 @@ bool _revealsSecret(Finding f) =>
 /// blancs de fin). Les lignes où un secret a été détecté sont masquées pour
 /// tous les problèmes qui les désignent, y compris quand le secret lui-même
 /// a été écarté (directive, configuration) : [detected] liste alors tous les
-/// problèmes bruts.
+/// problèmes bruts. Une correction touchant une ligne masquée est retirée :
+/// son aperçu recopierait le secret.
 List<Finding> attachSource(List<Finding> findings, List<String> lines,
     {List<Finding>? detected}) {
   final secretLines = {
     for (final f in detected ?? findings)
       if (_revealsSecret(f)) f.line,
   };
+  bool touchesSecret(Finding f) =>
+      f.edits.any((e) => secretLines.any((l) => l >= e.line && l <= e.endLine));
   return [
     for (final f in findings)
-      f.line < 1 || f.line > lines.length
-          ? f
-          : f.copyWith(
-              snippet: () => secretLines.contains(f.line)
-                  ? null
-                  : lines[f.line - 1].trimRight()),
+      () {
+        final g = touchesSecret(f) ? f.copyWith(edits: const []) : f;
+        return g.line < 1 || g.line > lines.length
+            ? g
+            : g.copyWith(
+                snippet: () => secretLines.contains(g.line)
+                    ? null
+                    : lines[g.line - 1].trimRight());
+      }(),
   ];
 }
 

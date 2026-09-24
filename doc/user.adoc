@@ -324,6 +324,30 @@ check-script --fix --dry-run deploy.sh       # diff sur la sortie standard, rien
 check-script --fix --backup deploy.sh        # écrit deploy.sh, garde deploy.sh.orig
 ----
 
+[[code-correction]]
+=== Code de correction par problème
+
+Pour chaque problème, l'interface graphique (en dépliant le problème) et le
+rapport HTML montrent le code à écrire :
+
+* *Correction proposée* : les lignes concernées avant et après correction,
+  quand une correction sûre existe pour ce problème précis (proposition de
+  ShellCheck, ou correction intégrée limitée à la ligne) ; dans l'interface,
+  *Appliquer cette correction* modifie uniquement ces lignes (contrôle
+  `bash -n`, refus si le fichier a changé depuis l'analyse) ;
+* sinon, *Exemple de correction* : un exemple générique « à éviter / à
+  écrire » de la règle (toutes les règles intégrées et les codes ShellCheck
+  les plus courants).
+
+Toute correction depuis l'interface (*Corriger…* ou *Appliquer cette
+correction*) sauvegarde le script en `.orig` à la première correction depuis
+le lancement ; les corrections suivantes conservent cette copie, qui reste
+donc le script d'avant la première correction.
+
+Le bouton *Copier* place le code corrigé dans le presse-papiers. Une ligne
+où un secret est détecté ne reçoit jamais de correction concrète (son
+aperçu recopierait le secret).
+
 [[reference]]
 == Référence et évolution
 
@@ -509,7 +533,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.3.0
+    rev: v0.4.0
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----
@@ -536,8 +560,9 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
   sévérité en marge, info-bulle des problèmes), onglet *Synthèse* (note
   globale, radar des cinq catégories, compteurs par sévérité) et onglet
   *Problèmes* (filtres par catégorie et sévérité, conseil, lien vers la
-  documentation ; un clic place le source sur la ligne) ;
-* *Corriger…* : aperçu du diff puis application, avec copie `.orig` ;
+  documentation ; un clic place le source sur la ligne et déplie le code à
+  écrire, voir <<code-correction>>) ;
+* *Corriger…* : aperçu du diff puis application ;
 * *Dossier* : tableau triable de tous les scripts d'un dossier ; avec une
   référence chargée, colonne *Tendance* (évolution de la note) ;
 * *Exporter…* : HTML, Markdown, AsciiDoc, JSON, SARIF ;

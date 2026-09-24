@@ -27,6 +27,7 @@ export 'src/reporters/html.dart';
 export 'src/reporters/reporters.dart';
 export 'src/reporters/sarif.dart';
 export 'src/rules/catalog.dart';
+export 'src/rules/examples.dart';
 export 'src/scoring.dart';
 export 'src/script_info.dart';
 export 'src/suppressions.dart';

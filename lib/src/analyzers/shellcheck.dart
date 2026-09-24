@@ -202,6 +202,11 @@ List<Finding> parseShellcheckJson(String json) {
           line: jsonInt(c['line']) ?? 0,
           column: jsonInt(c['column']) ?? 0,
           message: '${c['message']}',
+          edits: [
+            if (c['fix'] case {'replacements': final List rs})
+              for (final r in rs.whereType<Map<String, Object?>>())
+                TextEdit.fromJson(r, 'SC$code'),
+          ],
         );
       }(),
   ];

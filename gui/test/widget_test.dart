@@ -4,6 +4,7 @@ import 'package:check_script/check_script.dart';
 import 'package:check_script_gui/app_state.dart';
 import 'package:check_script_gui/main.dart';
 import 'package:check_script_gui/screens/folder_screen.dart';
+import 'package:check_script_gui/widgets/findings_list.dart';
 import 'package:check_script_gui/widgets/radar_chart.dart';
 import 'package:check_script_gui/widgets/score_panel.dart';
 import 'package:check_script_gui/widgets/source_view.dart';
@@ -67,6 +68,30 @@ void main() {
       expect(c.profile, Profile.strict);
       expect(c.contexts, {ExecContext.cron});
       expect(c.tool('bashate').enabled, isFalse);
+    });
+
+    test('correction d\'un seul problème : .orig, refus si fichier modifié',
+        () async {
+      final f = File('${tmp.path}/fix.sh')
+        ..writeAsStringSync(
+            '#!/bin/bash\nset -euo pipefail\negrep a f\nwhich ls\nread x\n');
+      final state = AppState(runner: NoTools());
+      await state.analyzeFile(f.path);
+      Finding rule(String id) =>
+          state.current!.findings.firstWhere((x) => x.ruleId == id);
+      expect(await state.applyFindingFix(rule('POR005')), isNull);
+      expect(f.readAsStringSync(),
+          '#!/bin/bash\nset -euo pipefail\ngrep -E a f\nwhich ls\nread x\n');
+      expect(File('${f.path}.orig').readAsStringSync(), contains('egrep'));
+      expect(state.current!.findings.map((x) => x.ruleId),
+          isNot(contains('POR005')));
+      // Deuxième correction : le .orig garde le script d'avant la première.
+      expect(await state.applyFindingFix(rule('POR004')), isNull);
+      expect(f.readAsStringSync(), contains('command -v ls'));
+      expect(File('${f.path}.orig').readAsStringSync(), contains('egrep'));
+      final sc = rule('ROB007');
+      f.writeAsStringSync('${f.readAsStringSync()}echo modifié\n');
+      expect(await state.applyFindingFix(sc), AppState.staleFix);
     });
 
     test('réglages persistés', () async {
@@ -145,5 +170,38 @@ void main() {
     expect(find.text('Security'), findsWidgets);
     expect(find.text(report.grade), findsOneWidget);
     expect(find.textContaining('PASSWORD'), findsOneWidget);
+  });
+
+  testWidgets('clic sur un problème : code de correction déplié',
+      (tester) async {
+    final report = await tester.runAsync(() => analyze(
+        '#!/bin/bash\nset -euo pipefail\n# en-tête\negrep a f\neval "\$CMD"\n'));
+    final applied = <String>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: FindingsList(
+          findings: report!.findings,
+          lang: Lang.fr,
+          lines: report.script.lines,
+          onApplyFix: (f) => applied.add(f.ruleId),
+        ),
+      ),
+    ));
+    expect(find.text('Correction proposée'), findsNothing);
+    await tester.tap(find.textContaining('egrep'));
+    await tester.pumpAndSettle();
+    expect(find.text('Correction proposée'), findsOneWidget);
+    expect(find.text('grep -E a f'), findsOneWidget);
+    await tester.tap(find.text('Appliquer cette correction'));
+    expect(applied, ['POR005']);
+
+    // Règle sans correction automatique : exemple générique.
+    await tester.tap(find.textContaining('SEC003'));
+    await tester.pumpAndSettle();
+    expect(find.text('Correction proposée'), findsNothing);
+    expect(find.text('Exemple de correction'), findsOneWidget);
+    expect(find.text('À écrire'), findsOneWidget);
+    expect(find.text('Appliquer cette correction'), findsNothing);
+    expect(find.text('Copier'), findsOneWidget);
   });
 }

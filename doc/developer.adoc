@@ -108,7 +108,11 @@ ScriptReport ──► Baseline.compare (si référence) ──► render(format
 `Finding`:: `tool`, `ruleId`, `category`, `severity`, `line` (0 = fichier),
 `column`, `message`, `snippet`, `equivalents` (codes d'autres outils
 désignant le même défaut), `hint` (conseil), `url` (documentation),
-`fingerprint`. `Finding.fromJson` relit `toJson`.
+`fingerprint`, `edits` (correction concrète : `TextEdit` 1-based, fin
+exclusive ; issue du `fix` ShellCheck ou de `attachFixes` pour les
+corrections intégrées). `Finding.fromJson` relit `toJson`.
+`fixPreview` en tire les lignes avant / après ; `exampleFor`
+(`rules/examples.dart`) donne l'exemple générique d'une règle.
 
 `ToolRun`:: `ok`, `missing`, `skipped`, `failed`, `disabled` ; version ;
 nombre de problèmes ; `detail` (`ast` / `lexer` pour les règles intégrées).
@@ -279,7 +283,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.3.0",
+  "tool": "check-script", "version": "0.4.0",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -293,7 +297,9 @@ Format JSON (extrait) :
     "tools": [{"tool": "shellcheck", "status": "ok", "version": "0.11.0", "findings": 14}],
     "findings": [{"tool": "builtin", "rule": "SEC001", "category": "security",
                   "severity": "critical", "line": 5, "column": 0, "message": "…",
-                  "snippet": "…", "hint": "…", "fingerprint": "9f2c…"}]
+                  "snippet": "…", "hint": "…", "fingerprint": "9f2c…",
+                  "edits": [{"line": 5, "column": 12, "endLine": 5,
+                             "endColumn": 12, "replacement": " || exit"}]}]
   }]
 }
 ----

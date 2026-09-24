@@ -97,8 +97,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             child: FindingsList(
                               findings: issues,
                               lang: state.lang,
+                              lines: report.script.lines,
                               onSelect: (f) =>
                                   setState(() => _selectedLine = f.line),
+                              onApplyFix: state.busy
+                                  ? null
+                                  : (f) => _applyOne(context, f),
                             ),
                           ),
                         ]),
@@ -127,6 +131,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               }),
       ),
     ]);
+  }
+
+  /// Applique la correction d'un seul problème, depuis la liste.
+  Future<void> _applyOne(BuildContext context, Finding f) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    final why = await state.applyFindingFix(f);
+    messenger.showSnackBar(SnackBar(
+        content: Text(switch (why) {
+      null => s.singleFixApplied(f.ruleId),
+      AppState.staleFix => s.fixStale,
+      _ => s.fixAborted(why),
+    })));
   }
 
   Future<void> _fix(BuildContext context) async {

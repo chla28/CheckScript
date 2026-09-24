@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0 — 2026-09-24
+
+- **Code de correction par problème** : un clic sur un problème (interface
+  graphique) déplie le code à écrire, également affiché dans le rapport
+  HTML — lignes avant / après quand une correction sûre existe (ShellCheck
+  ou correction intégrée), sinon exemple « à éviter / à écrire » de la
+  règle (toutes les règles intégrées, codes ShellCheck courants). Boutons
+  *Copier* et *Appliquer cette correction* (une seule correction, contrôle
+  de syntaxe).
+- Interface : la copie `.orig` est écrite à la première correction d'un
+  script depuis le lancement, puis conservée : elle garde le script d'avant
+  la première correction.
+- JSON : champ `edits` (correction concrète) sur chaque problème corrigeable.
+
 ## 0.3.0 — 2026-09-24
 
 - **Ligne de code sous chaque problème** (terminal) avec un repère `^` sous

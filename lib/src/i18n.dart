@@ -94,6 +94,10 @@ class Messages {
   String get wholeFile => _t('fichier', 'file');
   String get maskedSecret => _t('(ligne non reproduite : secret potentiel)',
       '(line not shown: potential secret)');
+  String get suggestedFix => _t('Correction proposée', 'Suggested fix');
+  String get fixExample => _t('Exemple de correction', 'Fix example');
+  String get avoid => _t('À éviter', 'Avoid');
+  String get writeInstead => _t('À écrire', 'Write instead');
   String get scoringNote => _t(
       'Note = 10 − Σ pénalités (Critical 4, High 2, Medium 0,75, Low 0,25 ; '
           'occurrences répétées d\'une même règle atténuées en log2 ; '

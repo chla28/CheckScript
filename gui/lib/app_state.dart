@@ -249,14 +249,49 @@ class AppState extends ChangeNotifier {
     return fixScript(script, config: await buildConfig(), runner: runner);
   }
 
+  /// Scripts déjà sauvegardés en .orig depuis le lancement.
+  final _backedUp = <String>{};
+
+  /// Écrit la copie .orig à la première correction de [path] depuis le
+  /// lancement ; les corrections suivantes la conservent : elle garde le
+  /// script d'avant la première correction.
+  Future<void> _backup(String path, String original) async {
+    if (_backedUp.add(path)) await File('$path.orig').writeAsString(original);
+  }
+
   /// Écrit la version corrigée (avec copie .orig) et relance l'analyse.
   Future<void> applyFix(FixResult r) async {
     final c = current;
     if (c == null || !r.changed) return;
-    await File('${c.script.path}.orig').writeAsString(r.original);
+    await _backup(c.script.path, r.original);
     await File(c.script.path).writeAsString(r.fixed);
     await analyzeFile(c.script.path);
   }
+
+  /// Applique au script courant la seule correction de [f] (copie .orig),
+  /// puis relance l'analyse. Renvoie null en cas de succès, sinon la raison
+  /// du refus : [staleFix] si le fichier a changé depuis l'analyse, ou le
+  /// message de l'interpréteur si la syntaxe ne serait plus valide.
+  Future<String?> applyFindingFix(Finding f) async {
+    final c = current;
+    if (c == null || busy || f.edits.isEmpty) return staleFix;
+    final raw = await File(c.script.path).readAsString();
+    final script = ScriptInfo.fromContent(c.script.path, raw);
+    if (script.content != c.script.content) return staleFix;
+    final (fixed, _) = applyEdits(script.content, f.edits);
+    if (fixed == script.content) return staleFix;
+    final broken = await syntaxRegression(script, fixed,
+        config: await buildConfig(), runner: runner);
+    if (broken != null) return broken;
+    await _backup(c.script.path, raw);
+    // Les fins de ligne d'origine sont conservées (seul --fix les convertit).
+    await File(c.script.path)
+        .writeAsString(script.hasCrlf ? fixed.replaceAll('\n', '\r\n') : fixed);
+    await analyzeFile(c.script.path);
+    return null;
+  }
+
+  static const staleFix = 'stale';
 
   /// Exporte les rapports affichés dans [path] (format selon l'extension).
   Future<void> export(String path, List<ScriptReport> reports) async {

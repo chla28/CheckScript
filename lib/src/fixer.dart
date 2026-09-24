@@ -20,6 +20,7 @@ import 'analyzers/shellcheck.dart';
 import 'config.dart';
 import 'script_info.dart';
 import 'json_num.dart';
+import 'model/finding.dart';
 
 class FixResult {
   final String original;
@@ -34,15 +35,6 @@ class FixResult {
   const FixResult(this.original, this.fixed, this.applied, {this.aborted});
 
   bool get changed => fixed != original;
-}
-
-/// Remplacement ShellCheck (positions 1-based, fin exclusive, tabulation = 1).
-class TextEdit {
-  final int line, column, endLine, endColumn;
-  final String replacement;
-  final String rule;
-  const TextEdit(this.line, this.column, this.endLine, this.endColumn,
-      this.replacement, this.rule);
 }
 
 /// Extrait les remplacements proposés par ShellCheck (`-f json1`).
@@ -116,54 +108,157 @@ List<TextEdit> parseShellcheckFixes(String json) {
 const _cmdPrefix =
     r'(^\s*|[;&|({]\s*|\$\(\s*|\b(?:then|do|else|if|while|until|!)\s+)';
 
+final _egrep = RegExp('$_cmdPrefix([ef])grep\\b');
+final _which = RegExp('${_cmdPrefix}which(\\s)');
+final _read =
+    RegExp('$_cmdPrefix((?:IFS=\\S*\\s+)?)read\\b(?![^;|&]*\\s-[a-zA-Z]*r)');
+
+/// Corrections intégrées portant sur la partie code d'une ligne
+/// (commentaire exclu) : règle → transformation (texte, occurrences).
+final Map<String, (String, int) Function(String)> _codeFixes = {
+  'POR005': (code) {
+    var n = 0;
+    final out = code.replaceAllMapped(_egrep, (m) {
+      n++;
+      return '${m[1]}grep -${m[2] == 'e' ? 'E' : 'F'}';
+    });
+    return (out, n);
+  },
+  'POR004': (code) {
+    var n = 0;
+    final out = code.replaceAllMapped(_which, (m) {
+      n++;
+      return '${m[1]}command -v${m[2]}';
+    });
+    return (out, n);
+  },
+  'ROB007': (code) {
+    var n = 0;
+    final out = code.replaceAllMapped(_read, (m) {
+      n++;
+      return '${m[1]}${m[2]}read -r';
+    });
+    return (out, n);
+  },
+  'MNT007': replaceBackticks,
+};
+
+/// Codes ShellCheck corrigés par une correction intégrée.
+const Map<String, String> _builtinFixAliases = {
+  'SC2196': 'POR005',
+  'SC2197': 'POR005',
+  'SC2230': 'POR004',
+  'SC2162': 'ROB007',
+  'SC2006': 'MNT007',
+};
+
+/// Applique à une ligne les corrections intégrées retenues par [only]
+/// (toutes si null) ; les occurrences sont comptées dans [count].
+String _fixLine(CodeLine l, String line, void Function(String, int) count,
+    {String? only}) {
+  bool wanted(String id) => only == null || only == id;
+  if (wanted('MNT010')) {
+    final trimmed = line.replaceFirst(RegExp(r'[ \t]+$'), '');
+    if (trimmed != line) {
+      count('MNT010', 1);
+      line = trimmed;
+    }
+  }
+  // Les motifs s'appliquent au code (commentaires retirés) : on ne
+  // transforme que la partie code de la ligne.
+  final codeLen = l.code.length <= line.length ? l.code.length : line.length;
+  var code = line.substring(0, codeLen);
+  final rest = line.substring(codeLen);
+  for (final MapEntry(key: id, value: fix) in _codeFixes.entries) {
+    if (!wanted(id)) continue;
+    final (out, n) = fix(code);
+    count(id, n);
+    code = out;
+  }
+  return code + rest;
+}
+
 /// Corrections intégrées, ligne par ligne, hors corps de heredoc et hors
 /// chaînes multi-lignes.
 (String, Map<String, int>) applyBuiltinFixes(String text) {
   final counts = <String, int>{};
-  void count(String id, [int n = 1]) {
+  void count(String id, int n) {
     if (n > 0) counts[id] = (counts[id] ?? 0) + n;
   }
 
   final lines = text.split('\n');
   final lexed = lexScript(lines);
-  final egrep = RegExp('$_cmdPrefix([ef])grep\\b');
-  final which = RegExp('${_cmdPrefix}which(\\s)');
-  final read =
-      RegExp('$_cmdPrefix((?:IFS=\\S*\\s+)?)read\\b(?![^;|&]*\\s-[a-zA-Z]*r)');
-
   for (var i = 0; i < lines.length && i < lexed.length; i++) {
     final l = lexed[i];
     if (l.inHeredoc || l.continuesString) continue;
-    var line = lines[i];
-
-    final trimmed = line.replaceFirst(RegExp(r'[ \t]+$'), '');
-    if (trimmed != line) {
-      count('MNT010');
-      line = trimmed;
-    }
-    // Les motifs s'appliquent au code (commentaires retirés) : on ne
-    // transforme que la partie code de la ligne.
-    final codeLen = l.code.length <= line.length ? l.code.length : line.length;
-    var code = line.substring(0, codeLen);
-    final rest = line.substring(codeLen);
-
-    code = code.replaceAllMapped(egrep, (m) {
-      count('POR005');
-      return '${m[1]}grep -${m[2] == 'e' ? 'E' : 'F'}';
-    });
-    code = code.replaceAllMapped(which, (m) {
-      count('POR004');
-      return '${m[1]}command -v${m[2]}';
-    });
-    code = code.replaceAllMapped(read, (m) {
-      count('ROB007');
-      return '${m[1]}${m[2]}read -r';
-    });
-    final (bt, n) = replaceBackticks(code);
-    count('MNT007', n);
-    lines[i] = bt + rest;
+    lines[i] = _fixLine(l, lines[i], count);
   }
   return (lines.join('\n'), counts);
+}
+
+/// Joint à chaque problème sans correction ShellCheck la correction intégrée
+/// de sa règle, limitée à sa ligne. Les lignes masquées (secret potentiel,
+/// [Finding.snippet] absent) ne reçoivent jamais de correction.
+List<Finding> attachFixes(List<Finding> findings, List<String> lines) {
+  final lexed = lexScript(lines);
+  return [
+    for (final f in findings)
+      () {
+        final rule = _builtinFixAliases[f.ruleId] ?? f.ruleId;
+        if (f.edits.isNotEmpty ||
+            f.snippet == null ||
+            f.line < 1 ||
+            f.line > lexed.length ||
+            (rule != 'MNT010' && !_codeFixes.containsKey(rule))) {
+          return f;
+        }
+        final l = lexed[f.line - 1];
+        if (l.inHeredoc || l.continuesString) return f;
+        final before = lines[f.line - 1];
+        final after = _fixLine(l, before, (_, __) {}, only: rule);
+        if (after == before) return f;
+        return f.copyWith(edits: [
+          TextEdit(f.line, 1, f.line, before.length + 1, after, f.ruleId)
+        ]);
+      }(),
+  ];
+}
+
+/// Aperçu de la correction d'un problème : lignes concernées avant et après
+/// (première ligne, texte avant, texte après), ou null sans correction.
+(int, String, String)? fixPreview(Finding f, List<String> lines) {
+  if (f.edits.isEmpty) return null;
+  var first = lines.length, last = 1;
+  for (final e in f.edits) {
+    if (e.line < first) first = e.line;
+    if (e.endLine > last) last = e.endLine;
+  }
+  if (first < 1 || last > lines.length || first > last) return null;
+  final before = lines.sublist(first - 1, last).join('\n');
+  final (after, _) = applyEdits(before, [
+    for (final e in f.edits)
+      TextEdit(e.line - first + 1, e.column, e.endLine - first + 1, e.endColumn,
+          e.replacement, e.rule)
+  ]);
+  return after == before ? null : (first, before, after);
+}
+
+/// Message d'erreur si [fixed] casse la syntaxe d'un script qui était valide
+/// (contrôle `<shell> -n`), sinon null.
+Future<String?> syntaxRegression(ScriptInfo script, String fixed,
+    {CheckConfig config = const CheckConfig(),
+    CommandRunner runner = const ProcessCommandRunner()}) async {
+  if (fixed == script.content || !config.tool('syntax').enabled) return null;
+  final shell = SyntaxAnalyzer.interpreterFor(script.dialect);
+  final before = await runner.run(shell, ['-n'], stdin: script.content);
+  final after = await runner.run(shell, ['-n'], stdin: fixed);
+  if (before != null &&
+      after != null &&
+      before.exitCode == 0 &&
+      after.exitCode != 0) {
+    return after.stderr.trim();
+  }
+  return null;
 }
 
 /// Remplace les substitutions `…` simples (sans antislash ni backtick
@@ -263,17 +358,10 @@ Future<FixResult> fixScript(ScriptInfo script,
   if (!text.endsWith('\n') && script.content.endsWith('\n')) text = '$text\n';
 
   // Contrôle : ne jamais rendre invalide un script qui était valide.
-  if (text != script.content && config.tool('syntax').enabled) {
-    final shell = SyntaxAnalyzer.interpreterFor(script.dialect);
-    final before = await runner.run(shell, ['-n'], stdin: script.content);
-    final after = await runner.run(shell, ['-n'], stdin: text);
-    if (before != null &&
-        after != null &&
-        before.exitCode == 0 &&
-        after.exitCode != 0) {
-      return FixResult(script.content, script.content, const {},
-          aborted: after.stderr.trim());
-    }
+  final broken =
+      await syntaxRegression(script, text, config: config, runner: runner);
+  if (broken != null) {
+    return FixResult(script.content, script.content, const {}, aborted: broken);
   }
   return FixResult(script.content, text, applied);
 }

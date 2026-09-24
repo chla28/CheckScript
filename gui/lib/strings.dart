@@ -81,4 +81,18 @@ class S {
   String get documentation => _t('Documentation', 'Documentation');
   String get summary => _t('Synthèse', 'Summary');
   String get wholeFile => _t('fichier entier', 'whole file');
+  String get copy => _t('Copier', 'Copy');
+  String get copied => _t('Code copié.', 'Code copied.');
+  String get applyThisFix => _t('Appliquer cette correction', 'Apply this fix');
+  String before(int line) => _t('Avant (ligne $line)', 'Before (line $line)');
+  String get after => _t('Après', 'After');
+  String singleFixApplied(String rule) => _t(
+      'Correction $rule appliquée (original conservé en .orig).',
+      '$rule fix applied (original kept as .orig).');
+  String get fixStale => _t(
+      'Le fichier a changé depuis l\'analyse : relancez-la avant de corriger.',
+      'The file changed since the analysis: re-run it before fixing.');
+  String get noFixAvailable => _t(
+      'Pas de correction automatique ni d\'exemple pour cette règle : voir la documentation.',
+      'No automatic fix or example for this rule: see the documentation.');
 }
