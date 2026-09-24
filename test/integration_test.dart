@@ -60,4 +60,47 @@ void main() {
     final r = await engine.analyzeFile(fixture('good.sh'));
     expect(r.grade, 'A', reason: r.findings.join('\n'));
   });
+
+  // ── Python ──────────────────────────────────────────────────────────────
+  // Sans semgrep : son registre demande un accès réseau.
+  final pyEngine = Engine(
+      lang: Lang.en,
+      config: const CheckConfig().withToolsDisabled(['semgrep']));
+
+  test('compilation Python : erreur de syntaxe située', () async {
+    final r = await pyEngine
+        .analyze(ScriptInfo.fromContent('s.py', 'def f(:\n    pass\n'));
+    final s = r.findings.firstWhere((f) => f.ruleId == 'SYNTAX');
+    expect(s.line, 1);
+    expect(s.severity, Severity.critical);
+  }, skip: _skip('python3'));
+
+  for (final (tool, rules) in [
+    ('ruff', ['E722', 'E401']),
+    ('bandit', ['B602', 'B105']),
+    ('mypy', ['operator']),
+    ('radon', ['CC']),
+  ]) {
+    test('$tool réel sur bad.py', () async {
+      final r = await pyEngine.analyzeFile(fixture('bad.py'));
+      expect(r.tools.firstWhere((t) => t.tool == tool).status, ToolStatus.ok);
+      expect(ids(r.findings), containsAll(rules));
+    }, skip: _skip(tool));
+  }
+
+  test('vermin réel : match au-delà de Python 3.9', () async {
+    final r = await Engine(
+            lang: Lang.en,
+            config: const CheckConfig().withToolsDisabled(['ruff', 'semgrep']))
+        .analyzeFile(fixture('bad.py'));
+    expect(r.findings.where((f) => f.tool == 'vermin' && f.line == 50),
+        isNotEmpty);
+  }, skip: _skip('vermin'));
+
+  test('good.py obtient A, bad.py moins de 6', () async {
+    final good = await pyEngine.analyzeFile(fixture('good.py'));
+    expect(good.grade, 'A', reason: good.findings.join('\n'));
+    final bad = await pyEngine.analyzeFile(fixture('bad.py'));
+    expect(bad.global, lessThan(6));
+  });
 }

@@ -1,0 +1,2 @@
+{"file": "bad.py", "line": 13, "column": 28, "end_line": 13, "end_column": 52, "message": "Argument 1 to \"loads\" has incompatible type \"str\"; expected \"Buffer\"", "hint": null, "code": "arg-type", "severity": "error"}
+{"file": "bad.py", "line": 19, "column": 19, "end_line": 19, "end_column": 22, "message": "Unsupported operand types for + (\"int\" and \"str\")", "hint": null, "code": "operator", "severity": "error"}

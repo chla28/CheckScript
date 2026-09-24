@@ -94,6 +94,43 @@ void main() {
       expect(await state.applyFindingFix(sc), AppState.staleFix);
     });
 
+    test('outils Python : pylint activable, version cible transmise', () async {
+      const g = GuiSettings();
+      expect(g.toolEnabled('ruff'), isTrue);
+      expect(g.toolEnabled('pylint'), isFalse);
+      final on = g.withTool('pylint', true).withTool('ruff', false);
+      expect(on.toolEnabled('pylint'), isTrue);
+      expect(on.toolEnabled('ruff'), isFalse);
+      final state = AppState(
+          runner: NoTools(),
+          settings: GuiSettings(
+              enabledTools: on.enabledTools,
+              disabledTools: on.disabledTools,
+              pythonTarget: '3.11'));
+      final c = await state.buildConfig();
+      expect(c.tool('pylint').enabled, isTrue);
+      expect(c.tool('ruff').enabled, isFalse);
+      expect(c.pythonTarget, '3.11');
+      await on.copyWith(pythonTarget: () => '3.12').save();
+      final loaded = await GuiSettings.load();
+      expect(loaded.pythonTarget, '3.12');
+      expect(loaded.toolEnabled('pylint'), isTrue);
+    });
+
+    test('analyse d\'un script Python (sans outils : règles intégrées)',
+        () async {
+      final f = File('${tmp.path}/tool.py')
+        ..writeAsStringSync('#!/usr/bin/python\nimport os\n\n'
+            'def main():\n    os.getcwd()\n\nmain()\n');
+      final state = AppState(runner: NoTools());
+      await state.analyzeFile(f.path);
+      final r = state.current!;
+      expect(r.script.dialect, Dialect.python);
+      expect(r.tools.map((t) => t.tool), isNot(contains('shellcheck')));
+      expect(r.findings.map((x) => x.ruleId),
+          containsAll(['PYPOR001', 'PYMNT002']));
+    });
+
     test('réglages persistés', () async {
       await const GuiSettings(
               lang: Lang.en, profile: Profile.legacy, followSource: true)

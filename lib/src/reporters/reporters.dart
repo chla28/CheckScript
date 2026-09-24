@@ -99,8 +99,12 @@ String _toolsLine(ScriptReport r, Messages t) => [
     ].join(', ');
 
 /// Outils dont l'absence est signalée (gitleaks et trufflehog sont des
-/// compléments facultatifs, couverts par les règles SEC002/SEC022).
-const coreTools = {'shellcheck', 'shfmt', 'bashate', 'checkbashisms', 'syntax'};
+/// compléments facultatifs, couverts par les règles SEC002/SEC022 ; semgrep,
+/// pylint et pyright aussi).
+const coreTools = {
+  'shellcheck', 'shfmt', 'bashate', 'checkbashisms', 'syntax', //
+  'ruff', 'bandit', 'mypy', 'radon', 'vermin',
+};
 
 List<String> _missing(List<ScriptReport> reports) => {
       for (final r in reports)

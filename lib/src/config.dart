@@ -112,6 +112,10 @@ class CheckConfig {
   final bool followSource;
   final Profile profile;
 
+  /// Version minimale de Python que les scripts doivent supporter (`3.9`) :
+  /// Vermin, Ruff (`--target-version`), Pylint, Pyright.
+  final String pythonTarget;
+
   const CheckConfig({
     this.tools = defaultTools,
     this.disabledRules = const {},
@@ -121,7 +125,14 @@ class CheckConfig {
     this.contexts = const {},
     this.followSource = false,
     this.profile = Profile.standard,
+    this.pythonTarget = defaultPythonTarget,
   });
+
+  /// Python de RHEL / Rocky 9.
+  static const defaultPythonTarget = '3.9';
+
+  /// Version cible valide : `3.N`.
+  static bool isPythonTarget(String v) => RegExp(r'^3\.\d{1,2}$').hasMatch(v);
 
   static const defaultTools = {
     'shellcheck': ToolConfig(executable: 'shellcheck', exclude: ['SC1091']),
@@ -132,6 +143,20 @@ class CheckConfig {
     'trufflehog': ToolConfig(executable: 'trufflehog'),
     'syntax': ToolConfig(executable: ''),
     'builtin': ToolConfig(executable: ''),
+    // Python. PLR2004 (constantes « magiques ») et S603 / B603 / B404
+    // (tout appel à subprocess) sont trop bavards pour des scripts.
+    'ruff': ToolConfig(executable: 'ruff', exclude: ['PLR2004', 'S603']),
+    'bandit': ToolConfig(executable: 'bandit', exclude: ['B404', 'B603']),
+    'semgrep': ToolConfig(executable: 'semgrep'),
+    'mypy': ToolConfig(executable: 'mypy'),
+    'radon': ToolConfig(executable: 'radon'),
+    'vermin': ToolConfig(executable: 'vermin'),
+    // Redondants avec Ruff et mypy : activables dans la configuration.
+    'pylint': ToolConfig(
+        enabled: false,
+        executable: 'pylint',
+        exclude: ['C0103', 'C0114', 'C0115', 'C0116']),
+    'pyright': ToolConfig(enabled: false, executable: 'pyright'),
   };
 
   /// Configuration de départ d'un profil.
@@ -167,6 +192,7 @@ class CheckConfig {
             disabledRules: {
               'MNT001', 'MNT004', 'MNT005', 'MNT010', 'FORMAT', //
               'E001', 'E002', 'E003', 'E005', 'E006',
+              'PYMNT001', 'E501', 'W291', 'W293', 'C0301', 'C0303',
             },
           ),
       };
@@ -183,6 +209,7 @@ class CheckConfig {
     Set<ExecContext>? contexts,
     bool? followSource,
     Profile? profile,
+    String? pythonTarget,
   }) =>
       CheckConfig(
         tools: tools ?? this.tools,
@@ -193,7 +220,18 @@ class CheckConfig {
         contexts: contexts ?? this.contexts,
         followSource: followSource ?? this.followSource,
         profile: profile ?? this.profile,
+        pythonTarget: pythonTarget ?? this.pythonTarget,
       );
+
+  /// Copie avec certains outils activés (option `--with` : outils désactivés
+  /// par défaut, comme pylint et pyright).
+  CheckConfig withToolsEnabled(Iterable<String> names) {
+    final t = Map<String, ToolConfig>.of(tools);
+    for (final n in names) {
+      t[n] = tool(n).copyWith(enabled: true);
+    }
+    return copyWith(tools: t);
+  }
 
   /// Copie avec certains outils désactivés (option `--without`).
   CheckConfig withToolsDisabled(Iterable<String> names) {
@@ -322,7 +360,18 @@ class CheckConfig {
       contexts.add(c);
     }
 
+    // 3.10 sans guillemets serait lu comme le nombre 3.1.
+    if (doc['pythonTarget'] is num) {
+      throw const FormatException(
+          'pythonTarget : écrire la version entre guillemets (ex. "3.10")');
+    }
+    final target = doc['pythonTarget']?.toString();
+    if (target != null && !isPythonTarget(target)) {
+      throw FormatException('pythonTarget invalide : $target (ex. 3.9)');
+    }
+
     return base.copyWith(
+        pythonTarget: target,
         tools: tools,
         disabledRules: disabled,
         overrides: overrides,

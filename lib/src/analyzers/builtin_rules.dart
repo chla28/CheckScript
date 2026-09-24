@@ -22,6 +22,7 @@ import '../rules/catalog.dart';
 import '../script_info.dart';
 import 'analyzer.dart';
 import 'ast.dart';
+import 'python_rules.dart';
 import 'shell_lexer.dart';
 
 export '../rules/catalog.dart' show RuleInfo, allBuiltinRules, ExecContext;
@@ -225,7 +226,20 @@ class BuiltinAnalyzer extends Analyzer {
   String get name => 'builtin';
 
   @override
+  ToolLanguage get language => ToolLanguage.any;
+
+  @override
   Future<AnalyzerResult> analyze(AnalysisContext ctx) async {
+    if (ctx.script.dialect.isPython) {
+      final facts = await loadPythonFacts(ctx);
+      final findings =
+          runPythonRules(ctx.script, ctx.config, ctx.lang, facts: facts);
+      return AnalyzerResult(
+          ToolRun(name, ToolStatus.ok,
+              detail: facts == null ? 'lexer' : 'ast',
+              findings: findings.length),
+          findings);
+    }
     final ast = await loadAst(ctx);
     final findings =
         runBuiltinRules(ctx.script, ctx.config, ctx.lang, ast: ast);
@@ -254,6 +268,12 @@ final _entropyToken = RegExp(r'[A-Za-z0-9+/=_\-]{24,}');
 final _checksumContext = RegExp(
     r'sha\d*sum|md5sum|checksum|sha(?:1|256|512)|integrity|b2sum',
     caseSensitive: false);
+
+/// La ligne contient un jeton ressemblant à un secret, hors contexte de somme
+/// de contrôle.
+bool lineHasSecret(String raw) =>
+    !_checksumContext.hasMatch(raw) &&
+    _entropyToken.allMatches(raw).any((m) => looksLikeSecret(m[0]!));
 
 /// Jeton ressemblant à un secret aléatoire : mélange majuscules, minuscules
 /// et chiffres, pas hexadécimal pur (sommes de contrôle), entropie ≥ 4.
@@ -324,8 +344,7 @@ List<Finding> runBuiltinRules(ScriptInfo s, CheckConfig config, Lang lang,
     }
     // Secrets par entropie (heredocs compris), hors contexte de somme de
     // contrôle.
-    if (!_checksumContext.hasMatch(l.raw) &&
-        _entropyToken.allMatches(l.raw).any((m) => looksLikeSecret(m[0]!))) {
+    if (lineHasSecret(l.raw)) {
       add('SEC022', l.number, eq: const ['SEC002', 'GL*', 'TH*']);
     }
   }

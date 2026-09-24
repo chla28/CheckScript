@@ -1,4 +1,4 @@
-/// check-script : évalue un ou plusieurs scripts shell et produit un
+/// check-script : évalue un ou plusieurs scripts shell ou Python et produit un
 /// classement (Sécurité, Robustesse, Maintenabilité, Portabilité,
 /// Performance), dans le terminal et/ou dans des fichiers .md / .adoc /
 /// .html / .json / .sarif ; corrige les défauts sûrs avec --fix.
@@ -24,6 +24,14 @@ const externalTools = [
   'gitleaks',
   'trufflehog',
   'syntax',
+  'ruff',
+  'bandit',
+  'semgrep',
+  'mypy',
+  'pyright',
+  'pylint',
+  'radon',
+  'vermin',
 ];
 
 ArgParser buildParser(Lang lang) {
@@ -58,9 +66,15 @@ ArgParser buildParser(Lang lang) {
             'Report language (default: from LANG).'))
     ..addOption('shell',
         abbr: 's',
-        allowed: ['sh', 'bash', 'dash', 'ksh', 'zsh'],
-        help: t('Force le dialecte (sinon déduit du shebang).',
-            'Force the dialect (otherwise taken from the shebang).'))
+        allowed: ['sh', 'bash', 'dash', 'ksh', 'zsh', 'python'],
+        help: t(
+            'Force le dialecte (sinon déduit du shebang, ou de l\'extension .py).',
+            'Force the dialect (otherwise taken from the shebang, or the .py extension).'))
+    ..addOption('python-target',
+        valueHelp: 'VERSION',
+        help: t(
+            'Version minimale de Python à supporter (défaut : ${CheckConfig.defaultPythonTarget}).',
+            'Minimum Python version to support (default: ${CheckConfig.defaultPythonTarget}).'))
     ..addOption('profile',
         abbr: 'p',
         allowed: ['strict', 'default', 'legacy'],
@@ -83,6 +97,12 @@ ArgParser buildParser(Lang lang) {
                 '~/.config/check-script/config.yaml).',
             'YAML configuration (default: ./.checkscript.yaml then '
                 '~/.config/check-script/config.yaml).'))
+    ..addMultiOption('with',
+        valueHelp: 'OUTIL',
+        allowed: externalTools,
+        help: t(
+            'Active un outil désactivé par défaut (pylint, pyright) ; répétable.',
+            'Enable a tool disabled by default (pylint, pyright); repeatable.'))
     ..addMultiOption('without',
         valueHelp: 'OUTIL',
         allowed: [...externalTools, 'builtin'],
@@ -219,10 +239,10 @@ Future<int> run(List<String> argv,
   if (a['help'] as bool) {
     out.writeln(t(
         'Usage : check-script [options] <script|dossier|->...\n\n'
-            'Évalue des scripts shell sur cinq axes (Sécurité, Robustesse, '
+            'Évalue des scripts shell ou Python sur cinq axes (Sécurité, Robustesse, '
             'Maintenabilité, Portabilité, Performance), notés sur 10.\n',
         'Usage: check-script [options] <script|directory|->...\n\n'
-            'Rates shell scripts on five axes (Security, Robustness, '
+            'Rates shell or Python scripts on five axes (Security, Robustness, '
             'Maintainability, Portability, Performance), scored out of 10.\n'));
     out.writeln(parser.usage);
     out.writeln(t(
@@ -261,7 +281,18 @@ Future<int> run(List<String> argv,
     if (a['no-external'] as bool) ...externalTools,
   ];
   final ctxArgs = a['context'] as List<String>;
-  config = config.withToolsDisabled(without).copyWith(
+  final pyTarget = a['python-target'] as String?;
+  if (pyTarget != null && !CheckConfig.isPythonTarget(pyTarget)) {
+    err.writeln(t('--python-target : version invalide « $pyTarget » (ex. 3.9).',
+        '--python-target: invalid version "$pyTarget" (e.g. 3.9).'));
+    return exitUsage;
+  }
+  config = config
+      .withToolsEnabled(
+          [for (final w in a['with'] as List<String>) ...w.split(',')])
+      .withToolsDisabled(without)
+      .copyWith(
+        pythonTarget: pyTarget,
         contexts: ctxArgs.isEmpty
             ? null
             : {
@@ -392,8 +423,8 @@ Future<int> run(List<String> argv,
       continue;
     }
     if (files.isEmpty) {
-      err.writeln(t(
-          'Aucun script shell dans : $target', 'No shell script in: $target'));
+      err.writeln(t('Aucun script shell ou Python dans : $target',
+          'No shell or Python script in: $target'));
     }
     for (final f in files) {
       try {
@@ -517,28 +548,31 @@ Future<CheckConfig> loadConfig(String? explicit, {Profile? profile}) async {
 
 Future<void> listTools(Engine engine, IOSink out, Lang lang) async {
   final t = Messages(lang);
-  out.writeln('${t.tool.padRight(16)}${t.status.padRight(20)}${t.version}');
+  final builtIn = lang == Lang.fr ? 'intégré' : 'built in';
+  out.writeln('${t.tool.padRight(16)}${t.language_.padRight(10)}'
+      '${t.status.padRight(20)}${t.version}');
   for (final an in engine.analyzers) {
     final tc = engine.config.tool(an.name);
+    final head = '${an.name.padRight(16)}'
+        '${t.toolLanguage(an.language).padRight(10)}';
     if (an.name == 'builtin') {
-      out.writeln(
-          '${'builtin'.padRight(16)}${(lang == Lang.fr ? 'intégré' : 'built in').padRight(20)}'
-          '${allBuiltinRules().length} ${lang == Lang.fr ? 'règles' : 'rules'}');
+      final rules = allBuiltinRules();
+      final py = rules.where((r) => r.python).length;
+      out.writeln('$head${builtIn.padRight(20)}'
+          '${rules.length - py} + $py ${lang == Lang.fr ? 'règles' : 'rules'}');
       continue;
     }
     if (!tc.enabled) {
-      out.writeln(
-          '${an.name.padRight(16)}${t.toolStatus(ToolStatus.disabled)}');
+      out.writeln('$head${t.toolStatus(ToolStatus.disabled)}');
       continue;
     }
     if (an.name == 'syntax') {
-      out.writeln(
-          '${'syntax'.padRight(16)}${(lang == Lang.fr ? 'intégré' : 'built in').padRight(20)}'
-          'bash -n / sh -n');
+      out.writeln('$head${builtIn.padRight(20)}'
+          'bash -n / sh -n / $pythonExecutable compile()');
       continue;
     }
     final v = await an.version(engine.runner, engine.config);
-    out.writeln('${an.name.padRight(16)}'
+    out.writeln('$head'
         '${(v == null ? t.toolStatus(ToolStatus.missing) : (lang == Lang.fr ? 'disponible' : 'available')).padRight(20)}'
         '${v ?? _installHint(an.name, lang)}');
   }
@@ -553,6 +587,15 @@ String _installHint(String tool, Lang lang) {
       'dnf install devscripts-checkbashisms | apt install devscripts',
     'gitleaks' => 'https://github.com/gitleaks/gitleaks/releases',
     'trufflehog' => 'https://github.com/trufflesecurity/trufflehog/releases',
+    'ruff' ||
+    'bandit' ||
+    'semgrep' ||
+    'mypy' ||
+    'pylint' ||
+    'radon' ||
+    'vermin' =>
+      'pipx install $tool',
+    'pyright' => 'pipx install pyright | npm install -g pyright',
     _ => '',
   };
   return how.isEmpty
@@ -566,7 +609,9 @@ void listRules(IOSink out, Lang lang) {
     final ctx = r.contexts.isEmpty
         ? ''
         : ' [${r.contexts.map((c) => c.name).join(', ')}]';
-    out.writeln('${r.id.padRight(9)}${t.category(r.category).padRight(17)}'
+    out.writeln(
+        '${r.id.padRight(9)}${(r.python ? 'python' : 'shell').padRight(8)}'
+        '${t.category(r.category).padRight(17)}'
         '${r.severity.label.padRight(10)}${r.title.of(lang)}$ctx');
   }
 }

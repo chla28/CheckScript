@@ -7,12 +7,14 @@ _arguments -s \
   '*'{-o,--output}'[fichier de rapport]:fichier:_files' \
   {-f,--format}'[format]:format:(terminal md adoc html json sarif codeclimate)' \
   {-l,--lang}'[langue]:langue:(fr en)' \
-  {-s,--shell}'[dialecte]:dialecte:(sh bash dash ksh zsh)' \
+  {-s,--shell}'[dialecte]:dialecte:(sh bash dash ksh zsh python)' \
+  '--python-target[version minimale de Python]:version:(3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14)' \
   {-p,--profile}'[profil]:profil:(strict default legacy)' \
   '*--context[contexte d'"'"'exécution]:contexte:(root cron systemd interactive)' \
   '--follow-source[suivre les fichiers sourcés]' \
   {-c,--config}'[configuration YAML]:fichier:_files -g "*.y(a|)ml"' \
-  '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms gitleaks trufflehog syntax builtin)' \
+  '*--with[activer un outil]:outil:(pylint pyright)' \
+  '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin gitleaks trufflehog syntax builtin)' \
   '--no-external[règles intégrées seules]' \
   {-b,--baseline}'[rapport JSON de référence]:fichier:_files -g "*.json"' \
   '--fail-on-new[échec si nouveau problème]:sévérité:(low medium high critical)' \

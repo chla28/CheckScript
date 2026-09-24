@@ -86,30 +86,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
       ]),
       section(s.tools),
-      for (final tool in [
-        'shellcheck',
-        'shfmt',
-        'bashate',
-        'checkbashisms',
-        'gitleaks',
-        'trufflehog',
-        'syntax'
-      ])
-        SwitchListTile(
-          title: Text(tool),
-          subtitle: tool == 'syntax'
-              ? const Text('bash -n / sh -n')
-              : Text(state.toolVersions.containsKey(tool)
-                  ? (state.toolVersions[tool] == null
-                      ? s.notInstalled
-                      : '${s.available} ${state.toolVersions[tool]}')
-                  : '…'),
-          value: !g.disabledTools.contains(tool),
-          onChanged: (v) => state.updateSettings(g.copyWith(
-              disabledTools: v
-                  ? ({...g.disabledTools}..remove(tool))
-                  : {...g.disabledTools, tool})),
+      for (final (title, tools) in [
+        (s.shellTools, ['shellcheck', 'shfmt', 'bashate', 'checkbashisms']),
+        (
+          s.pythonTools,
+          [
+            'ruff', 'bandit', 'semgrep', 'mypy', 'radon', 'vermin', //
+            'pylint', 'pyright',
+          ]
         ),
+        (s.commonTools, ['gitleaks', 'trufflehog', 'syntax']),
+      ]) ...[
+        Padding(
+          padding: const EdgeInsets.only(top: 8, left: 16),
+          child: Text(title, style: theme.textTheme.labelLarge),
+        ),
+        for (final tool in tools)
+          SwitchListTile(
+            dense: true,
+            title: Text(tool),
+            subtitle: Text(switch (tool) {
+              'syntax' => 'bash -n / sh -n / python3 compile()',
+              'semgrep' => '${_version(s, tool)} · ${s.semgrepNetwork}',
+              'pylint' || 'pyright' => '${_version(s, tool)} · ${s.optIn}',
+              _ => _version(s, tool),
+            }),
+            value: g.toolEnabled(tool),
+            onChanged: (v) => state.updateSettings(g.withTool(tool, v)),
+          ),
+      ],
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Row(children: [
+          Expanded(child: Text(s.pythonTarget)),
+          DropdownButton<String?>(
+            value: g.pythonTarget,
+            items: [
+              DropdownMenuItem(
+                  value: null,
+                  child: Text(
+                      '${s.systemDefault} (${CheckConfig.defaultPythonTarget})')),
+              for (var m = 6; m <= 14; m++)
+                DropdownMenuItem(value: '3.$m', child: Text('3.$m')),
+            ],
+            onChanged: (v) =>
+                state.updateSettings(g.copyWith(pythonTarget: () => v)),
+          ),
+        ]),
+      ),
       SwitchListTile(
         title: Text(s.followSource),
         value: g.followSource,
@@ -147,4 +171,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Text('check-script $appVersion', style: theme.textTheme.bodySmall),
     ]);
   }
+
+  String _version(S s, String tool) => state.toolVersions.containsKey(tool)
+      ? (state.toolVersions[tool] == null
+          ? s.notInstalled
+          : '${s.available} ${state.toolVersions[tool]}')
+      : '…';
 }

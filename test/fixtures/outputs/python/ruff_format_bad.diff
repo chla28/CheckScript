@@ -1,0 +1,18 @@
+--- bad.py
++++ bad.py
+@@ -1,6 +1,7 @@
+ #!/usr/bin/python
+ import os, subprocess
+ import pickle
++
+ PASSWORD = "S3cr3tP@ssw0rd!"
+ 
+ 
+@@ -48,4 +49,5 @@
+     check=True,
+ )
+ match os.name:
+-    case "nt": print("win")
++    case "nt":
++        print("win")
+

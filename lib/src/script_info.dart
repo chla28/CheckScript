@@ -1,13 +1,15 @@
 /// Informations structurelles sur un script : shebang, dialecte, métriques.
 library;
 
-/// Dialecte shell déduit du shebang (ou forcé par l'utilisateur).
+/// Dialecte déduit du shebang ou de l'extension (ou forcé par l'utilisateur) :
+/// un shell, ou Python 3.
 enum Dialect {
   sh,
   bash,
   dash,
   ksh,
   zsh,
+  python,
   unknown;
 
   static Dialect? tryParse(String s) {
@@ -36,6 +38,9 @@ enum Dialect {
 
   /// Script censé être POSIX (les bashismes y sont des défauts de portabilité).
   bool get isPosix => this == Dialect.sh || this == Dialect.dash;
+
+  /// Script Python (analysé par les outils Python, pas par les outils shell).
+  bool get isPython => this == Dialect.python;
 }
 
 class ScriptInfo {
@@ -64,9 +69,17 @@ class ScriptInfo {
     }
     final shebang =
         lines.isNotEmpty && lines.first.startsWith('#!') ? lines.first : null;
-    return ScriptInfo._(path, normalized, List.unmodifiable(lines), shebang,
-        forcedDialect ?? dialectFromShebang(shebang), hasCrlf);
+    var dialect = forcedDialect ?? dialectFromShebang(shebang);
+    if (dialect == Dialect.unknown && isPythonPath(path)) {
+      dialect = Dialect.python;
+    }
+    return ScriptInfo._(
+        path, normalized, List.unmodifiable(lines), shebang, dialect, hasCrlf);
   }
+
+  /// Extension d'un script Python (`.py`, `.pyw`).
+  static bool isPythonPath(String path) =>
+      RegExp(r'\.pyw?$', caseSensitive: false).hasMatch(path);
 
   /// Déduit le dialecte d'une ligne `#!` (`#!/bin/bash`, `#!/usr/bin/env -S bash -e`…).
   static Dialect dialectFromShebang(String? shebang) {
@@ -87,6 +100,8 @@ class ScriptInfo {
       'dash' => Dialect.dash,
       'ksh' || 'mksh' || 'ksh93' => Dialect.ksh,
       'zsh' => Dialect.zsh,
+      _ when RegExp(r'^python(?:[23](?:\.\d+)?)?$').hasMatch(interp) =>
+        Dialect.python,
       _ => Dialect.unknown,
     };
   }

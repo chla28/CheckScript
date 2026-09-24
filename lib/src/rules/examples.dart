@@ -21,7 +21,13 @@ class CodeExample {
 
 /// Exemple de correction d'une règle, ou null si aucun n'est rédigé.
 CodeExample? exampleFor(String ruleId) =>
-    ruleExamples[_aliases[ruleId] ?? ruleId];
+    ruleExamples[_aliases[ruleId] ?? _banditToRuff(ruleId) ?? ruleId];
+
+/// Code Bandit → code Ruff de même numéro (`B602` → `S602`).
+String? _banditToRuff(String id) {
+  final m = RegExp(r'^B([1-7]\d\d)$').firstMatch(id);
+  return m == null ? null : 'S${m[1]}';
+}
 
 /// Codes ShellCheck couverts par l'exemple d'une règle intégrée.
 const Map<String, String> _aliases = {
@@ -39,6 +45,22 @@ const Map<String, String> _aliases = {
   'SC2003': 'PERF003',
   'SC2009': 'PERF006',
   'SC2116': 'PERF008',
+  // Pylint → code Ruff équivalent.
+  'W0702': 'E722',
+  'W0102': 'B006',
+  'W0611': 'F401',
+  'W0612': 'F841',
+  'W0123': 'S307',
+  'W0707': 'B904',
+  'W1510': 'PLW1510',
+  'W1514': 'PLW1514',
+  'R1732': 'SIM115',
+  'C0114': 'PYMNT001',
+  'D100': 'PYMNT001',
+  'EXE003': 'PYPOR001',
+  'R0912': 'CC',
+  'PLR0912': 'CC',
+  'C901': 'CC',
 };
 
 const Map<String, CodeExample> ruleExamples = {
@@ -346,4 +368,152 @@ fi'''),
   'SC3006':
       CodeExample(r'''if (( n > 3 )); then''', r'''if [ "$n" -gt 3 ]; then'''),
   'SC3018': CodeExample(r''': $((i++))''', r'''i=$((i + 1))'''),
+
+  // ── Python : règles intégrées ─────────────────────────────────────────────
+  'PYSEC001': CodeExample(
+      r'''API_KEY = "9f86d081…"''', r'''API_KEY = os.environ["API_KEY"]'''),
+  'PYROB001': CodeExample(
+      r'''subprocess.run(["rsync", "-a", src, dst], check=True)''',
+      r'''subprocess.run(["rsync", "-a", src, dst], check=True, timeout=600)'''),
+  'PYROB002': CodeExample(r'''answer = input("Continuer ? ")''',
+      r'''parser = argparse.ArgumentParser()
+parser.add_argument("--force", action="store_true")
+args = parser.parse_args()''',
+      badEn: r'''answer = input("Continue? ")'''),
+  'PYMNT001': CodeExample(
+      r'''import sys''', r'''"""Sauvegarde quotidienne de /srv vers le NAS.
+
+Usage : backup.py [-n] DESTINATION
+"""
+import sys''',
+      goodEn: r'''"""Daily backup of /srv to the NAS.
+
+Usage: backup.py [-n] DESTINATION
+"""
+import sys'''),
+  'PYMNT002': CodeExample(r'''def main():
+    ...
+
+main()''', r'''def main():
+    ...
+
+
+if __name__ == "__main__":
+    main()'''),
+  'PYPOR001':
+      CodeExample(r'''#!/usr/bin/python''', r'''#!/usr/bin/env python3'''),
+
+  // ── Python : Ruff (et Bandit, Pylint par alias) ──────────────────────────
+  'S602': CodeExample(
+      r'''subprocess.call(f"tar czf {archive} {src}", shell=True)''',
+      r'''subprocess.call(["tar", "czf", archive, src])'''),
+  'S605': CodeExample(
+      r'''os.system("rm -rf " + path)''', r'''shutil.rmtree(path)'''),
+  'S307': CodeExample(
+      r'''value = eval(text)''', r'''value = ast.literal_eval(text)'''),
+  'S301': CodeExample(r'''data = pickle.load(f)''', r'''data = json.load(f)'''),
+  'S506':
+      CodeExample(r'''conf = yaml.load(f)''', r'''conf = yaml.safe_load(f)'''),
+  'S501': CodeExample(r'''requests.get(url, verify=False)''',
+      r'''requests.get(url, verify="/etc/pki/tls/certs/ca-bundle.crt", timeout=30)'''),
+  'S113': CodeExample(
+      r'''requests.get(url)''', r'''requests.get(url, timeout=30)'''),
+  'S108': CodeExample(r'''path = "/tmp/report.txt"''',
+      r'''fd, path = tempfile.mkstemp(suffix=".txt")'''),
+  'S105': CodeExample(
+      r'''password = "…"''', r'''password = os.environ["DB_PASSWORD"]'''),
+  'S106': CodeExample(r'''connect(user="admin", password="…")''',
+      r'''connect(user="admin", password=os.environ["DB_PASSWORD"])'''),
+  'S110': CodeExample(r'''try:
+    os.remove(path)
+except Exception:
+    pass''', r'''with contextlib.suppress(FileNotFoundError):
+    os.remove(path)'''),
+  'S324': CodeExample(r'''digest = hashlib.md5(data).hexdigest()''',
+      r'''digest = hashlib.sha256(data).hexdigest()'''),
+  'S311': CodeExample(r'''token = "".join(random.choices(chars, k=32))''',
+      r'''token = secrets.token_urlsafe(32)'''),
+  'S608': CodeExample(
+      r'''cur.execute(f"SELECT * FROM users WHERE name = '{name}'")''',
+      r'''cur.execute("SELECT * FROM users WHERE name = %s", (name,))'''),
+  'S101': CodeExample(r'''assert user.is_admin''', r'''if not user.is_admin:
+    raise PermissionError("droits administrateur requis")''',
+      goodEn: r'''if not user.is_admin:
+    raise PermissionError("administrator rights required")'''),
+  'E722': CodeExample(r'''try:
+    run()
+except:
+    log.error("échec")''', r'''try:
+    run()
+except Exception:
+    log.exception("échec")''', badEn: r'''try:
+    run()
+except:
+    log.error("failed")''', goodEn: r'''try:
+    run()
+except Exception:
+    log.exception("failed")'''),
+  'BLE001': CodeExample(r'''except Exception:
+    return None''', r'''except OSError as e:
+    log.error("lecture impossible : %s", e)
+    return None''', goodEn: r'''except OSError as e:
+    log.error("cannot read: %s", e)
+    return None'''),
+  'B006': CodeExample(r'''def add(item, items=[]):
+    items.append(item)''', r'''def add(item, items=None):
+    if items is None:
+        items = []
+    items.append(item)'''),
+  'B904': CodeExample(r'''except KeyError:
+    raise ValueError("clé absente")''', r'''except KeyError as e:
+    raise ValueError("clé absente") from e''', badEn: r'''except KeyError:
+    raise ValueError("missing key")''', goodEn: r'''except KeyError as e:
+    raise ValueError("missing key") from e'''),
+  'F401': CodeExample(r'''import os
+import sys
+
+print(sys.argv)''', r'''import sys
+
+print(sys.argv)'''),
+  'F841': CodeExample(r'''result = compute()''', r'''compute()'''),
+  'F821': CodeExample(r'''total = 0
+print(totl)''', r'''total = 0
+print(total)'''),
+  'PLW1510': CodeExample(
+      r'''subprocess.run(cmd)''', r'''subprocess.run(cmd, check=True)'''),
+  'PLW1514': CodeExample(r'''with open(path) as f:''',
+      r'''with open(path, encoding="utf-8") as f:'''),
+  'SIM115': CodeExample(r'''f = open(path, encoding="utf-8")
+data = f.read()''', r'''with open(path, encoding="utf-8") as f:
+    data = f.read()'''),
+  'PERF401': CodeExample(r'''result = []
+for x in items:
+    if x > 0:
+        result.append(x)''', r'''result = [x for x in items if x > 0]'''),
+  'E501': CodeExample(
+      r'''subprocess.run(["rsync", "-a", "--delete", "--exclude=.git", "--exclude=build", src, dst], check=True, timeout=600)''',
+      r'''subprocess.run(
+    ["rsync", "-a", "--delete", "--exclude=.git", "--exclude=build", src, dst],
+    check=True,
+    timeout=600,
+)'''),
+  'VERMIN': CodeExample(r'''match cmd:
+    case "start":
+        start()
+    case _:
+        usage()''', r'''if cmd == "start":
+    start()
+else:
+    usage()'''),
+  'CC': CodeExample(r'''def process(path):
+    if os.path.isfile(path):
+        if os.access(path, os.R_OK):
+            for line in open(path, encoding="utf-8"):
+                if line.strip():
+                    handle(line)''', r'''def process(path):
+    if not os.path.isfile(path) or not os.access(path, os.R_OK):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in filter(str.strip, f):
+            handle(line)'''),
 };

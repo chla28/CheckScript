@@ -1,15 +1,18 @@
 # CheckScript — `check-script`
 
-Évalue des scripts shell et produit un classement sur cinq catégories notées
+Évalue des scripts shell ou Python 3 et produit un classement sur cinq catégories notées
 sur 10 — **Sécurité, Robustesse, Maintenabilité, Portabilité, Performance** —
 avec, pour chacune, le nombre de problèmes par sévérité (Critical / High /
 Medium / Low) et leur total. Sortie dans le terminal et/ou en Markdown,
 AsciiDoc ou JSON, en français ou en anglais.
 
 `check-script` exploite **ShellCheck, shfmt, bashate, checkbashisms**,
-gitleaks, trufflehog et `bash -n` lorsqu'ils sont installés, et les complète
-par 64 règles intégrées (secrets, `curl | sh`, permissions, PATH, structure…)
-avec un conseil de correction pour chacune. Il corrige les défauts sûrs
+gitleaks, trufflehog et `bash -n` pour le shell, **Ruff, Bandit, Semgrep,
+mypy, Radon, Vermin** (et sur demande Pylint, Pyright) pour Python,
+lorsqu'ils sont installés, et les complète par des règles intégrées (64 pour
+le shell, 6 pour Python : secrets, `curl | sh`, permissions, PATH,
+`subprocess` sans timeout, structure…) avec un conseil de correction pour
+chacune. Il corrige les défauts sûrs
 (`--fix`), compare une analyse à une référence, produit du SARIF et du GitLab
 Code Quality, et propose une interface graphique (`check-script-gui`).
 
@@ -21,6 +24,8 @@ check-script --fail-under 7 -q scripts/        # intégration continue
 check-script --profile strict --context root install.sh
 check-script --fix --dry-run deploy.sh         # corrections proposées (diff)
 check-script -b reference.json --fail-on-new high scripts/
+check-script outil.py                          # script Python (cible : 3.9)
+check-script --python-target 3.11 --with pylint scripts/
 check-script --list-tools                      # outils détectés
 check-script-gui                               # interface graphique
 ```

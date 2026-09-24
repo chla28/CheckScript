@@ -9,6 +9,7 @@
 profile: default                # strict | default | legacy (--profile prime)
 context: []                     # [root, cron, systemd] : règles et sévérités dédiées
 followSource: false             # shellcheck -x (fichiers sourcés)
+pythonTarget: "3.9"             # Python minimal à supporter (entre guillemets)
 
 tools:
   shellcheck:
@@ -23,8 +24,19 @@ tools:
   checkbashisms: true           # forme courte : activé / désactivé
   gitleaks: true                # secrets (si installé)
   trufflehog: true              # secrets, sans vérification réseau (si installé)
-  syntax: true                  # contrôle bash -n / sh -n
+  syntax: true                  # contrôle bash -n / sh -n / compilation Python
   builtin: true                 # règles intégrées
+  # ── Scripts Python ──
+  ruff:
+    exclude: [PLR2004, S603]    # transmis à ruff --ignore
+  bandit:
+    exclude: [B404, B603]       # transmis à bandit -s
+  semgrep: true                 # règles p/python du registre (accès réseau)
+  mypy: true
+  radon: true                   # complexité, indice de maintenabilité
+  vermin: true                  # version minimale de Python requise
+  pylint: false                 # redondant avec ruff (activable)
+  pyright: false                # redondant avec mypy (activable)
 
 rules:
   # Règles ignorées, tout outil confondu (SCxxxx, Exxx, SECxxx…).

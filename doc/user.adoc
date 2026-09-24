@@ -9,8 +9,8 @@
 
 == Présentation
 
-`check-script` évalue un ou plusieurs scripts shell et produit un *classement
-sur cinq catégories*, chacune notée sur 10 :
+`check-script` évalue un ou plusieurs scripts *shell* ou *Python 3* et
+produit un *classement sur cinq catégories*, chacune notée sur 10 :
 
 [cols="1,3",options="header"]
 |===
@@ -29,8 +29,11 @@ de correction* et, pour les outils externes, d'un lien vers leur
 documentation.
 
 L'outil exploite les analyseurs de référence lorsqu'ils sont installés
-(ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n`)
-et les complète par 64 *règles intégrées* qui fonctionnent toujours.
+(ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n`
+pour le shell ; Ruff, Bandit, Semgrep, mypy, Radon, Vermin — et en option
+Pylint, Pyright — pour Python, voir <<python>>) et les complète par des
+*règles intégrées* qui fonctionnent toujours (64 pour le shell, 6 pour
+Python).
 Il sait aussi *corriger* les défauts sûrs (`--fix`), *comparer* deux analyses
 (référence) et s'intègre à l'intégration continue (SARIF, GitLab Code
 Quality, hook pre-commit). Une *interface graphique* (`check-script-gui`)
@@ -85,20 +88,44 @@ Sans eux, seules les règles intégrées s'appliquent et le rapport le signale.
 |`bash` / `sh` |Contrôle syntaxique (`bash -n`) |présent sur toute distribution
 |===
 
+Pour les scripts Python :
+
+[cols="1,3,3",options="header"]
+|===
+|Outil |Apport |Installation
+|`ruff` |Linter de référence (erreurs, bugs probables, sécurité, modernisation, performance) ; formatage ; propose des corrections |`pipx install ruff`
+|`bandit` |Sécurité (injections, `eval`, `pickle`, TLS désactivé, secrets…) |`pipx install bandit`
+|`semgrep` |Règles de sécurité et de correction du registre `p/python` (*accès réseau* à semgrep.dev) |`pipx install semgrep`
+|`mypy` |Typage : erreurs d'appels et d'opérandes détectées sans exécution |`pipx install mypy`
+|`radon` |Complexité cyclomatique et indice de maintenabilité |`pipx install radon`
+|`vermin` |Version minimale de Python requise (portabilité) |`pipx install vermin`
+|`pylint` |Linter complet, redondant avec Ruff : *désactivé par défaut* (`--with pylint`) |`pipx install pylint`
+|`pyright` |Typage, redondant avec mypy : *désactivé par défaut* (`--with pyright`) |`pipx install pyright`
+|`python3` |Contrôle syntaxique (compilation, sans rien écrire sur disque) et faits de l'arbre syntaxique pour les règles intégrées |présent sur toute distribution
+|===
+
 Vérifier ce qui est détecté :
 
 [source,console]
 ----
 $ check-script --list-tools
-Outil           Statut              Version
-syntax          intégré             bash -n / sh -n
-shellcheck      disponible          0.11.0
-gitleaks        absent              (installer : https://github.com/gitleaks/gitleaks/releases)
-trufflehog      absent              (installer : https://github.com/trufflesecurity/trufflehog/releases)
-checkbashisms   disponible          2.26.5
-builtin         intégré             64 règles
-shfmt           disponible          ?
-bashate         disponible          2.1.1
+Outil           Langage   Statut              Version
+syntax          tous      intégré             bash -n / sh -n / python3 compile()
+shellcheck      shell     disponible          0.11.0
+bandit          python    disponible          1.9.4
+ruff            python    disponible          0.16.8
+semgrep         python    disponible          1.178.0
+mypy            python    disponible          2.3.1
+pyright         python    désactivé
+pylint          python    désactivé
+vermin          python    disponible          1.8.0
+radon           python    disponible          6.0.1
+gitleaks        tous      absent              (installer : https://github.com/gitleaks/gitleaks/releases)
+trufflehog      tous      absent              (installer : https://github.com/trufflesecurity/trufflehog/releases)
+checkbashisms   shell     disponible          2.26.5
+builtin         tous      intégré             64 + 6 règles
+shfmt           shell     disponible          ?
+bashate         shell     disponible          2.1.1
 ----
 
 NOTE: `?` signifie que l'outil est présent mais n'affiche pas de numéro de
@@ -121,11 +148,15 @@ check-script --profile strict --context root install.sh
 check-script --fix --dry-run deploy.sh              # corrections proposées (diff)
 check-script --fix --backup deploy.sh               # corrections appliquées
 check-script -b reference.json scripts/             # nouveaux problèmes seulement
+check-script outil.py                               # script Python
+check-script --python-target 3.6 --with pylint outil.py
 ----
 
 Un *dossier* est parcouru récursivement ; y sont retenus les fichiers
-`.sh`, `.bash`, `.ksh`, `.dash`, `.zsh` et les fichiers sans extension dont le
-shebang désigne un shell. Les dossiers cachés (`.git`…) sont ignorés.
+`.sh`, `.bash`, `.ksh`, `.dash`, `.zsh`, `.py`, `.pyw` et les fichiers sans
+extension dont le shebang désigne un shell ou Python. Les dossiers cachés
+(`.git`, `.venv`…) et de dépendances (`venv`, `site-packages`,
+`__pycache__`, `node_modules`) sont ignorés.
 
 === Options
 
@@ -135,12 +166,14 @@ shebang désigne un shell. Les dossiers cachés (`.git`…) sont ignorés.
 |`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension : `.md`, `.adoc`, `.html`, `.json`, `.sarif`, `.codeclimate.json` (ou `gl-code-quality-report.json`), `.txt`. Répétable.
 |`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `json`, `sarif`, `codeclimate` : format des fichiers sans extension reconnue, ou de la sortie standard sans `-o`.
 |`-l`, `--lang fr\|en` |Langue du rapport. Défaut : `LC_ALL`, `LC_MESSAGES` puis `LANG`.
-|`-s`, `--shell sh\|bash\|dash\|ksh\|zsh` |Force le dialecte au lieu de le déduire du shebang.
+|`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Force le dialecte au lieu de le déduire du shebang (ou de l'extension `.py`).
+|`--python-target VERSION` |Version minimale de Python que les scripts doivent supporter (défaut : `3.9`, voir <<python>>).
 |`-p`, `--profile strict\|default\|legacy` |Profil de notation (voir <<profils>>).
 |`--context root\|cron\|systemd\|interactive` |Contexte d'exécution (voir <<contextes>>). Répétable.
 |`--follow-source` |Suit les fichiers sourcés (`shellcheck -x`).
 |`-c`, `--config FICHIER` |Fichier de configuration YAML (voir <<config>>).
-|`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `gitleaks`, `trufflehog`, `syntax`, `builtin`) ; répétable ou séparé par des virgules.
+|`--with OUTIL` |Active un outil désactivé par défaut (`pylint`, `pyright`) ; répétable ou séparé par des virgules.
+|`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…) ; répétable ou séparé par des virgules.
 |`--no-external` |N'utilise que les règles intégrées.
 |`-b`, `--baseline RAPPORT.json` |Référence : seuls les nouveaux problèmes sont détaillés, l'évolution des notes est affichée (voir <<reference>>).
 |`--fail-on-new SÉVÉRITÉ` |Avec `--baseline` : code de sortie 1 si un nouveau problème atteint cette sévérité.
@@ -250,7 +283,9 @@ Ces réglages ont été calibrés sur un corpus de scripts réels et typiques
 Quand plusieurs outils signalent le même défaut sur la même ligne (par
 exemple ShellCheck SC2002 et la règle intégrée PERF001), un seul problème
 est conservé, celui de l'outil le plus spécialisé : `bash -n`, ShellCheck,
-gitleaks, trufflehog, checkbashisms, règles intégrées, shfmt, bashate.
+gitleaks, trufflehog, checkbashisms, règles intégrées, shfmt, bashate. En
+Python : compilation, Bandit, Ruff, Semgrep, mypy, Pyright, Pylint, Vermin,
+Radon, puis gitleaks, trufflehog et règles intégrées.
 
 [[profils]]
 == Profils
@@ -260,7 +295,7 @@ gitleaks, trufflehog, checkbashisms, règles intégrées, shfmt, bashate.
 |Profil |Usage
 |`strict` |Nouveaux scripts : poids Critical 5, High 3, Medium 1, Low 0,4 ; atténuation dès 50 lignes ; lignes ≤ 100, fonctions ≤ 40 lignes, imbrication ≤ 3.
 |`default` |Réglages décrits ci-dessus.
-|`legacy` |Existant ancien : High 1,5, Medium 0,5, Low 0,1 ; seuils relâchés ; règles de pur style désactivées (MNT001, MNT004, MNT005, MNT010, formatage shfmt, E001–E006 de bashate).
+|`legacy` |Existant ancien : High 1,5, Medium 0,5, Low 0,1 ; seuils relâchés ; règles de pur style désactivées (MNT001, MNT004, MNT005, MNT010, formatage shfmt et Ruff, E001–E006 de bashate ; en Python PYMNT001, E501, W291, W293, C0301, C0303).
 |===
 
 Le profil se choisit par `--profile` ou par la clé `profile:` de la
@@ -479,6 +514,98 @@ positif se neutralise par une directive (<<directives>>) ou par
 configuration (`rules.disabled`).
 
 [[config]]
+[[python]]
+== Scripts Python
+
+Un script est traité comme *Python 3* quand son shebang désigne `python`,
+`python3` ou `python3.N` (y compris via `env`), ou, sans shebang, quand son
+extension est `.py` / `.pyw` ; `--shell python` le force. Les outils shell
+ne sont alors pas lancés, et inversement : le rapport ne liste que les
+outils du langage du script (plus gitleaks, trufflehog et les règles
+intégrées, communs aux deux).
+
+=== Outils et classement
+
+Ruff::
+Familles retenues : `E4`, `E7`, `E9`, `E501`, `W`, `F`, `B`, `S`, `UP`,
+`PERF`, `C4`, `SIM`, `BLE`, `PLE`, `PLW`, `PLR`, `PIE`, `RUF`, `EXE`,
+`T10`, `ISC`, `A`, `ASYNC` (les familles de pur style — docstrings,
+annotations, nommage — sont écartées). `PLR2004` (constantes « magiques ») et
+`S603` sont exclus par défaut. Lancé avec `--isolated` : la configuration
+Ruff du projet n'influence pas la note. Chaque famille est classée (`S` →
+Sécurité, `F` → Robustesse, `PERF` / `C4` → Performance, `EXE` →
+Portabilité…), avec des reclassements (`F821` nom non défini → High, `S602`
+`shell=True` → High…). `ruff format --diff` signale les écarts de
+formatage. Seules les corrections qualifiées de *sûres* par Ruff sont
+proposées.
+
+Bandit::
+Sévérité de Bandit, abaissée d'un cran si sa confiance est faible ; secrets
+en dur (`B105`–`B107`) relevés en High, leur valeur n'étant jamais recopiée
+dans le rapport. `B404` et `B603` (tout import ou appel de subprocess) sont
+exclus par défaut.
+
+Semgrep::
+Règles du registre `p/python`, lancées avec `--metrics=off`. *Un accès
+réseau à semgrep.dev est nécessaire* : hors ligne, l'outil est marqué « échec »
+et l'analyse se poursuit sans lui (le désactiver sur un poste isolé).
+
+mypy::
+Lancé avec `--check-untyped-defs` (les fonctions non annotées sont aussi
+vérifiées) et `--ignore-missing-imports`, sans cache sur disque. Les erreurs
+de typage sont classées Robustesse / Medium. mypy 2 n'accepte plus de cible
+inférieure à 3.10 : il vérifie alors avec la version de l'interpréteur,
+Vermin couvrant la portabilité.
+
+Radon::
+Fonctions de complexité cyclomatique ≥ 11 (rang C → Low, D → Medium, E-F →
+High) ; indice de maintenabilité de rang B (Low) ou C (Medium).
+
+Vermin::
+Chaque construction qui exige une version de Python supérieure à la cible
+(ex. `match` → 3.10) : Portabilité / High, le script ne s'exécuterait pas.
+
+Pylint, Pyright::
+Désactivés par défaut car redondants avec Ruff et mypy ; `--with pylint`,
+`--with pyright`, la configuration YAML ou les réglages de l'interface les
+activent. `C0103` et `C0114`–`C0116` (nommage, docstrings) sont exclus de
+Pylint par défaut.
+
+Les doublons entre outils sont fusionnés sur une même ligne : `S602` (Ruff)
+= `B602` (Bandit) = `subprocess-shell-true` (Semgrep), `PLW0602` (Ruff) =
+`W0602` (Pylint), erreurs mypy = erreurs Pyright…
+
+=== Version cible
+
+`pythonTarget` (défaut `3.9`, le Python de RHEL / Rocky 9 ; option
+`--python-target`, réglage de l'interface) est transmis à Vermin, Ruff
+(`--target-version`), Pylint et Pyright. Dans le YAML, la version s'écrit
+entre guillemets : `3.10` sans guillemets serait lu comme le nombre 3.1.
+
+=== Règles intégrées Python
+
+[cols="1,2,1,6",options="header"]
+|===
+|Règle |Catégorie |Sévérité |Description
+|PYSEC001 |Sécurité |High |Chaîne à forte entropie : secret potentiel (ligne jamais recopiée)
+|PYROB001 |Robustesse |Low |Appel `subprocess.run/call/check_call/check_output` sans `timeout` (Medium en `cron` / `systemd`)
+|PYROB002 |Robustesse |Medium |`input()` dans un script sans terminal [cron, systemd]
+|PYMNT001 |Maintenabilité |Low |Ni docstring ni commentaire d'en-tête décrivant le script
+|PYMNT002 |Maintenabilité |Low |Code exécuté au chargement du module, sans garde `if __name__ == "__main__":`
+|PYPOR001 |Portabilité |Medium |Shebang `python` ambigu (Python 2 sur d'anciens systèmes) : utiliser `python3`
+|===
+
+Elles s'appuient sur le module `ast` de Python (appels répartis sur
+plusieurs lignes, imports `from subprocess import run` compris) ; sans
+`python3`, un découpage ligne à ligne prend le relais.
+
+=== Correction
+
+`--fix` (et *Corriger…* dans l'interface) applique les corrections sûres de
+`ruff check --fix` puis `ruff format` ; le résultat est contrôlé par la
+compilation Python. Les directives `# check-script disable=…` s'utilisent
+comme en shell ; les commentaires `# noqa` restent respectés par Ruff.
+
 == Configuration
 
 Fichier YAML lu, dans l'ordre : `--config FICHIER`, `./.checkscript.yaml`,
@@ -490,11 +617,16 @@ facultatives ; exemple commenté : `doc/checkscript.example.yaml`.
 profile: strict                        # base : strict | default | legacy
 context: [root]                        # contextes d'exécution
 followSource: true                     # shellcheck -x
+pythonTarget: "3.11"                   # Python minimal (entre guillemets)
 tools:
   shellcheck:
     path: /opt/shellcheck/shellcheck
     exclude: [SC1091, SC2034]
   bashate: false                       # désactive l'outil
+  semgrep: false                       # poste sans accès réseau
+  pylint: true                         # active un outil désactivé par défaut
+  ruff:
+    exclude: [PLR2004, S603, E501]     # transmis à ruff --ignore
 rules:
   disabled: [MNT005, E006]             # règles ignorées, tout outil confondu
   overrides:
@@ -533,7 +665,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.4.0
+    rev: v0.5.0
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----
@@ -566,8 +698,10 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
 * *Dossier* : tableau triable de tous les scripts d'un dossier ; avec une
   référence chargée, colonne *Tendance* (évolution de la note) ;
 * *Exporter…* : HTML, Markdown, AsciiDoc, JSON, SARIF ;
-* *Réglages* : langue, thème, profil, contextes, outils (avec détection des
-  versions), suivi des fichiers sourcés, fichier de configuration YAML.
+* *Réglages* : langue, thème, profil, contextes, outils groupés par langage
+  (avec détection des versions ; Pylint et Pyright activables), version
+  minimale de Python, suivi des fichiers sourcés, fichier de configuration
+  YAML.
 
 La progression outil par outil s'affiche pendant l'analyse, qui peut être
 annulée. Un chemin passé en argument (`check-script-gui deploy.sh` ou un

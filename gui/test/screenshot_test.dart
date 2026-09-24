@@ -88,6 +88,12 @@ void main() {
     await run(tester, 'problemes', Brightness.light, (s) async {
       await s.analyzeFile(bad);
     }, openIssues: true);
+    const badPy = '../test/fixtures/bad.py';
+    await run(tester, 'analyse-python', Brightness.light,
+        (s) => s.analyzeFile(badPy));
+    await run(tester, 'problemes-python', Brightness.dark,
+        (s) => s.analyzeFile(badPy),
+        openIssues: true);
     await run(tester, 'dossier', Brightness.light,
         (s) => s.analyzeFolder('../test/corpus/scripts'),
         tab: 1);

@@ -1,5 +1,5 @@
 /// Intégration de shfmt, bashate, checkbashisms et du contrôle syntaxique
-/// natif du shell (`bash -n`, `dash -n`…).
+/// natif (`bash -n`, `dash -n`…, ou compilation Python).
 library;
 
 import '../config.dart';
@@ -8,12 +8,45 @@ import '../script_info.dart';
 import 'analyzer.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Contrôle syntaxique : <shell> -n
+// Contrôle syntaxique : <shell> -n, ou compilation Python
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Interpréteur Python (contrôle syntaxique, faits de l'arbre syntaxique).
+const pythonExecutable = 'python3';
+
+/// Compile le fichier passé en argument (sinon l'entrée standard) sans rien
+/// écrire sur disque (pas de `__pycache__`, contrairement à `py_compile`) ;
+/// en cas d'erreur, écrit `ligne:colonne:message` sur la sortie d'erreur.
+const pythonCompileScript = r'''
+import sys
+path = sys.argv[1] if len(sys.argv) > 1 else "<stdin>"
+try:
+    src = open(path, "rb").read() if len(sys.argv) > 1 else sys.stdin.buffer.read()
+    compile(src, path, "exec", dont_inherit=True)
+except SyntaxError as e:
+    sys.stderr.write("%s:%s:%s\n" % (e.lineno or 0, e.offset or 0, e.msg))
+    sys.exit(1)
+except ValueError as e:
+    sys.stderr.write("0:0:%s\n" % e)
+    sys.exit(1)
+''';
 
 class SyntaxAnalyzer extends Analyzer {
   @override
   String get name => 'syntax';
+
+  @override
+  ToolLanguage get language => ToolLanguage.any;
+
+  /// Commande de contrôle : exécutable et arguments, auxquels on ajoute le
+  /// fichier (ou rien : lecture de l'entrée standard).
+  static (String, List<String>) commandFor(Dialect d) => d.isPython
+      ? (pythonExecutable, ['-c', pythonCompileScript])
+      : (interpreterFor(d), ['-n']);
+
+  /// Libellé de la commande (rapports, `--list-tools`).
+  static String labelFor(Dialect d) =>
+      d.isPython ? '$pythonExecutable compile()' : '${interpreterFor(d)} -n';
 
   /// Interpréteur utilisé pour `-n` selon le dialecte.
   static String interpreterFor(Dialect d) => switch (d) {
@@ -25,14 +58,18 @@ class SyntaxAnalyzer extends Analyzer {
 
   @override
   Future<AnalyzerResult> analyze(AnalysisContext ctx) async {
-    final shell = interpreterFor(ctx.script.dialect);
-    final r = await ctx.run(shell, ['-n', ctx.filePath]);
+    final d = ctx.script.dialect;
+    final (exe, args) = commandFor(d);
+    final label = labelFor(d);
+    final r = await ctx.run(exe, [...args, ctx.filePath]);
     if (r == null) {
-      return AnalyzerResult(
-          ToolRun(name, ToolStatus.missing, detail: '$shell -n'));
+      return AnalyzerResult(ToolRun(name, ToolStatus.missing, detail: label));
     }
-    final findings =
-        r.exitCode == 0 ? <Finding>[] : parseSyntaxErrors(r.stderr);
+    final findings = r.exitCode == 0
+        ? <Finding>[]
+        : (d.isPython
+            ? parsePythonSyntaxError(r.stderr)
+            : parseSyntaxErrors(r.stderr));
     if (r.exitCode != 0 && findings.isEmpty) {
       findings.add(Finding(
           tool: name,
@@ -43,10 +80,37 @@ class SyntaxAnalyzer extends Analyzer {
           message: r.stderr.trim().split('\n').first));
     }
     return AnalyzerResult(
-        ToolRun(name, ToolStatus.ok,
-            detail: '$shell -n', findings: findings.length),
+        ToolRun(name, ToolStatus.ok, detail: label, findings: findings.length),
         findings);
   }
+}
+
+/// Codes des autres outils Python désignant une erreur de syntaxe.
+const pythonSyntaxEquivalents = [
+  'invalid-syntax',
+  'E999',
+  'E0001',
+  'syntax',
+  'PYRIGHT',
+  'VERMIN',
+];
+
+/// Erreur écrite par [pythonCompileScript] : `ligne:colonne:message`.
+List<Finding> parsePythonSyntaxError(String stderr) {
+  final m = RegExp(r'^(\d+):(\d+):(.*)$', multiLine: true).firstMatch(stderr);
+  if (m == null) return [];
+  return [
+    Finding(
+      tool: 'syntax',
+      ruleId: 'SYNTAX',
+      category: Category.robustness,
+      severity: Severity.critical,
+      line: int.parse(m.group(1)!),
+      column: int.parse(m.group(2)!),
+      message: m.group(3)!.trim(),
+      equivalents: pythonSyntaxEquivalents,
+    ),
+  ];
 }
 
 /// Analyse la sortie d'erreur de `bash -n` / `sh -n` / `dash -n`.
@@ -154,8 +218,9 @@ int indentUnit(List<String> lines) {
   return sorted.first.clamp(1, 8);
 }
 
-/// Un problème par bloc (`@@ -a,b +c,d @@`) du diff produit par `shfmt -d`.
-List<Finding> parseShfmtDiff(String diff) {
+/// Un problème par bloc (`@@ -a,b +c,d @@`) du diff produit par `shfmt -d`
+/// (ou par [tool] : `ruff format --diff`).
+List<Finding> parseShfmtDiff(String diff, {String tool = 'shfmt'}) {
   final re = RegExp(r'^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@');
   final out = <Finding>[];
   final lines = diff.split('\n');
@@ -178,12 +243,12 @@ List<Finding> parseShfmtDiff(String diff) {
     }
     if (changed == 0) continue;
     out.add(Finding(
-      tool: 'shfmt',
+      tool: tool,
       ruleId: 'FORMAT',
       category: Category.maintainability,
       severity: Severity.low,
       line: firstChange,
-      message: 'Formatting differs from shfmt canonical style '
+      message: 'Formatting differs from $tool canonical style '
           '($changed line(s) to reformat)',
     ));
   }

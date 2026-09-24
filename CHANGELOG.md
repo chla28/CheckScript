@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.0 — 2026-09-24
+
+- **Scripts Python 3** : détectés par le shebang (`python`, `python3`,
+  `python3.N`) ou l'extension `.py` / `.pyw` (`--shell python` pour
+  forcer), analysés avec **Ruff** (lint et formatage), **Bandit**,
+  **Semgrep** (règles `p/python`, accès réseau), **mypy**, **Radon**
+  (complexité, indice de maintenabilité) et **Vermin** (version minimale) ;
+  **Pylint** et **Pyright**, redondants, désactivés par défaut (`--with`).
+  Contrôle syntaxique par `compile()` (sans `__pycache__`). Seuls les outils
+  du langage du script sont lancés et listés.
+- Classement de chaque outil sur les cinq axes et dédoublonnage entre outils
+  (Ruff `S602` = Bandit `B602` = Semgrep, Ruff `PL…` = Pylint, mypy =
+  Pyright…) ; secrets jamais recopiés (messages Bandit et Semgrep
+  caviardés).
+- 6 règles intégrées Python (PYSEC001 secret à forte entropie, PYROB001
+  subprocess sans timeout, PYROB002 input() sans terminal, PYMNT001 en-tête,
+  PYMNT002 garde `__main__`, PYPOR001 shebang `python` ambigu), fondées sur
+  le module `ast` ; exemples de correction Python pour ces règles et les
+  codes Ruff / Bandit / Pylint courants.
+- `--fix` Python : corrections sûres de Ruff puis `ruff format`.
+- Version cible `pythonTarget` (défaut 3.9, RHEL / Rocky 9) :
+  `--python-target`, YAML (entre guillemets), réglage de l'interface.
+- Interface : outils groupés par langage, Pylint / Pyright activables,
+  version de Python cible.
+- Découverte : `.py`, `.pyw`, shebang Python ; dossiers `venv`,
+  `site-packages`, `__pycache__`, `node_modules` ignorés.
+
 ## 0.4.0 — 2026-09-24
 
 - **Code de correction par problème** : un clic sur un problème (interface

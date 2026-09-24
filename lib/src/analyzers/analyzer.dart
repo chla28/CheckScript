@@ -126,9 +126,24 @@ class AnalyzerResult {
   const AnalyzerResult(this.run, [this.findings = const []]);
 }
 
+/// Langage traité par un analyseur.
+enum ToolLanguage {
+  shell,
+  python,
+
+  /// Outils indépendants du langage (secrets, règles intégrées, syntaxe).
+  any;
+
+  bool accepts(ScriptInfo s) =>
+      this == any || (this == python) == s.dialect.isPython;
+}
+
 abstract class Analyzer {
   /// Nom de l'outil (clé de configuration).
   String get name;
+
+  /// Langage des scripts que l'outil sait analyser (shell par défaut).
+  ToolLanguage get language => ToolLanguage.shell;
 
   Future<AnalyzerResult> analyze(AnalysisContext ctx);
 

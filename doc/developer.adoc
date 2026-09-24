@@ -11,7 +11,8 @@
 
 `check-script` est une bibliothèque Dart (`lib/`) exposée par un CLI
 (`bin/check_script.dart`) et une interface Flutter (`gui/`). Elle orchestre
-des analyseurs de scripts shell (outils externes et règles intégrées),
+des analyseurs de scripts shell et Python 3 (outils externes et règles
+intégrées),
 normalise leurs résultats en *problèmes* (`Finding`) classés par catégorie et
 sévérité, les dédoublonne, applique directives, contextes et configuration,
 calcule les notes et produit les rapports. Elle sait aussi corriger les
@@ -56,10 +57,16 @@ lib/src/
   version.dart                     appVersion (synchronisée avec pubspec.yaml)
   rules/catalog.dart               Catalogue des règles intégrées (titre, conseil, contexte),
                                    ExecContext, escalades de sévérité par contexte
+  rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
   analyzers/
     analyzer.dart                  Analyzer, AnalysisContext, CommandRunner, CancelToken
     shellcheck.dart                ShellCheck (JSON) et table de classement SCxxxx
-    external_tools.dart            bash -n, shfmt, bashate, checkbashisms et leurs parseurs
+    external_tools.dart            Contrôle syntaxique (bash -n, compilation Python), shfmt,
+                                   bashate, checkbashisms et leurs parseurs
+    python_tools.dart              Ruff, Bandit, Semgrep, mypy, Pyright, Pylint, Radon, Vermin :
+                                   invocation, parseurs, classement, équivalents
+    python_rules.dart              Règles intégrées Python ; PythonFacts (module ast via python3,
+                                   repli ligne à ligne)
     secrets.dart                   gitleaks, trufflehog
     ast.dart                       AstFacts : faits extraits de `shfmt --to-json`
     shell_lexer.dart               Lexer heuristique (repli sans shfmt)
@@ -83,12 +90,15 @@ scripts/                           build-dist.sh, build-rpm.sh, install.sh, unin
 == Flux d'analyse
 
 ----
-fichier ──► ScriptInfo.fromContent (shebang → Dialect, CRLF, lignes)
+fichier ──► ScriptInfo.fromContent (shebang ou extension .py → Dialect, CRLF, lignes)
               │
               ▼
-Engine.analyze ── pour chaque Analyzer activé, dans l'ordre de priorité :
-              │     syntax → shellcheck → gitleaks → trufflehog → checkbashisms
-              │     → builtin (arbre shfmt si disponible) → shfmt → bashate
+Engine.analyze ── pour chaque Analyzer du langage du script (analyzersFor),
+              │   activé, dans l'ordre de priorité :
+              │     shell  : syntax → shellcheck → gitleaks → trufflehog → checkbashisms
+              │              → builtin (arbre shfmt si disponible) → shfmt → bashate
+              │     python : syntax → bandit → ruff → semgrep → mypy → pyright → pylint
+              │              → vermin → radon → gitleaks → trufflehog → builtin (ast)
               │     onProgress(AnalysisProgress) ; CancelToken vérifié entre outils
               ▼
 deduplicate   ── garde le premier de chaque groupe de doublons
@@ -126,6 +136,7 @@ niveau, date, `suppressed`, `profile`, `contexts`, `comparison`.
 ----
 abstract class Analyzer {
   String get name;                                   // clé de configuration
+  ToolLanguage get language;                         // shell (défaut), python ou any
   Future<AnalyzerResult> analyze(AnalysisContext ctx);
   Future<String?> version(CommandRunner runner, CheckConfig config); // null = absent, '?' = illisible
 }
@@ -148,6 +159,16 @@ passent par `ctx.run(...)`, qui transmet le jeton.
 |builtin |`shfmt --to-json -ln=…` sur l'entrée standard (relance en bash pour un sh non POSIX) |`AstFacts.fromJson` puis `runBuiltinRules`
 |shfmt |`-d -ln=… -i=<unité>` ; relance en `-ln=bash` si l'analyse POSIX échoue |`parseShfmtDiff` (`FORMAT`), `parseShfmtErrors` (`PARSE` / `DIALECT`)
 |bashate |`--ignore=… --max-line-length=N` |`parseBashate` (2.x et 0.x)
+|syntax (Python) |`python3 -c <pythonCompileScript> FICHIER` : `compile()` sans `__pycache__` |`parsePythonSyntaxError` (`ligne:colonne:message`)
+|ruff |`check --isolated --no-cache --target-version=pyNN --line-length=N --select=… --ignore=… --output-format=json` puis `format --diff` |`parseRuff` + `classifyRuff`, `ruffEquivalents` ; corrections `safe` → `edits`
+|bandit |`-f json -q -s …` |`parseBandit` (sévérité × confiance, `banditMap`, secrets caviardés)
+|semgrep |`scan --config=p/python --json --metrics=off --quiet --disable-version-check` |`parseSemgrep` (catégorie des métadonnées ; `fix` → `edits`)
+|mypy |`--output=json --no-incremental --cache-dir=/dev/null --ignore-missing-imports --check-untyped-defs [--python-version]` |`parseMypy` (une ligne JSON par erreur)
+|pyright |`--outputjson --pythonversion V` |`parsePyright` (positions 0-based)
+|pylint |`--output-format=json2 --score=n --persistent=n --py-version=V --disable=…` |`parsePylint` + `pylintMap`
+|radon |`cc -j -s`, `mi -j -s` |`parseRadonCc` (`CC`, ≥ 11), `parseRadonMi` (`MI`)
+|vermin |`--no-tips --violations -t=V- --format parsable` |`parseVermin` (`VERMIN`)
+|builtin (Python) |`python3 -c <pythonFactsScript> FICHIER` |`PythonFacts.fromJson` (sinon `lexPythonFacts`) puis `runPythonRules`
 |===
 
 === Classement des codes ShellCheck
@@ -166,6 +187,16 @@ Deux problèmes sont doublons si l'un des `equivalents` de l'un correspond au
 ligne — ou que l'un est « fichier » (ligne 0) ou une erreur `SYNTAX`. Même
 outil : même ligne et (même règle ou équivalent). Le premier rencontré est
 conservé ; l'ordre de `defaultAnalyzers()` fixe la priorité.
+
+=== Équivalences Python
+
+Ruff `Snnn` = Bandit `Bnnn` (mêmes numéros) ; Ruff `PLxnnnn` = Pylint
+`xnnnn` ; table `_ruffToPylint` pour les autres (`E722` = `W0702`, `B006` =
+`W0102`…) ; Semgrep équivaut aux codes Bandit et Ruff de sécurité de la même
+ligne ; mypy aux diagnostics Pyright (`report*`) ; les erreurs de *version*
+(`match` en 3.9) de Ruff et Pyright sont classées Portabilité et équivalent
+à `VERMIN`. Les messages Bandit B105–B107 et Semgrep « secret » sont
+caviardés, et leurs lignes masquées (`_revealsSecret`).
 
 == Règles intégrées
 
@@ -254,6 +285,10 @@ jamais dans un heredoc, une chaîne multi-lignes ou un commentaire ;
 `replaceBackticks` ignore les apostrophes et les backticks échappés), puis
 `shfmt -ln -i` sur l'entrée standard. Si `<shell> -n` accepte l'original mais
 refuse le résultat, `FixResult.aborted` est renseigné et rien n'est écrit.
+Pour un script Python (`_fixPython`) : `ruff check --fix` puis `ruff format`
+sur l'entrée standard (`--stdin-filename=script.py`), les corrections étant
+comptées d'après la sortie JSON ; contrôle par la compilation Python
+(`syntaxRegression` utilise `SyntaxAnalyzer.commandFor`).
 `unifiedDiff` (Myers) produit le diff de `--dry-run` et de l'interface.
 
 == Référence (baseline)
@@ -283,7 +318,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.4.0",
+  "tool": "check-script", "version": "0.5.0",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -368,7 +403,9 @@ dart analyze --fatal-infos
 |`engine_test.dart`, `scoring_test.dart`, `config_test.dart` |Moteur, notation, configuration
 |`reporters_test.dart`, `cli_test.dart` |Rapports, options et codes de sortie
 |`corpus_test.dart` |Instantanés, règles obligatoires / interdites, plages de niveaux
-|`integration_test.dart` |Vrais outils (ignorés s'ils sont absents)
+|`python_test.dart` |Parseurs des outils Python (sorties réelles de `fixtures/outputs/python/`, capturées sur `fixtures/bad.py`), dédoublonnage, secrets, règles intégrées Python (lexer et `ast` réel), `--fix`, découverte, `pythonTarget`
+|`fix_suggestions_test.dart` |Corrections par problème, exemples, rapport HTML
+|`integration_test.dart` |Vrais outils (ignorés s'ils sont absents), dont Ruff, Bandit, mypy, Radon, Vermin sur `bad.py` / `good.py`
 |===
 
 Toute correction de règle s'accompagne d'un test qui échoue avant la

@@ -5,6 +5,7 @@
 /// des règles intégrées sont traduits.
 library;
 
+import 'analyzers/analyzer.dart' show ToolLanguage;
 import 'model/finding.dart';
 
 enum Lang {
@@ -94,6 +95,12 @@ class Messages {
   String get wholeFile => _t('fichier', 'file');
   String get maskedSecret => _t('(ligne non reproduite : secret potentiel)',
       '(line not shown: potential secret)');
+  String get language_ => _t('Langage', 'Language');
+  String toolLanguage(ToolLanguage l) => switch (l) {
+        ToolLanguage.shell => 'shell',
+        ToolLanguage.python => 'python',
+        ToolLanguage.any => _t('tous', 'all'),
+      };
   String get suggestedFix => _t('Correction proposée', 'Suggested fix');
   String get fixExample => _t('Exemple de correction', 'Fix example');
   String get avoid => _t('À éviter', 'Avoid');

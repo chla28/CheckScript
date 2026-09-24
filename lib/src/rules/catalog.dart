@@ -40,6 +40,9 @@ class RuleInfo {
 
   const RuleInfo(this.id, this.category, this.severity, this.title, this.fix,
       {this.contexts = const {}});
+
+  /// Règle propre aux scripts Python (identifiant `PY…`).
+  bool get python => id.startsWith('PY');
 }
 
 const _sec = Category.security;
@@ -561,6 +564,57 @@ const List<RuleInfo> ruleCatalog = [
       Tr('\$(cat fichier) : utiliser \$(< fichier) en bash',
           '\$(cat file): use \$(< file) in bash'),
       Tr('x=\$(< fichier).', 'x=\$(< file).')),
+
+  // ── Python ────────────────────────────────────────────────────────────────
+  RuleInfo(
+      'PYSEC001',
+      _sec,
+      _h,
+      Tr('Chaîne à forte entropie : secret potentiel',
+          'High-entropy string: potential secret'),
+      Tr('Lire le secret depuis l\'environnement (os.environ) ou un fichier protégé (chmod 600), et le révoquer ; sinon, neutraliser la règle sur cette ligne (# check-script disable=PYSEC001).',
+          'Read the secret from the environment (os.environ) or a protected file (chmod 600), and revoke it; otherwise suppress the rule on this line (# check-script disable=PYSEC001).')),
+  RuleInfo(
+      'PYROB001',
+      _rob,
+      _l,
+      Tr('Appel subprocess sans timeout : le script peut rester bloqué',
+          'subprocess call without timeout: the script may hang'),
+      Tr('Passer timeout=… et traiter subprocess.TimeoutExpired.',
+          'Pass timeout=… and handle subprocess.TimeoutExpired.')),
+  RuleInfo(
+      'PYROB002',
+      _rob,
+      _m,
+      Tr('Saisie interactive (input) dans un script sans terminal',
+          'Interactive prompt (input) in a script without a terminal'),
+      Tr('Remplacer la saisie par une option (argparse), une variable d\'environnement ou un fichier de configuration.',
+          'Replace the prompt with an option (argparse), an environment variable or a configuration file.'),
+      contexts: {ExecContext.cron, ExecContext.systemd}),
+  RuleInfo(
+      'PYMNT001',
+      _mnt,
+      _l,
+      Tr('Pas de docstring ni de commentaire d\'en-tête décrivant le script',
+          'No docstring or header comment describing the script'),
+      Tr('Commencer par une docstring : rôle du script, usage, prérequis.',
+          'Start with a docstring: what the script does, usage, prerequisites.')),
+  RuleInfo(
+      'PYMNT002',
+      _mnt,
+      _l,
+      Tr('Code exécuté au chargement du module, sans garde __main__',
+          'Code runs when the module is imported, no __main__ guard'),
+      Tr('Regrouper le code dans main() et l\'appeler sous if __name__ == "__main__":.',
+          'Move the code into main() and call it under if __name__ == "__main__":.')),
+  RuleInfo(
+      'PYPOR001',
+      _por,
+      _m,
+      Tr('Shebang « python » ambigu (Python 2 sur d\'anciens systèmes, absent ailleurs)',
+          'Ambiguous "python" shebang (Python 2 on old systems, missing elsewhere)'),
+      Tr('Utiliser #!/usr/bin/env python3 (ou #!/usr/bin/python3).',
+          'Use #!/usr/bin/env python3 (or #!/usr/bin/python3).')),
 ];
 
 final Map<String, RuleInfo> _byId = {for (final r in ruleCatalog) r.id: r};
@@ -569,15 +623,13 @@ final Map<String, RuleInfo> _byId = {for (final r in ruleCatalog) r.id: r};
 RuleInfo ruleInfo(String id) =>
     _byId[id] ?? (throw ArgumentError('règle inconnue : $id'));
 
-/// Toutes les règles, triées par catégorie puis identifiant (`--list-rules`).
-List<RuleInfo> allBuiltinRules() {
-  int order(String id) =>
-      ['SEC', 'ROB', 'MNT', 'POR', 'PERF'].indexWhere(id.startsWith);
-  return [...ruleCatalog]..sort((a, b) {
-      final o = order(a.id).compareTo(order(b.id));
-      return o != 0 ? o : a.id.compareTo(b.id);
-    });
-}
+/// Toutes les règles, shell puis Python, triées par catégorie puis
+/// identifiant (`--list-rules`).
+List<RuleInfo> allBuiltinRules() => [...ruleCatalog]..sort((a, b) {
+    if (a.python != b.python) return a.python ? 1 : -1;
+    final o = a.category.index.compareTo(b.category.index);
+    return o != 0 ? o : a.id.compareTo(b.id);
+  });
 
 /// Sévérités relevées selon le contexte d'exécution (jamais abaissées).
 const Map<ExecContext, Map<String, Severity>> contextEscalations = {
@@ -595,11 +647,13 @@ const Map<ExecContext, Map<String, Severity>> contextEscalations = {
     'SC2164': Severity.critical,
   },
   ExecContext.cron: {
+    'PYROB001': Severity.medium,
     'ROB001': Severity.high,
     'SEC009': Severity.high,
     'SEC012': Severity.medium,
   },
   ExecContext.systemd: {
+    'PYROB001': Severity.medium,
     'ROB001': Severity.high,
     'SEC012': Severity.medium,
   },

@@ -15,8 +15,14 @@ class GuiSettings {
   final Profile profile;
   final Set<ExecContext> contexts;
   final Set<String> disabledTools;
+
+  /// Outils désactivés par défaut (pylint, pyright) que l'utilisateur active.
+  final Set<String> enabledTools;
   final bool followSource;
   final String? configPath;
+
+  /// Version minimale de Python ; null : celle de la configuration (3.9).
+  final String? pythonTarget;
 
   const GuiSettings({
     this.lang,
@@ -24,9 +30,27 @@ class GuiSettings {
     this.profile = Profile.standard,
     this.contexts = const {},
     this.disabledTools = const {},
+    this.enabledTools = const {},
     this.followSource = false,
     this.configPath,
+    this.pythonTarget,
   });
+
+  /// Outil actif selon ces réglages (sa valeur par défaut, sauf choix
+  /// contraire de l'utilisateur).
+  bool toolEnabled(String tool) {
+    if (disabledTools.contains(tool)) return false;
+    return enabledTools.contains(tool) ||
+        (CheckConfig.defaultTools[tool]?.enabled ?? true);
+  }
+
+  /// Réglages après activation / désactivation d'un outil.
+  GuiSettings withTool(String tool, bool on) => copyWith(
+        disabledTools:
+            on ? ({...disabledTools}..remove(tool)) : {...disabledTools, tool},
+        enabledTools:
+            on ? {...enabledTools, tool} : ({...enabledTools}..remove(tool)),
+      );
 
   GuiSettings copyWith({
     Lang? Function()? lang,
@@ -34,8 +58,10 @@ class GuiSettings {
     Profile? profile,
     Set<ExecContext>? contexts,
     Set<String>? disabledTools,
+    Set<String>? enabledTools,
     bool? followSource,
     String? Function()? configPath,
+    String? Function()? pythonTarget,
   }) =>
       GuiSettings(
         lang: lang == null ? this.lang : lang(),
@@ -43,8 +69,10 @@ class GuiSettings {
         profile: profile ?? this.profile,
         contexts: contexts ?? this.contexts,
         disabledTools: disabledTools ?? this.disabledTools,
+        enabledTools: enabledTools ?? this.enabledTools,
         followSource: followSource ?? this.followSource,
         configPath: configPath == null ? this.configPath : configPath(),
+        pythonTarget: pythonTarget == null ? this.pythonTarget : pythonTarget(),
       );
 
   static Future<GuiSettings> load() async {
@@ -61,8 +89,11 @@ class GuiSettings {
       },
       disabledTools:
           (p.getStringList('disabledTools') ?? const <String>[]).toSet(),
+      enabledTools:
+          (p.getStringList('enabledTools') ?? const <String>[]).toSet(),
       followSource: p.getBool('followSource') ?? false,
       configPath: p.getString('configPath'),
+      pythonTarget: p.getString('pythonTarget'),
     );
   }
 
@@ -77,11 +108,17 @@ class GuiSettings {
     await p.setString('profile', profile.name);
     await p.setStringList('contexts', [for (final c in contexts) c.name]);
     await p.setStringList('disabledTools', disabledTools.toList());
+    await p.setStringList('enabledTools', enabledTools.toList());
     await p.setBool('followSource', followSource);
     if (configPath == null) {
       await p.remove('configPath');
     } else {
       await p.setString('configPath', configPath!);
+    }
+    if (pythonTarget == null) {
+      await p.remove('pythonTarget');
+    } else {
+      await p.setString('pythonTarget', pythonTarget!);
     }
   }
 }
@@ -133,9 +170,13 @@ class AppState extends ChangeNotifier {
       c = CheckConfig.parse(await File(path).readAsString(),
           profile: _settings.profile);
     }
-    return c.withToolsDisabled(_settings.disabledTools).copyWith(
+    return c
+        .withToolsEnabled(_settings.enabledTools)
+        .withToolsDisabled(_settings.disabledTools)
+        .copyWith(
           contexts: _settings.contexts,
           followSource: _settings.followSource,
+          pythonTarget: _settings.pythonTarget,
         );
   }
 

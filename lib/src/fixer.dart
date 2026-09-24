@@ -6,8 +6,11 @@
 ///    `read` → `read -r` ;
 /// 3. formatage shfmt dans le style d'indentation du script.
 ///
-/// Le résultat est contrôlé par `<shell> -n` : si le script était valide et ne
-/// l'est plus, aucune correction n'est retenue.
+/// Pour un script Python : corrections sûres de `ruff check --fix`, puis
+/// `ruff format`.
+///
+/// Le résultat est contrôlé par `<shell> -n` (ou la compilation Python) : si
+/// le script était valide et ne l'est plus, aucune correction n'est retenue.
 library;
 
 import 'dart:convert';
@@ -15,6 +18,7 @@ import 'dart:io';
 
 import 'analyzers/analyzer.dart';
 import 'analyzers/external_tools.dart';
+import 'analyzers/python_tools.dart';
 import 'analyzers/shell_lexer.dart';
 import 'analyzers/shellcheck.dart';
 import 'config.dart';
@@ -198,8 +202,11 @@ String _fixLine(CodeLine l, String line, void Function(String, int) count,
 
 /// Joint à chaque problème sans correction ShellCheck la correction intégrée
 /// de sa règle, limitée à sa ligne. Les lignes masquées (secret potentiel,
-/// [Finding.snippet] absent) ne reçoivent jamais de correction.
-List<Finding> attachFixes(List<Finding> findings, List<String> lines) {
+/// [Finding.snippet] absent) ne reçoivent jamais de correction. Les
+/// corrections intégrées ne concernent que le shell ([shell] faux : Python).
+List<Finding> attachFixes(List<Finding> findings, List<String> lines,
+    {bool shell = true}) {
+  if (!shell) return findings;
   final lexed = lexScript(lines);
   return [
     for (final f in findings)
@@ -244,14 +251,14 @@ List<Finding> attachFixes(List<Finding> findings, List<String> lines) {
 }
 
 /// Message d'erreur si [fixed] casse la syntaxe d'un script qui était valide
-/// (contrôle `<shell> -n`), sinon null.
+/// (contrôle `<shell> -n` ou compilation Python), sinon null.
 Future<String?> syntaxRegression(ScriptInfo script, String fixed,
     {CheckConfig config = const CheckConfig(),
     CommandRunner runner = const ProcessCommandRunner()}) async {
   if (fixed == script.content || !config.tool('syntax').enabled) return null;
-  final shell = SyntaxAnalyzer.interpreterFor(script.dialect);
-  final before = await runner.run(shell, ['-n'], stdin: script.content);
-  final after = await runner.run(shell, ['-n'], stdin: fixed);
+  final (exe, args) = SyntaxAnalyzer.commandFor(script.dialect);
+  final before = await runner.run(exe, args, stdin: script.content);
+  final after = await runner.run(exe, args, stdin: fixed);
   if (before != null &&
       after != null &&
       before.exitCode == 0 &&
@@ -300,6 +307,9 @@ Future<String?> syntaxRegression(ScriptInfo script, String fixed,
 Future<FixResult> fixScript(ScriptInfo script,
     {CheckConfig config = const CheckConfig(),
     CommandRunner runner = const ProcessCommandRunner()}) async {
+  if (script.dialect.isPython) {
+    return _fixPython(script, config: config, runner: runner);
+  }
   final applied = <String, int>{};
   void merge(Map<String, int> m) =>
       m.forEach((k, v) => applied[k] = (applied[k] ?? 0) + v);
@@ -358,6 +368,62 @@ Future<FixResult> fixScript(ScriptInfo script,
   if (!text.endsWith('\n') && script.content.endsWith('\n')) text = '$text\n';
 
   // Contrôle : ne jamais rendre invalide un script qui était valide.
+  final broken =
+      await syntaxRegression(script, text, config: config, runner: runner);
+  if (broken != null) {
+    return FixResult(script.content, script.content, const {}, aborted: broken);
+  }
+  return FixResult(script.content, text, applied);
+}
+
+/// Corrections d'un script Python par Ruff, sur l'entrée standard : les
+/// corrections sûres de `ruff check --fix` (comptées d'après la sortie JSON),
+/// puis `ruff format`.
+Future<FixResult> _fixPython(ScriptInfo script,
+    {required CheckConfig config, required CommandRunner runner}) async {
+  final ruff = config.tool('ruff');
+  if (!ruff.enabled) return FixResult(script.content, script.content, const {});
+  const stdinName = '--stdin-filename=script.py';
+  final applied = <String, int>{};
+  var text = script.content;
+
+  final check = RuffAnalyzer.checkArgs(config);
+  final listed = await runner.run(
+      ruff.executable, [...check, '--output-format=json', stdinName, '-'],
+      stdin: text);
+  if (listed != null && listed.exitCode <= 1) {
+    try {
+      for (final f in parseRuff(listed.stdout)) {
+        if (f.edits.isNotEmpty) {
+          applied[f.ruleId] = (applied[f.ruleId] ?? 0) + 1;
+        }
+      }
+    } on FormatException {
+      applied.clear();
+    }
+    if (applied.isNotEmpty) {
+      final r = await runner.run(
+          ruff.executable, [...check, '--fix', stdinName, '-'],
+          stdin: text);
+      if (r != null && r.exitCode <= 1 && r.stdout.isNotEmpty) {
+        text = r.stdout;
+      } else {
+        applied.clear();
+      }
+    }
+  }
+
+  final fmt = await runner.run(ruff.executable,
+      ['format', ...RuffAnalyzer.commonArgs(config), stdinName, '-'],
+      stdin: text);
+  if (fmt != null &&
+      fmt.exitCode == 0 &&
+      fmt.stdout.isNotEmpty &&
+      fmt.stdout != text) {
+    text = fmt.stdout;
+    applied['FORMAT'] = 1;
+  }
+
   final broken =
       await syntaxRegression(script, text, config: config, runner: runner);
   if (broken != null) {

@@ -74,8 +74,17 @@ class S {
   String get trend => _t('Tendance', 'Trend');
   String get issues => _t('Problèmes', 'Issues');
   String get openInAnalysis => _t('Ouvrir dans l\'analyse', 'Open in analysis');
-  String get noScripts =>
-      _t('Aucun script shell trouvé.', 'No shell script found.');
+  String get noScripts => _t('Aucun script shell ou Python trouvé.',
+      'No shell or Python script found.');
+  String get shellTools => _t('Scripts shell', 'Shell scripts');
+  String get pythonTools => _t('Scripts Python', 'Python scripts');
+  String get commonTools => _t('Tous les scripts', 'All scripts');
+  String get pythonTarget => _t('Version minimale de Python à supporter',
+      'Minimum Python version to support');
+  String get semgrepNetwork =>
+      _t('règles p/python (accès réseau)', 'p/python rules (network access)');
+  String get optIn =>
+      _t('redondant, désactivé par défaut', 'redundant, disabled by default');
   String get baselineLoaded => _t('Référence chargée', 'Baseline loaded');
   String get newOnly => _t('Nouveaux uniquement', 'New only');
   String get documentation => _t('Documentation', 'Documentation');

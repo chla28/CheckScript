@@ -1,15 +1,22 @@
-/// Découverte des scripts shell d'un dossier (CLI et interface graphique).
+/// Découverte des scripts shell et Python d'un dossier (CLI et interface
+/// graphique).
 library;
 
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-final _shellShebang = RegExp(r'^#!.*\b(?:ba|da|k|mk|z)?sh\b');
-const _shellExt = {'.sh', '.bash', '.ksh', '.dash', '.zsh'};
+final _scriptShebang =
+    RegExp(r'^#!.*\b(?:(?:ba|da|k|mk|z)?sh|python[23]?(?:\.\d+)?)\b');
+const _scriptExt = {'.sh', '.bash', '.ksh', '.dash', '.zsh', '.py', '.pyw'};
 
-/// Fichier → [fichier] ; dossier → scripts shell qu'il contient (extension ou
-/// shebang), récursivement, dossiers cachés exclus ; null si introuvable.
+/// Dossiers de dépendances tierces, jamais parcourus (les dossiers cachés,
+/// dont `.venv` et `.git`, sont déjà exclus).
+const _vendorDirs = {'venv', 'site-packages', '__pycache__', 'node_modules'};
+
+/// Fichier → [fichier] ; dossier → scripts shell et Python qu'il contient
+/// (extension ou shebang), récursivement, dossiers cachés et de dépendances
+/// exclus ; null si introuvable.
 Future<List<String>?> collectScripts(String target) async {
   final type = await FileSystemEntity.type(target);
   if (type == FileSystemEntityType.file) return [target];
@@ -19,15 +26,17 @@ Future<List<String>?> collectScripts(String target) async {
       in Directory(target).list(recursive: true, followLinks: false)) {
     if (e is! File) continue;
     final rel = p.relative(e.path, from: target);
-    if (p.split(rel).any((s) => s.startsWith('.'))) continue;
-    if (_shellExt.contains(p.extension(e.path).toLowerCase())) {
+    if (p.split(rel).any((s) => s.startsWith('.') || _vendorDirs.contains(s))) {
+      continue;
+    }
+    if (_scriptExt.contains(p.extension(e.path).toLowerCase())) {
       found.add(e.path);
       continue;
     }
     if (p.extension(e.path).isNotEmpty) continue;
     try {
       final head = await e.openRead(0, 128).first;
-      if (_shellShebang
+      if (_scriptShebang
           .hasMatch(String.fromCharCodes(head).split('\n').first)) {
         found.add(e.path);
       }

@@ -26,6 +26,9 @@ class GitleaksAnalyzer extends Analyzer {
   String get name => 'gitleaks';
 
   @override
+  ToolLanguage get language => ToolLanguage.any;
+
+  @override
   Future<String?> version(CommandRunner runner, CheckConfig config) async {
     final r = await runner.run(config.tool(name).executable, ['version']);
     return r == null ? null : extractVersion(r.stdout) ?? '?';
@@ -89,6 +92,9 @@ List<Finding> parseGitleaks(String output) {
 class TrufflehogAnalyzer extends Analyzer {
   @override
   String get name => 'trufflehog';
+
+  @override
+  ToolLanguage get language => ToolLanguage.any;
 
   @override
   Future<String?> version(CommandRunner runner, CheckConfig config) async {

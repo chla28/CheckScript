@@ -13,7 +13,10 @@ void main() {
       '#! /bin/dash': Dialect.dash,
       '#!/bin/ksh93': Dialect.ksh,
       '#!/usr/bin/zsh': Dialect.zsh,
-      '#!/usr/bin/python3': Dialect.unknown,
+      '#!/usr/bin/python3': Dialect.python,
+      '#!/usr/bin/env python': Dialect.python,
+      '#!/usr/bin/env -S python3.11 -u': Dialect.python,
+      '#!/usr/bin/perl': Dialect.unknown,
     };
     cases.forEach((shebang, expected) {
       test(shebang, () {
@@ -22,6 +25,15 @@ void main() {
     });
     test('pas de shebang', () {
       expect(ScriptInfo.dialectFromShebang(null), Dialect.unknown);
+    });
+    test('extension .py / .pyw sans shebang', () {
+      expect(script('print(1)\n', path: 'a.py').dialect, Dialect.python);
+      expect(script('print(1)\n', path: 'B.PYW').dialect, Dialect.python);
+      expect(script('echo a\n', path: 'a.sh').dialect, Dialect.unknown);
+      // Le shebang prime sur l'extension, le dialecte forcé sur les deux.
+      expect(script('#!/bin/sh\n', path: 'x.py').dialect, Dialect.sh);
+      expect(script('print(1)\n', path: 'a.py', dialect: Dialect.bash).dialect,
+          Dialect.bash);
     });
   });
 

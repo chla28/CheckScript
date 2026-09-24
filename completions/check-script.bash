@@ -12,8 +12,8 @@ _check_script() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
-  opts="--output -o --format -f --lang -l --shell -s --profile -p --context \
---follow-source --config -c --without --no-external --baseline -b --fail-on-new \
+  opts="--output -o --format -f --lang -l --shell -s --python-target --profile -p --context \
+--follow-source --config -c --with --without --no-external --baseline -b --fail-on-new \
 --fix --dry-run --backup --details --summary --source --no-source --color --no-color --quiet -q \
 --fail-under --list-tools --list-rules --version -v --help -h"
 
@@ -27,7 +27,7 @@ _check_script() {
       return 0
       ;;
     --shell | -s)
-      mapfile -t COMPREPLY < <(compgen -W "sh bash dash ksh zsh" -- "$cur")
+      mapfile -t COMPREPLY < <(compgen -W "sh bash dash ksh zsh python" -- "$cur")
       return 0
       ;;
     --profile | -p)
@@ -38,8 +38,12 @@ _check_script() {
       mapfile -t COMPREPLY < <(compgen -W "root cron systemd interactive" -- "$cur")
       return 0
       ;;
-    --without)
-      mapfile -t COMPREPLY < <(compgen -W "shellcheck shfmt bashate checkbashisms gitleaks trufflehog syntax builtin" -- "$cur")
+    --with | --without)
+      mapfile -t COMPREPLY < <(compgen -W "shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin gitleaks trufflehog syntax builtin" -- "$cur")
+      return 0
+      ;;
+    --python-target)
+      mapfile -t COMPREPLY < <(compgen -W "3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14" -- "$cur")
       return 0
       ;;
     --fail-on-new)

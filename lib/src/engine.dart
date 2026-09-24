@@ -7,6 +7,7 @@ import 'dart:io';
 import 'analyzers/analyzer.dart';
 import 'analyzers/builtin_rules.dart';
 import 'analyzers/external_tools.dart';
+import 'analyzers/python_tools.dart';
 import 'analyzers/secrets.dart';
 import 'analyzers/shellcheck.dart';
 import 'baseline.dart';
@@ -22,9 +23,18 @@ import 'suppressions.dart';
 
 /// Analyseurs par ordre de priorité : en cas de doublon sur une même ligne,
 /// le résultat de l'outil le plus spécialisé (le premier) est conservé.
+/// Seuls ceux du langage du script sont exécutés ([Analyzer.language]).
 List<Analyzer> defaultAnalyzers() => [
       SyntaxAnalyzer(),
       ShellcheckAnalyzer(),
+      BanditAnalyzer(),
+      RuffAnalyzer(),
+      SemgrepAnalyzer(),
+      MypyAnalyzer(),
+      PyrightAnalyzer(),
+      PylintAnalyzer(),
+      VerminAnalyzer(),
+      RadonAnalyzer(),
       GitleaksAnalyzer(),
       TrufflehogAnalyzer(),
       CheckbashismsAnalyzer(),
@@ -69,6 +79,12 @@ class Engine {
     List<Analyzer>? analyzers,
   }) : analyzers = analyzers ?? defaultAnalyzers();
 
+  /// Analyseurs du langage de [script].
+  List<Analyzer> analyzersFor(ScriptInfo script) => [
+        for (final a in analyzers)
+          if (a.language.accepts(script)) a
+      ];
+
   /// Analyse un fichier sur disque.
   Future<ScriptReport> analyzeFile(String path,
       {Dialect? dialect,
@@ -106,8 +122,9 @@ class Engine {
           cancel: cancel);
       final runs = <ToolRun>[];
       final raw = <Finding>[];
-      final total = analyzers.length;
-      for (final a in analyzers) {
+      final applicable = analyzersFor(script);
+      final total = applicable.length;
+      for (final a in applicable) {
         cancel?.check();
         onProgress
             ?.call(AnalysisProgress(script.path, a.name, runs.length, total));
@@ -140,6 +157,7 @@ class Engine {
           if (!suppressions.suppresses(f)) f
       ];
       final findings = sortFindings(attachFixes(
+          shell: !script.dialect.isPython,
           attachSource(
               fingerprintAll(
                   applyConfig(
@@ -210,12 +228,17 @@ final Set<String> _secretRules = {
   for (final r in lineRules)
     if (r.hideSnippet) r.id,
   'SEC022',
+  'PYSEC001',
 };
 
-bool _revealsSecret(Finding f) =>
-    f.tool == 'gitleaks' ||
-    f.tool == 'trufflehog' ||
-    (f.tool == 'builtin' && _secretRules.contains(f.ruleId));
+bool _revealsSecret(Finding f) => switch (f.tool) {
+      'gitleaks' || 'trufflehog' => true,
+      'builtin' => _secretRules.contains(f.ruleId),
+      'bandit' => const {'B105', 'B106', 'B107'}.contains(f.ruleId),
+      'ruff' => const {'S105', 'S106', 'S107'}.contains(f.ruleId),
+      'semgrep' => semgrepSecretRule.hasMatch(f.ruleId.toLowerCase()),
+      _ => false,
+    };
 
 /// Rattache à chaque problème la ligne de code qu'il désigne (sans les
 /// blancs de fin). Les lignes où un secret a été détecté sont masquées pour
@@ -273,6 +296,18 @@ String? toolHint(Finding f, Lang lang) {
     ('shfmt', 'FORMAT') => t(
         'Reformater avec check-script --fix (ou shfmt -w).',
         'Reformat with check-script --fix (or shfmt -w).'),
+    ('ruff', 'FORMAT') => t(
+        'Reformater avec check-script --fix (ou ruff format).',
+        'Reformat with check-script --fix (or ruff format).'),
+    ('vermin', _) => t(
+        'Remplacer par une construction disponible dans la version cible, ou relever pythonTarget si ce Python est garanti.',
+        'Replace with a construct available in the target version, or raise pythonTarget if that Python is guaranteed.'),
+    ('radon', 'CC') => t(
+        'Découper la fonction : extraire les branches en sous-fonctions, sortir tôt (return / continue).',
+        'Split the function: extract branches into helpers, return early (return / continue).'),
+    ('radon', 'MI') => t(
+        'Réduire la taille et la complexité du fichier : découper en fonctions ou en modules.',
+        'Reduce the file size and complexity: split into functions or modules.'),
     ('shfmt', 'DIALECT') || ('checkbashisms', _) => t(
         'Utiliser l\'équivalent POSIX, ou déclarer #!/usr/bin/env bash.',
         'Use the POSIX equivalent, or declare #!/usr/bin/env bash.'),

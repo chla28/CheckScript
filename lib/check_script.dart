@@ -9,8 +9,16 @@ export 'src/analyzers/analyzer.dart';
 export 'src/analyzers/ast.dart'
     show AstFacts, CommandFact, FunctionFact, NestingFact, loadAst;
 export 'src/analyzers/builtin_rules.dart'
-    show runBuiltinRules, lineRules, shannonEntropy, looksLikeSecret;
+    show
+        runBuiltinRules,
+        lineRules,
+        shannonEntropy,
+        looksLikeSecret,
+        lineHasSecret,
+        BuiltinAnalyzer;
 export 'src/analyzers/external_tools.dart';
+export 'src/analyzers/python_rules.dart';
+export 'src/analyzers/python_tools.dart';
 export 'src/analyzers/secrets.dart';
 export 'src/analyzers/shellcheck.dart';
 export 'src/baseline.dart';

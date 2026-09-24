@@ -6,7 +6,7 @@
 
 == NOM
 
-check-script - évalue la qualité et la sécurité de scripts shell
+check-script - évalue la qualité et la sécurité de scripts shell et Python
 
 == SYNOPSIS
 
@@ -14,17 +14,25 @@ check-script - évalue la qualité et la sécurité de scripts shell
 
 == DESCRIPTION
 
-*check-script* note des scripts shell sur cinq catégories (Sécurité,
+*check-script* note des scripts shell ou Python 3 sur cinq catégories (Sécurité,
 Robustesse, Maintenabilité, Portabilité, Performance), chacune sur 10, avec le
 nombre de problèmes par sévérité (Critical, High, Medium, Low), une note
 globale et un niveau de A à E.
 
-Il exploite *shellcheck*(1), *shfmt*(1), *bashate*(1), *checkbashisms*(1),
-*gitleaks*(1), *trufflehog*(1) et *bash -n* lorsqu'ils sont installés, et les
-complète par des règles intégrées (voir *--list-rules*).
+Il exploite *shellcheck*(1), *shfmt*(1), *bashate*(1), *checkbashisms*(1), *ruff*(1),
+*bandit*(1), *semgrep*(1), *mypy*(1), *radon*(1), *vermin*(1),
+*gitleaks*(1), *trufflehog*(1) et *bash -n* pour le shell ; *ruff*(1),
+*bandit*(1), *semgrep*(1), *mypy*(1), *radon*(1), *vermin*(1) (et, sur
+demande, *pylint*(1), *pyright*(1)) pour Python, lorsqu'ils sont installés ;
+il les complète par des règles intégrées (voir *--list-rules*).
+
+Un script est traité comme Python si son shebang désigne *python* ou, sans
+shebang, si son extension est *.py* ou *.pyw*.
 
 Un _DOSSIER_ est parcouru récursivement (fichiers *.sh*, *.bash*, *.ksh*,
-*.dash*, *.zsh* et fichiers sans extension dont le shebang désigne un shell).
+*.dash*, *.zsh*, *.py*, *.pyw* et fichiers sans extension dont le shebang
+désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
+*__pycache__* et *node_modules* exclus).
 *-* lit le script sur l'entrée standard.
 
 == OPTIONS
@@ -41,7 +49,11 @@ Un _DOSSIER_ est parcouru récursivement (fichiers *.sh*, *.bash*, *.ksh*,
   Langue du rapport (défaut : *LC_ALL*, *LC_MESSAGES* puis *LANG*).
 
 *-s, --shell* _DIALECTE_::
-  Force le dialecte (*sh*, *bash*, *dash*, *ksh*, *zsh*).
+  Force le dialecte (*sh*, *bash*, *dash*, *ksh*, *zsh*, *python*).
+
+*--python-target* _VERSION_::
+  Version minimale de Python que les scripts doivent supporter (défaut :
+  *3.9*) : transmise à vermin, ruff, pylint et pyright.
 
 *-p, --profile* *strict*|*default*|*legacy*::
   Profil de notation et de seuils.
@@ -56,6 +68,10 @@ Un _DOSSIER_ est parcouru récursivement (fichiers *.sh*, *.bash*, *.ksh*,
 *-c, --config* _FICHIER_::
   Configuration YAML (défaut : *./.checkscript.yaml* puis
   *~/.config/check-script/config.yaml*).
+
+*--with* _OUTIL_::
+  Active un outil désactivé par défaut (*pylint*, *pyright*). Répétable ou
+  séparé par des virgules.
 
 *--without* _OUTIL_::
   Désactive un outil. Répétable ou séparé par des virgules.
