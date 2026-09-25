@@ -71,7 +71,40 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: dart-lang/setup-dart@v1
+    # SDK Dart installé ici plutôt que par dart-lang/setup-dart : dans une
+    # action composite, celle-ci cherche son fichier dart-analyzer.json dans
+    # le dossier de l'action appelante (erreur « add-matcher »).
+    - name: SDK Dart
+      shell: bash
+      run: |
+        set -euo pipefail
+        if command -v dart >/dev/null; then
+          exit 0
+        fi
+        case "$RUNNER_OS" in
+          Linux) os=linux ;;
+          macOS) os=macos ;;
+          *) echo "::error::CheckScript : système non pris en charge ($RUNNER_OS)"; exit 1 ;;
+        esac
+        case "$(uname -m)" in
+          x86_64 | amd64) arch=x64 ;;
+          aarch64 | arm64) arch=arm64 ;;
+          *) echo "::error::CheckScript : architecture non prise en charge"; exit 1 ;;
+        esac
+        base=https://storage.googleapis.com/dart-archive/channels/stable/release
+        version=$(curl -fsSL "$base/latest/VERSION" | jq -r .version)
+        zip="dartsdk-$os-$arch-release.zip"
+        cd "$RUNNER_TEMP"
+        curl -fsSLO "$base/$version/sdk/$zip"
+        curl -fsSLO "$base/$version/sdk/$zip.sha256sum"
+        if command -v sha256sum >/dev/null; then
+          sha256sum -c "$zip.sha256sum"
+        else
+          shasum -a 256 -c "$zip.sha256sum"
+        fi
+        unzip -q "$zip"
+        echo "$RUNNER_TEMP/dart-sdk/bin" >>"$GITHUB_PATH"
+        echo "Dart $version"
     - name: Construction de check-script
       shell: bash
       working-directory: ${{ github.action_path }}

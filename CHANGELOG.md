@@ -1,5 +1,12 @@
 # Changelog
 
+## Non publié
+
+- Action GitHub : le SDK Dart est installé par l'action elle-même
+  (version stable, somme SHA-256 vérifiée) au lieu de
+  `dart-lang/setup-dart`, qui échouait dans une action composite
+  (« Unable to process command '::add-matcher::…/dart-analyzer.json' »).
+
 ## 0.14.0 — 2026-09-25
 
 - **`--watch`** : réanalyse chaque script à son enregistrement (ou toutes
