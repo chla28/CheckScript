@@ -1,10 +1,18 @@
 # Changelog
 
-## Non publié
+## 0.12.0 — 2026-09-25
 
 - Adoption des **Conventional Commits** : hook `commit-msg` et
   vérification CI des messages ; `tool/release.dart` déduit la version et
   génère le CHANGELOG à partir des commits.
+
+### Fonctionnalités
+
+- **tool** : outillage Conventional Commits (lint, hook, publication) (d0c849e)
+
+### Intégration continue
+
+- vérifie les messages de commit (fddb2a0)
 
 ## 0.11.2 — 2026-09-25
 
