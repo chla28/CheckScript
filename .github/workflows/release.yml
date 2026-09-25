@@ -22,7 +22,7 @@ jobs:
   tests:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -60,7 +60,7 @@ jobs:
     needs: tests
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -77,7 +77,7 @@ jobs:
         run: ./scripts/build-appimage.sh --skip-build
       - name: Flatpak
         run: ./scripts/build-flatpak.sh --skip-build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: |
@@ -94,7 +94,7 @@ jobs:
         run: |
           dnf install -y git rpm-build gtk3-devel cmake ninja-build clang \
             rubygem-asciidoctor unzip xz which findutils tar
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Flutter
         run: |
           git clone --depth 1 -b "$FLUTTER_VERSION" \
@@ -105,7 +105,7 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           flutter --disable-analytics
           ./scripts/build-rpm.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rpm
           path: dist/rpm/**/*.rpm
@@ -115,8 +115,8 @@ jobs:
     runs-on: ubuntu-24.04
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Notes de version (CHANGELOG)
@@ -127,7 +127,7 @@ jobs:
             on && /^## / {exit}
             on {print}' CHANGELOG.md > notes.md
           test -s notes.md || echo "Version $v" > notes.md
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body_path: notes.md
           files: artifacts/**/*

@@ -919,7 +919,7 @@ scanning ». Exemple complet : `doc/ci/github-actions.yml`.
 +
 [source,yaml]
 ----
-- uses: actions/checkout@v4
+- uses: actions/checkout@v7
 - id: cs
   uses: chla28/CheckScript@v0.14.1
   with:
@@ -932,7 +932,7 @@ scanning ». Exemple complet : `doc/ci/github-actions.yml`.
     summary: 'true'
     sarif: check-script.sarif       # vide : pas de SARIF
     install-tools: 'true'           # ShellCheck et shfmt par apt
-- uses: github/codeql-action/upload-sarif@v3
+- uses: github/codeql-action/upload-sarif@v4
   if: always()
   with:
     sarif_file: check-script.sarif

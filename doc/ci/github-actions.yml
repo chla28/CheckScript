@@ -10,13 +10,13 @@ jobs:
   check-script:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: cs
         uses: chla28/CheckScript@v0.14.1
         with:
           paths: .
           fail-under: '6'
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: check-script.sarif
