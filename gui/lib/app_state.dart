@@ -51,6 +51,12 @@ class GuiSettings {
   /// détection automatique.
   final String? editorCommand;
 
+  /// Scripts et dossiers analysés récemment, du plus récent au plus ancien.
+  final List<String> recent;
+
+  /// Nombre d'entrées conservées dans [recent].
+  static const maxRecent = 10;
+
   static const defaultWideSplit = SplitState(0.66);
   static const defaultNarrowSplit = SplitState(0.35);
 
@@ -71,7 +77,16 @@ class GuiSettings {
     this.watchFile = true,
     this.editorCommand,
     this.ruffProjectConfig = false,
+    this.recent = const [],
   });
+
+  /// Réglages avec [path] en tête des récents (sans doublon).
+  GuiSettings withRecent(String path) => copyWith(
+          recent: [
+        path,
+        for (final r in recent)
+          if (r != path) r,
+      ].take(maxRecent).toList());
 
   /// Outil actif selon ces réglages (sa valeur par défaut, sauf choix
   /// contraire de l'utilisateur).
@@ -106,6 +121,7 @@ class GuiSettings {
     bool? watchFile,
     String? Function()? editorCommand,
     bool? ruffProjectConfig,
+    List<String>? recent,
   }) =>
       GuiSettings(
         lang: lang == null ? this.lang : lang(),
@@ -125,6 +141,7 @@ class GuiSettings {
         editorCommand:
             editorCommand == null ? this.editorCommand : editorCommand(),
         ruffProjectConfig: ruffProjectConfig ?? this.ruffProjectConfig,
+        recent: recent ?? this.recent,
       );
 
   static Future<GuiSettings> load() async {
@@ -155,6 +172,7 @@ class GuiSettings {
       watchFile: p.getBool('watchFile') ?? true,
       editorCommand: p.getString('editorCommand'),
       ruffProjectConfig: p.getBool('ruffProjectConfig') ?? false,
+      recent: p.getStringList('recent') ?? const [],
     );
   }
 
@@ -187,6 +205,7 @@ class GuiSettings {
     await p.setBool('useCache', useCache);
     await p.setBool('watchFile', watchFile);
     await p.setBool('ruffProjectConfig', ruffProjectConfig);
+    await p.setStringList('recent', recent);
     if (editorCommand == null) {
       await p.remove('editorCommand');
     } else {
@@ -248,6 +267,7 @@ class AppState extends ChangeNotifier {
   final bool watchFiles;
   StreamSubscription<FileSystemEvent>? _watchSub;
   Timer? _debounce;
+  StreamSubscription<Set<String>>? _folderSub;
 
   /// Délai de regroupement des événements d'un même enregistrement.
   static const watchDelay = Duration(milliseconds: 700);
@@ -278,6 +298,50 @@ class AppState extends ChangeNotifier {
     _watchSub = null;
   }
 
+  /// Surveille le dossier [path] : les scripts enregistrés (ou créés) sont
+  /// réanalysés et leur rapport remplacé dans [folderReports].
+  void _watchFolder(String path) {
+    _unwatchFolder();
+    if (!watchFiles || !_settings.watchFile) return;
+    _folderSub = watchTargets([path], debounce: watchDelay)
+        .listen((changed) => _onFolderChanged(path, changed));
+  }
+
+  void _unwatchFolder() {
+    _folderSub?.cancel();
+    _folderSub = null;
+  }
+
+  Future<void> _onFolderChanged(String path, Set<String> changed) async {
+    if (folderPath != path) return;
+    if (busy) {
+      Timer(watchDelay, () => _onFolderChanged(path, changed));
+      return;
+    }
+    final scripts = [
+      for (final f in changed)
+        if (File(f).existsSync() && await isScriptFile(f)) f
+    ];
+    if (scripts.isEmpty) return;
+    try {
+      final engine = await _engine(near: path);
+      final fresh = await engine.analyzeFiles(scripts);
+      if (folderPath != path) return;
+      String key(String f) => File(f).absolute.path;
+      final byPath = {for (final r in folderReports) key(r.script.path): r};
+      for (final r in fresh) {
+        byPath[key(r.script.path)] = r;
+      }
+      folderReports = byPath.values.toList()
+        ..sort((a, b) => a.script.path.compareTo(b.script.path));
+      await _recordSeen(fresh);
+      message = 'folderChanged';
+      notifyListeners();
+    } on Object {
+      // Fichier en cours d'écriture : le prochain enregistrement relancera.
+    }
+  }
+
   Future<void> _onWatched(String path) async {
     final c = current;
     if (c == null || c.script.path != path) return;
@@ -299,6 +363,7 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _unwatch();
+    _unwatchFolder();
     super.dispose();
   }
 
@@ -335,6 +400,12 @@ class AppState extends ChangeNotifier {
         _watch(c.script.path);
       } else {
         _unwatch();
+      }
+      final f = folderPath;
+      if (f != null && s.watchFile) {
+        _watchFolder(f);
+      } else {
+        _unwatchFolder();
       }
     }
     notifyListeners();
@@ -507,6 +578,7 @@ class AppState extends ChangeNotifier {
       });
       await _recordSeen([current!]);
       _watch(path);
+      await _remember(path);
       _finish();
     } on AnalysisCancelled {
       _finish('cancelled');
@@ -534,6 +606,8 @@ class AppState extends ChangeNotifier {
       });
       folderReports = out;
       await _recordSeen(out);
+      _watchFolder(path);
+      await _remember(path);
       if (history != null && out.isNotEmpty) {
         folderHistory = await history!.append(path, HistoryEntry.of(path, out));
       }
@@ -543,6 +617,41 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       _finish('error:$e');
     }
+  }
+
+  /// Place [path] en tête des récents (enregistrés avec les réglages).
+  Future<void> _remember(String path) async {
+    if (path == '<stdin>') return;
+    final abs = File(path).absolute.path;
+    if (_settings.recent.isNotEmpty && _settings.recent.first == abs) return;
+    _settings = _settings.withRecent(abs);
+    try {
+      await _settings.save();
+    } on Object {
+      // Préférences indisponibles : la liste reste en mémoire.
+    }
+  }
+
+  /// Oublie les récents.
+  Future<void> clearRecent() => updateSettings(_settings.copyWith(recent: []));
+
+  /// Ouvre une entrée des récents : dossier ou script selon ce qu'elle est
+  /// devenue ; renvoie false si elle n'existe plus (elle est alors retirée).
+  Future<bool> openRecent(String path) async {
+    final type = await FileSystemEntity.type(path);
+    if (type == FileSystemEntityType.notFound) {
+      await updateSettings(_settings.copyWith(recent: [
+        for (final r in _settings.recent)
+          if (r != path) r
+      ]));
+      return false;
+    }
+    if (type == FileSystemEntityType.directory) {
+      await analyzeFolder(path);
+    } else {
+      await analyzeFile(path);
+    }
+    return true;
   }
 
   /// Relance l'analyse du script courant (après correction ou réglages).
@@ -641,6 +750,30 @@ class AppState extends ChangeNotifier {
   }
 
   static const staleFix = 'stale';
+
+  /// Aperçu des corrections de [findings] sur le script courant : (texte
+  /// actuel, texte corrigé), ou null si rien ne change ou si le fichier a
+  /// été modifié depuis l'analyse.
+  Future<(String, String)?> previewFixes(List<Finding> findings) async {
+    final c = current;
+    final edits = [for (final f in findings) ...f.edits];
+    if (c == null || edits.isEmpty) return null;
+    final String raw;
+    try {
+      raw = await File(c.script.path).readAsString();
+    } on FileSystemException {
+      return null;
+    }
+    final script = ScriptInfo.fromContent(c.script.path, raw);
+    if (script.content != c.script.content) return null;
+    final (fixed, _) = applyEdits(script.content, edits);
+    return fixed == script.content ? null : (script.content, fixed);
+  }
+
+  /// Applique ensemble les corrections des problèmes sélectionnés (mêmes
+  /// garde-fous que [applyFindingFix]).
+  Future<String?> applySelectedFixes(List<Finding> findings) =>
+      _applyFixes(findings);
 
   /// Exporte les rapports affichés dans [path] (format selon l'extension).
   Future<void> export(String path, List<ScriptReport> reports) async {

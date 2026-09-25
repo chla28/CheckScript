@@ -54,6 +54,22 @@ class S {
   String get cancel => _t('Annuler', 'Cancel');
   String get apply => _t('Appliquer', 'Apply');
   String get close => _t('Fermer', 'Close');
+  String get recent => _t('Récents', 'Recent');
+  String get selectForFix =>
+      _t('Sélectionner pour corriger', 'Select for fixing');
+  String selectFixable(int n) =>
+      _t('Corrigeables affichés ($n)', 'Fixable shown ($n)');
+  String fixSelection(int n) =>
+      _t('Corriger la sélection ($n)…', 'Fix selection ($n)…');
+  String selectionTitle(int n) =>
+      _t('Corriger $n problème(s) sélectionné(s)', 'Fix $n selected issue(s)');
+  String selectionApplied(int n) =>
+      _t('$n correction(s) appliquée(s).', '$n fix(es) applied.');
+  String get noRecent => _t('Aucun élément récent', 'No recent item');
+  String get clearRecent => _t('Vider la liste', 'Clear the list');
+  String recentMissing(String path) => _t(
+      'Introuvable (retiré des récents) : $path',
+      'Not found (removed from recent items): $path');
   String get dropHere => _t(
       'Déposez un script ou un dossier ici, ou utilisez les boutons ci-dessus.',
       'Drop a script or a folder here, or use the buttons above.');
@@ -144,6 +160,9 @@ class S {
       'False positive saved ($n cases in total).');
   String get fileChanged => _t(
       'Script modifié : analyse relancée.', 'Script changed: analysis re-run.');
+  String get folderChanged => _t(
+      'Scripts modifiés dans le dossier : réanalysés.',
+      'Scripts changed in the folder: re-analysed.');
   String get openInEditor => _t('Ouvrir dans l\'éditeur', 'Open in editor');
   String openAtLine(int line) =>
       _t('Ouvrir dans l\'éditeur (ligne $line)', 'Open in editor (line $line)');
@@ -152,8 +171,8 @@ class S {
       '{file} et {line} sont remplacés ; vide : ${detected ?? 'xdg-open (sans ligne)'}',
       '{file} and {line} are replaced; empty: ${detected ?? 'xdg-open (no line)'}');
   String get watchFileSetting => _t(
-      'Relancer l\'analyse quand le script est enregistré',
-      'Re-run the analysis when the script is saved');
+      'Relancer l\'analyse quand un script est enregistré (script ouvert ou dossier)',
+      'Re-run the analysis when a script is saved (open script or folder)');
   String get useCacheSetting => _t(
       'Réutiliser les résultats d\'un script inchangé (cache)',
       'Reuse results of an unchanged script (cache)');

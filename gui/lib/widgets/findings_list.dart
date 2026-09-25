@@ -24,6 +24,7 @@ class FindingsList extends StatefulWidget {
     this.explanation,
     this.onOpenInEditor,
     this.onReportFalsePositive,
+    this.onApplySelection,
   });
 
   final List<Finding> findings;
@@ -53,6 +54,9 @@ class FindingsList extends StatefulWidget {
   /// Signale un problème comme faux positif ; null : pas de bouton.
   final void Function(Finding f)? onReportFalsePositive;
 
+  /// Corrige ensemble les problèmes cochés ; null : pas de sélection.
+  final void Function(List<Finding> findings)? onApplySelection;
+
   @override
   State<FindingsList> createState() => _FindingsListState();
 }
@@ -67,10 +71,16 @@ class _FindingsListState extends State<FindingsList> {
   /// Tri par gain rapide plutôt que par catégorie.
   bool _quickWin = false;
 
+  /// Problèmes cochés pour une correction groupée.
+  final _selected = Set<Finding>.identity();
+
   @override
   void didUpdateWidget(FindingsList old) {
     super.didUpdateWidget(old);
-    if (!identical(old.findings, widget.findings)) _open = null;
+    if (!identical(old.findings, widget.findings)) {
+      _open = null;
+      _selected.clear();
+    }
   }
 
   /// Filtre pur, exposé pour les tests.
@@ -80,6 +90,42 @@ class _FindingsListState extends State<FindingsList> {
         for (final f in all)
           if (cats.contains(f.category) && sevs.contains(f.severity)) f
       ];
+
+  /// Tout cocher / décocher parmi les problèmes corrigeables affichés, et
+  /// corriger la sélection.
+  Widget _selectionBar(S s, List<Finding> fixable) {
+    final n = fixable.where(_selected.contains).length;
+    final all = n == fixable.length;
+    final selected = [
+      for (final f in widget.findings)
+        if (_selected.contains(f)) f
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+          spacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Checkbox(
+                tristate: true,
+                value: n == 0 ? false : (all ? true : null),
+                onChanged: (_) => setState(() => all
+                    ? _selected.removeAll(fixable)
+                    : _selected.addAll(fixable)),
+              ),
+              Text(s.selectFixable(fixable.length)),
+            ]),
+            FilledButton.tonalIcon(
+              onPressed: selected.isEmpty
+                  ? null
+                  : () => widget.onApplySelection!(selected),
+              icon: const Icon(Icons.auto_fix_high, size: 18),
+              label: Text(s.fixSelection(selected.length)),
+            ),
+          ]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,6 +178,9 @@ class _FindingsListState extends State<FindingsList> {
             onSelectionChanged: (v) => setState(() => _quickWin = v.first),
           ),
         ),
+      if (widget.onApplySelection != null &&
+          shown.any((f) => f.edits.isNotEmpty))
+        _selectionBar(s, shown.where((f) => f.edits.isNotEmpty).toList()),
       const Divider(),
       Expanded(
         child: shown.isEmpty
@@ -223,13 +272,21 @@ class _FindingsListState extends State<FindingsList> {
                               ),
                             ),
                         ]),
-                    trailing: f.url == null
-                        ? null
-                        : IconButton(
-                            tooltip: s.documentation,
-                            icon: const Icon(Icons.open_in_new, size: 18),
-                            onPressed: () => launchUrl(Uri.parse(f.url!)),
-                          ),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (f.url != null)
+                        IconButton(
+                          tooltip: s.documentation,
+                          icon: const Icon(Icons.open_in_new, size: 18),
+                          onPressed: () => launchUrl(Uri.parse(f.url!)),
+                        ),
+                      if (widget.onApplySelection != null && f.edits.isNotEmpty)
+                        Checkbox(
+                          value: _selected.contains(f),
+                          semanticLabel: s.selectForFix,
+                          onChanged: (v) => setState(() =>
+                              v! ? _selected.add(f) : _selected.remove(f)),
+                        ),
+                    ]),
                   );
                 },
               ),

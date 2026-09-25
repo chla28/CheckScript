@@ -18,6 +18,7 @@ import 'screens/folder_screen.dart';
 import 'screens/rules_screen.dart';
 import 'screens/settings_screen.dart';
 import 'strings.dart';
+import 'widgets/recent_menu.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -97,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'cancelled' => s.cancelled,
       'noScripts' => s.noScripts,
       'fileChanged' => s.fileChanged,
+      'folderChanged' => s.folderChanged,
       _ when msg.startsWith('error:') => s.error(msg.substring(6)),
       _ => msg,
     };
@@ -107,6 +109,15 @@ class _HomeScreenState extends State<HomeScreen> {
             .showSnackBar(SnackBar(content: Text(text)));
       }
     });
+  }
+
+  Future<void> _openRecent(String path, bool directory) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final s = S(state.lang);
+    setState(() => _index = directory ? 1 : 0);
+    if (!await state.openRecent(path)) {
+      messenger.showSnackBar(SnackBar(content: Text(s.recentMissing(path))));
+    }
   }
 
   Future<void> _drop(DropDoneDetails d) async {
@@ -161,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           size: 32,
                           color: Theme.of(context).colorScheme.primary),
                     ),
+                    trailing: RecentMenu(state: state, onOpen: _openRecent),
                     destinations: [
                       NavigationRailDestination(
                           icon: const Icon(Icons.description_outlined),

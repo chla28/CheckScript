@@ -129,6 +129,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                     onApplyRule: state.busy
                                         ? null
                                         : (f) => _applyRule(context, f),
+                                    onApplySelection: state.busy
+                                        ? null
+                                        : (fs) => _applySelection(context, fs),
                                     explanation: report.explanation,
                                     onOpenInEditor: (f) => _edit(
                                         context, report.script.path, f.line),
@@ -279,6 +282,52 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   /// Applique la correction d'un seul problème, depuis la liste.
+  /// Corrections cochées : diff global, puis application en une fois.
+  Future<void> _applySelection(
+      BuildContext context, List<Finding> findings) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    final preview = await state.previewFixes(findings);
+    if (!context.mounted) return;
+    if (preview == null) {
+      messenger.showSnackBar(SnackBar(content: Text(s.fixStale)));
+      return;
+    }
+    final (before, after) = preview;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.selectionTitle(findings.length)),
+        content: SizedBox(
+          width: 760,
+          height: 480,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(findings.map((f) => '${f.ruleId} L${f.line}').join(', ')),
+            Text(s.backupHint, style: Theme.of(ctx).textTheme.bodySmall),
+            const SizedBox(height: 8),
+            Expanded(child: DiffView(diff: unifiedDiff(before, after))),
+          ]),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true), child: Text(s.apply)),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final why = await state.applySelectedFixes(findings);
+    messenger.showSnackBar(SnackBar(
+        content: Text(switch (why) {
+      null => s.selectionApplied(findings.length),
+      AppState.staleFix => s.fixStale,
+      _ => s.fixAborted(why),
+    })));
+  }
+
   Future<void> _applyOne(BuildContext context, Finding f) async {
     final s = S(state.lang);
     final messenger = ScaffoldMessenger.of(context);
