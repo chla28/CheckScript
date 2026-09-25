@@ -118,6 +118,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (v) => state.updateSettings(g.withTool(tool, v)),
           ),
       ],
+      SwitchListTile(
+        dense: true,
+        title: Text(s.ruffProjectConfig),
+        value: g.ruffProjectConfig,
+        onChanged: (v) =>
+            state.updateSettings(g.copyWith(ruffProjectConfig: v)),
+      ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
         child: Row(children: [

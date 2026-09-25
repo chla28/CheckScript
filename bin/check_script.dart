@@ -111,6 +111,16 @@ ArgParser buildParser(Lang lang) {
         allowed: [...externalTools, 'builtin'],
         help: t('Désactive un outil ; répétable ou séparé par des virgules.',
             'Disable a tool; repeatable or comma-separated.'))
+    ..addOption('dashboard',
+        valueHelp: 'FICHIER.html',
+        help: t(
+            'Tableau de bord d\'équipe : un dépôt (dossier) par cible, note moyenne, évolution, règles fréquentes.',
+            'Team dashboard: one repository (folder) per target, average score, trend, frequent rules.'))
+    ..addOption('history-dir',
+        valueHelp: 'DOSSIER',
+        help: t(
+            'Enregistre l\'historique des dossiers analysés dans DOSSIER (défaut avec --dashboard : ~/.local/share/check-script/history).',
+            'Record the history of analysed folders in DIR (default with --dashboard: ~/.local/share/check-script/history).'))
     ..addOption('changed-since',
         valueHelp: 'REF',
         help: t(
@@ -588,6 +598,42 @@ Future<int> run(List<String> argv,
         'Invalid configuration: ${e.message}'));
     return exitUsage;
   }
+  // Historique des dossiers analysés, tableau de bord d'équipe.
+  final dashboard = a['dashboard'] as String?;
+  final historyDir = a['history-dir'] as String?;
+  if (dashboard != null || historyDir != null) {
+    final history = historyDir != null
+        ? FolderHistory(Directory(historyDir))
+        : FolderHistory.standard();
+    final repos = <DashboardRepo>[];
+    for (final target in a.rest) {
+      if (target == '-' || !FileSystemEntity.isDirectorySync(target)) continue;
+      final root = p.absolute(target);
+      final reps = [
+        for (final r in reports)
+          if (p.isWithin(root, p.absolute(r.script.path))) r
+      ];
+      if (reps.isEmpty) continue;
+      final entries =
+          await history?.append(target, HistoryEntry.of(target, reps)) ??
+              [HistoryEntry.of(target, reps)];
+      repos.add(
+          DashboardRepo(p.basename(p.normalize(root)), target, reps, entries));
+    }
+    if (dashboard != null) {
+      try {
+        final f = File(dashboard);
+        await f.parent.create(recursive: true);
+        await f.writeAsString(renderDashboard(repos, lang));
+        err.writeln(Messages(lang).reportWritten(dashboard));
+      } on FileSystemException catch (e) {
+        err.writeln(t('Écriture impossible : $dashboard (${e.message})',
+            'Cannot write: $dashboard (${e.message})'));
+        return exitInput;
+      }
+    }
+  }
+
   if (reports.isEmpty && changed != null && !inputError) {
     err.writeln(t(
         'Aucun script modifié depuis $since ($skippedUnchanged inchangé${skippedUnchanged > 1 ? 's' : ''}).',

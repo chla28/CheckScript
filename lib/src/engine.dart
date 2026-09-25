@@ -174,6 +174,13 @@ class Engine {
           'semgrep-${semgrepRuleset.replaceAll('/', '-')}.yaml');
       rules = f.existsSync() ? '${f.lastModifiedSync()}' : 'registre';
     }
+    // Configuration Ruff du projet : ses modifications changent le rapport.
+    final ruffFile = script.dialect.isPython
+        ? RuffAnalyzer.ruffConfigFile(config, script.path)
+        : null;
+    if (ruffFile != null && File(ruffFile).existsSync()) {
+      rules += '|ruff:${File(ruffFile).lastModifiedSync()}';
+    }
     final key = fastHash([
       appVersion,
       lang.name,

@@ -114,6 +114,14 @@ class Messages {
   String get backToSummary => _t('↑ Sommaire', '↑ Summary');
   String get sortHint =>
       _t('Cliquer sur un en-tête pour trier.', 'Click a header to sort.');
+  String dashboardTitle(int n) => _t(
+      'Tableau de bord — $n dépôt${n > 1 ? 's' : ''}',
+      'Dashboard — $n repositor${n > 1 ? 'ies' : 'y'}');
+  String get repository => _t('Dépôt', 'Repository');
+  String get repositories => _t('Dépôts', 'Repositories');
+  String get trendHeader => _t('Tendance', 'Trend');
+  String get weakestScripts =>
+      _t('Scripts les plus faibles', 'Weakest scripts');
   String get explainTitle =>
       _t('Ce qui pèse sur la note', 'What weighs on the score');
   String nextGradeLine(String grade, String score, String rules) => _t(

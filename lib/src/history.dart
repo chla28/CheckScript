@@ -8,7 +8,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:check_script/check_script.dart';
+import 'model/report.dart';
+import 'result_cache.dart' show fastHash;
 import 'package:path/path.dart' as p;
 
 class HistoryEntry {

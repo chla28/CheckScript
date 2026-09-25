@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.0 — 2026-09-25
+
+- **Tableau de bord d'équipe** (`--dashboard FICHIER.html`) : un dépôt par
+  dossier cible, note moyenne, évolution (courbe), problèmes graves,
+  niveaux, règles les plus fréquentes, scripts les plus faibles ;
+  historique enregistré (`--history-dir` pour le partager).
+- **Faux positifs** : bouton *Signaler un faux positif* dans l'interface
+  (cas anonymisé, commentaire, journal local) ; synthèse par règle avec
+  `tool/false_positives.dart`.
+- **Ruff avec la configuration du projet** : `tools.ruff.config: project`
+  (ruff.toml, pyproject.toml) ou chemin d'un fichier ; réglage de
+  l'interface.
+- L'historique des dossiers passe dans la bibliothèque (CLI et interface).
+
 ## 0.10.0 — 2026-09-25
 
 - **Licence** : GNU LGPL version 3 ou ultérieure (`LICENSE`), reprise par les

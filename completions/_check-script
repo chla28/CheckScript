@@ -19,6 +19,8 @@ _arguments -s \
   {-j,--jobs}'[scripts analysés simultanément]:nombre:' \
   '--all[avec --list-rules : aussi les codes des outils]' \
   '--changed-since[scripts modifiés depuis la référence git]:référence:' \
+  '--dashboard[tableau de bord d'"'"'équipe]:fichier:_files -g "*.html"' \
+  '--history-dir[historique des dossiers]:dossier:_files -/' \
   '(--no-cache)--cache[réutiliser les résultats (défaut)]' \
   '(--cache)--no-cache[tout réanalyser]' \
   '--explain[coût de chaque règle sur la note]' \

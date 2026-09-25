@@ -132,6 +132,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                     explanation: report.explanation,
                                     onOpenInEditor: (f) => _edit(
                                         context, report.script.path, f.line),
+                                    onReportFalsePositive: state
+                                                .falsePositives ==
+                                            null
+                                        ? null
+                                        : (f) =>
+                                            _falsePositive(context, report, f),
                                   ),
                                 ),
                               ]),
@@ -169,6 +175,68 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       }),
               ),
             ]));
+  }
+
+  /// Signale un faux positif : aperçu anonymisé, commentaire, puis
+  /// proposition de ne plus signaler la règle.
+  Future<void> _falsePositive(
+      BuildContext context, ScriptReport report, Finding f) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    final preview = FalsePositive.of(f, report);
+    final comment = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${s.reportFalsePositive} — ${f.ruleId}'),
+        content: SizedBox(
+          width: 640,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(s.falsePositiveIntro),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+              child: SelectableText(
+                  [
+                    for (var i = 0; i < preview.context.length; i++)
+                      '${i == preview.focus ? '▶' : ' '} '
+                          '${preview.context[i] ?? '…'}'
+                  ].join('\n'),
+                  style:
+                      const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: comment,
+              maxLines: 2,
+              decoration: InputDecoration(
+                  labelText: s.falsePositiveComment,
+                  border: const OutlineInputBorder()),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true), child: Text(s.save)),
+        ],
+      ),
+    );
+    final text = comment.text;
+    comment.dispose();
+    if (ok != true) return;
+    final n = await state.reportFalsePositive(f, comment: text);
+    if (n == null) return;
+    messenger.showSnackBar(SnackBar(
+      content: Text(s.falsePositiveSaved(n)),
+      action: SnackBarAction(
+          label: s.doNotReport(f.ruleId),
+          onPressed: () => state.setRuleEnabled(f.ruleId, false)),
+    ));
   }
 
   /// Ouvre le script dans l'éditeur, à la ligne [line].

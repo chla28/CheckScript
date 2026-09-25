@@ -10,7 +10,6 @@ import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart' hide Baseline;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'history.dart';
 import 'widgets/split_view.dart';
 
 /// Réglages de l'interface (persistés dans shared_preferences).
@@ -44,6 +43,10 @@ class GuiSettings {
   /// Relancer l'analyse quand le script ouvert est enregistré.
   final bool watchFile;
 
+  /// Ruff suit la configuration du projet du script (ruff.toml,
+  /// pyproject.toml) plutôt que les réglages de check-script.
+  final bool ruffProjectConfig;
+
   /// Commande d'ouverture dans l'éditeur ({file}, {line}) ; null :
   /// détection automatique.
   final String? editorCommand;
@@ -67,6 +70,7 @@ class GuiSettings {
     this.useCache = true,
     this.watchFile = true,
     this.editorCommand,
+    this.ruffProjectConfig = false,
   });
 
   /// Outil actif selon ces réglages (sa valeur par défaut, sauf choix
@@ -101,6 +105,7 @@ class GuiSettings {
     bool? useCache,
     bool? watchFile,
     String? Function()? editorCommand,
+    bool? ruffProjectConfig,
   }) =>
       GuiSettings(
         lang: lang == null ? this.lang : lang(),
@@ -119,6 +124,7 @@ class GuiSettings {
         watchFile: watchFile ?? this.watchFile,
         editorCommand:
             editorCommand == null ? this.editorCommand : editorCommand(),
+        ruffProjectConfig: ruffProjectConfig ?? this.ruffProjectConfig,
       );
 
   static Future<GuiSettings> load() async {
@@ -148,6 +154,7 @@ class GuiSettings {
       useCache: p.getBool('useCache') ?? true,
       watchFile: p.getBool('watchFile') ?? true,
       editorCommand: p.getString('editorCommand'),
+      ruffProjectConfig: p.getBool('ruffProjectConfig') ?? false,
     );
   }
 
@@ -179,6 +186,7 @@ class GuiSettings {
     await p.setStringList('disabledRules', disabledRules.toList()..sort());
     await p.setBool('useCache', useCache);
     await p.setBool('watchFile', watchFile);
+    await p.setBool('ruffProjectConfig', ruffProjectConfig);
     if (editorCommand == null) {
       await p.remove('editorCommand');
     } else {
@@ -200,7 +208,8 @@ class AppState extends ChangeNotifier {
       GuiSettings? settings,
       Map<String, RuleEntry>? seenRules,
       FolderHistory? history,
-      bool? watchFiles})
+      bool? watchFiles,
+      FalsePositiveLog? falsePositives})
       : runner = runner ?? const ProcessCommandRunner(),
         _settings = settings ?? const GuiSettings(),
         seenRules = seenRules ?? {},
@@ -211,7 +220,23 @@ class AppState extends ChangeNotifier {
                 ? FolderHistory.standard()
                 : null),
         watchFiles =
-            watchFiles ?? (runner == null || runner is ProcessCommandRunner);
+            watchFiles ?? (runner == null || runner is ProcessCommandRunner),
+        falsePositives = falsePositives ??
+            (runner == null || runner is ProcessCommandRunner
+                ? FalsePositiveLog.standard()
+                : null);
+
+  /// Journal des faux positifs signalés (null : signalement indisponible).
+  final FalsePositiveLog? falsePositives;
+
+  /// Enregistre [f] (script courant) comme faux positif ; renvoie le nombre
+  /// de cas du journal, ou null si le signalement est indisponible.
+  Future<int?> reportFalsePositive(Finding f, {String comment = ''}) async {
+    final c = current;
+    final log = falsePositives;
+    if (c == null || log == null) return null;
+    return log.append(FalsePositive.of(f, c, comment: comment));
+  }
 
   /// Historique des analyses de dossier (null : pas d'historique).
   final FolderHistory? history;
@@ -321,7 +346,13 @@ class AppState extends ChangeNotifier {
   /// [near] : script ou dossier analysé ; sans fichier de configuration
   /// choisi, son `.checkscript.yaml` de projet s'applique.
   Future<CheckConfig> buildConfig({String? near}) async {
-    final c = await baseConfig(near: near);
+    var c = await baseConfig(near: near);
+    if (_settings.ruffProjectConfig && c.tool('ruff').config == null) {
+      c = c.copyWith(tools: {
+        ...c.tools,
+        'ruff': c.tool('ruff').copyWith(config: () => 'project'),
+      });
+    }
     return c
         .withToolsEnabled(_settings.enabledTools)
         .withToolsDisabled(_settings.disabledTools)
@@ -371,6 +402,7 @@ class AppState extends ChangeNotifier {
       useCache: _settings.useCache,
       watchFile: _settings.watchFile,
       editorCommand: _settings.editorCommand,
+      ruffProjectConfig: _settings.ruffProjectConfig,
       configPath: path,
       profile: c.profile,
       contexts: c.contexts,

@@ -62,6 +62,10 @@ lib/src/
                                    vers le niveau supérieur), sortByQuickWin
   result_cache.dart                ResultCache (rapports JSON par clé), fastHash (FNV-1a 64 bits)
   git.dart                         changedSince (--changed-since), normalizedPath
+  history.dart                     FolderHistory, HistoryEntry (historique des dossiers : GUI,
+                                   --history-dir, --dashboard)
+  feedback.dart                    FalsePositive, FalsePositiveLog, anonymizeCode
+  reporters/dashboard.dart         renderDashboard, DashboardRepo, sparkline (tableau de bord)
   config_discovery.dart            findProjectConfig (.checkscript.yaml jusqu'à la racine git)
   rules/same_rules.dart            sameRuleIds : la même règle dans plusieurs outils (Ruff S ↔
                                    Bandit B, Ruff PL ↔ Pylint, ShellCheck ↔ intégrées)
@@ -87,6 +91,7 @@ lib/src/
     codeclimate.dart               GitLab Code Quality
 gui/                               Interface Flutter (voir <<gui>>)
 tool/calibrate.dart                Calibrage sur le corpus
+tool/false_positives.dart          Synthèse des faux positifs signalés (par règle)
 test/                              Tests ; fixtures/ (dont sorties réelles des outils), corpus/
 completions/                       Complétions bash et zsh
 doc/                               Guides, page de manuel (check-script.1.adoc), exemples CI
@@ -345,7 +350,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.10.0",
+  "tool": "check-script", "version": "0.11.0",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -385,7 +390,6 @@ gui/lib/strings.dart               Libellés propres à l'interface (fr/en)
 gui/lib/screens/analysis_screen.dart   Source + onglets Synthèse / Problèmes, correction, export
 gui/lib/screens/folder_screen.dart     Tableau triable, tendance (sortReports)
 gui/lib/screens/settings_screen.dart   Langue, thème, profil, contextes, outils, YAML
-gui/lib/history.dart               FolderHistory, HistoryEntry (historique des analyses de dossier)
 gui/lib/editor.dart                detectEditor, editorCommandLine, openInEditor
 gui/lib/screens/rules_screen.dart      Règles : cases à cocher (GuiSettings.disabledRules, fusionné
                                        à rules.disabled par buildConfig ; celles de baseConfig

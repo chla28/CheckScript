@@ -4,7 +4,6 @@ library;
 import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart';
 
-import '../history.dart';
 import 'common.dart';
 
 class HistoryChart extends StatelessWidget {

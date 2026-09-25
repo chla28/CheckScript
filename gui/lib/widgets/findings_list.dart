@@ -23,6 +23,7 @@ class FindingsList extends StatefulWidget {
     this.onApplyRule,
     this.explanation,
     this.onOpenInEditor,
+    this.onReportFalsePositive,
   });
 
   final List<Finding> findings;
@@ -48,6 +49,9 @@ class FindingsList extends StatefulWidget {
   /// Ouvre le script dans l'éditeur à la ligne du problème ; null : pas de
   /// bouton.
   final void Function(Finding f)? onOpenInEditor;
+
+  /// Signale un problème comme faux positif ; null : pas de bouton.
+  final void Function(Finding f)? onReportFalsePositive;
 
   @override
   State<FindingsList> createState() => _FindingsListState();
@@ -196,6 +200,16 @@ class _FindingsListState extends State<FindingsList> {
                                 icon: const Icon(Icons.edit_note, size: 18),
                                 label: Text(s.openAtLine(f.line)),
                                 onPressed: () => widget.onOpenInEditor!(f),
+                              ),
+                            ),
+                          if (open && widget.onReportFalsePositive != null)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                icon: const Icon(Icons.flag_outlined, size: 18),
+                                label: Text(s.reportFalsePositive),
+                                onPressed: () =>
+                                    widget.onReportFalsePositive!(f),
                               ),
                             ),
                           if (open && widget.onDisableRule != null)

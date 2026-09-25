@@ -79,6 +79,12 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
 *--no-external*::
   N'utilise que les règles intégrées.
 
+*--dashboard* _FICHIER.html_::
+  Tableau de bord d'équipe (un dépôt par dossier cible, évolution).
+
+*--history-dir* _DOSSIER_::
+  Enregistre l'historique des dossiers analysés dans _DOSSIER_.
+
 *--changed-since* _REF_::
   N'analyse que les scripts modifiés depuis la référence git _REF_.
 

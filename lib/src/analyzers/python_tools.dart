@@ -28,6 +28,30 @@ const _h = Severity.high;
 const _m = Severity.medium;
 const _l = Severity.low;
 
+/// Configuration Ruff du projet de [scriptPath] : `ruff.toml`,
+/// `.ruff.toml` ou `pyproject.toml` avec une section `[tool.ruff`, dans le
+/// dossier du script puis ses parents, jusqu'à la racine du dépôt git.
+String? ruffProjectConfig(String scriptPath) {
+  var dir = File(scriptPath).absolute.parent;
+  while (true) {
+    for (final name in ['ruff.toml', '.ruff.toml']) {
+      final f = File('${dir.path}/$name');
+      if (f.existsSync()) return f.path;
+    }
+    final py = File('${dir.path}/pyproject.toml');
+    if (py.existsSync() && py.readAsStringSync().contains('[tool.ruff')) {
+      return py.path;
+    }
+    if (FileSystemEntity.typeSync('${dir.path}/.git') !=
+        FileSystemEntityType.notFound) {
+      return null;
+    }
+    final parent = dir.parent;
+    if (parent.path == dir.path) return null;
+    dir = parent;
+  }
+}
+
 /// Version cible au format Ruff (`3.9` → `py39`).
 String pythonTag(String target) => 'py${target.replaceAll('.', '')}';
 
@@ -200,29 +224,54 @@ class RuffAnalyzer extends PythonAnalyzer {
   String get name => 'ruff';
 
   /// Options communes à l'analyse, à la correction et au formatage.
-  static List<String> commonArgs(CheckConfig c) => [
-        '--isolated',
-        '--no-cache',
-        '--target-version=${pythonTag(c.pythonTarget)}',
-        '--line-length=${c.thresholds.maxLineLength}',
-      ];
+  ///
+  /// `tools.ruff.config` : absent, réglages de check-script (`--isolated`) ;
+  /// `project`, configuration Ruff du projet du script
+  /// ([ruffProjectConfig]), sinon réglages de check-script ; autre valeur,
+  /// ce fichier de configuration. Avec une configuration Ruff, c'est elle
+  /// qui choisit règles, version cible et longueur de ligne.
+  static List<String> commonArgs(CheckConfig c, {String? scriptPath}) {
+    final file = ruffConfigFile(c, scriptPath);
+    return file != null
+        ? ['--config', file, '--no-cache']
+        : [
+            '--isolated',
+            '--no-cache',
+            '--target-version=${pythonTag(c.pythonTarget)}',
+            '--line-length=${c.thresholds.maxLineLength}',
+          ];
+  }
 
-  /// Options de `ruff check` (règles retenues moins les exclusions).
-  static List<String> checkArgs(CheckConfig c) {
+  /// Fichier de configuration Ruff à utiliser pour [scriptPath], ou null
+  /// (réglages de check-script).
+  static String? ruffConfigFile(CheckConfig c, String? scriptPath) {
+    final v = c.tool('ruff').config;
+    if (v == null) return null;
+    if (v != 'project') return v;
+    return scriptPath == null ? null : ruffProjectConfig(scriptPath);
+  }
+
+  /// Options de `ruff check` (règles retenues moins les exclusions, sauf
+  /// avec une configuration Ruff).
+  static List<String> checkArgs(CheckConfig c, {String? scriptPath}) {
     final tc = c.tool('ruff');
+    final own = ruffConfigFile(c, scriptPath) == null;
     return [
       'check',
-      ...commonArgs(c),
-      '--select=${ruffSelect.join(',')}',
-      if (tc.exclude.isNotEmpty) '--ignore=${tc.exclude.join(',')}',
+      ...commonArgs(c, scriptPath: scriptPath),
+      if (own) '--select=${ruffSelect.join(',')}',
+      if (own && tc.exclude.isNotEmpty) '--ignore=${tc.exclude.join(',')}',
     ];
   }
 
   @override
   Future<AnalyzerResult> analyze(AnalysisContext ctx) async {
     final exe = ctx.config.tool(name).executable;
-    final r = await ctx.run(
-        exe, [...checkArgs(ctx.config), '--output-format=json', ctx.filePath]);
+    final r = await ctx.run(exe, [
+      ...checkArgs(ctx.config, scriptPath: ctx.script.path),
+      '--output-format=json',
+      ctx.filePath
+    ]);
     if (r == null) return missing();
     if (r.exitCode > 1 && r.stdout.trim().isEmpty) {
       return failed(r.stderr.trim());
@@ -236,7 +285,7 @@ class RuffAnalyzer extends PythonAnalyzer {
     // Écart de formatage (ignoré si le fichier n'est pas analysable).
     final f = await ctx.run(exe, [
       'format',
-      ...commonArgs(ctx.config),
+      ...commonArgs(ctx.config, scriptPath: ctx.script.path),
       '--diff',
       ctx.filePath,
     ]);

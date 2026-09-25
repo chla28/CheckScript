@@ -130,6 +130,18 @@ class S {
   String get summary => _t('Synthèse', 'Summary');
   String get wholeFile => _t('fichier entier', 'whole file');
   String get copy => _t('Copier', 'Copy');
+  String get reportFalsePositive =>
+      _t('Signaler un faux positif', 'Report a false positive');
+  String get falsePositiveIntro => _t(
+      'Le cas est enregistré sur ce poste, anonymisé comme ci-dessous, pour améliorer les règles.',
+      'The case is saved on this computer, anonymised as below, to improve the rules.');
+  String get falsePositiveComment => _t(
+      'Pourquoi est-ce un faux positif ? (facultatif)',
+      'Why is it a false positive? (optional)');
+  String get save => _t('Enregistrer', 'Save');
+  String falsePositiveSaved(int n) => _t(
+      'Faux positif enregistré ($n cas au total).',
+      'False positive saved ($n cases in total).');
   String get fileChanged => _t(
       'Script modifié : analyse relancée.', 'Script changed: analysis re-run.');
   String get openInEditor => _t('Ouvrir dans l\'éditeur', 'Open in editor');
@@ -149,6 +161,9 @@ class S {
   String historyLine(int n, String first, String last, String delta) => _t(
       '$n analyses : note moyenne $first → $last ($delta)',
       '$n analyses: average score $first → $last ($delta)');
+  String get ruffProjectConfig => _t(
+      'Ruff : respecter la configuration du projet (ruff.toml, pyproject.toml)',
+      'Ruff: follow the project configuration (ruff.toml, pyproject.toml)');
   String get sortCategory => _t('Par catégorie', 'By category');
   String get sortQuickWin => _t('Par gain rapide', 'By quick win');
   String get hideSource => _t('Masquer le code', 'Hide the code');

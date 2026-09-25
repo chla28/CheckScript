@@ -393,7 +393,7 @@ Future<FixResult> _fixPython(ScriptInfo script,
   final applied = <String, int>{};
   var text = script.content;
 
-  final check = RuffAnalyzer.checkArgs(config);
+  final check = RuffAnalyzer.checkArgs(config, scriptPath: script.path);
   final listed = await runner.run(
       ruff.executable, [...check, '--output-format=json', stdinName, '-'],
       stdin: text);
@@ -430,8 +430,14 @@ Future<FixResult> _fixPython(ScriptInfo script,
 
   final fmt = config.isRuleDisabled('FORMAT')
       ? null
-      : await runner.run(ruff.executable,
-          ['format', ...RuffAnalyzer.commonArgs(config), stdinName, '-'],
+      : await runner.run(
+          ruff.executable,
+          [
+            'format',
+            ...RuffAnalyzer.commonArgs(config, scriptPath: script.path),
+            stdinName,
+            '-'
+          ],
           stdin: text);
   if (fmt != null &&
       fmt.exitCode == 0 &&

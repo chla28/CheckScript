@@ -1,9 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:check_script/check_script.dart';
 import 'package:check_script_gui/app_state.dart';
 import 'package:check_script_gui/editor.dart';
-import 'package:check_script_gui/history.dart';
 import 'package:check_script_gui/main.dart';
 import 'package:check_script_gui/screens/folder_screen.dart';
 import 'package:check_script_gui/screens/rules_screen.dart';
@@ -529,6 +529,20 @@ void main() {
       expect(state.current!.findings.map((x) => x.ruleId),
           isNot(contains('SEC001')));
     });
+  });
+
+  test('faux positif signalé : journal anonymisé', () async {
+    final f = File('${tmp.path}/fp.sh')..writeAsStringSync(badScript);
+    final log = FalsePositiveLog(File('${tmp.path}/fp.jsonl'));
+    final state = AppState(runner: NoTools(), falsePositives: log);
+    await state.analyzeFile(f.path);
+    final sec = state.current!.findings.firstWhere((x) => x.ruleId == 'SEC004');
+    expect(
+        await state.reportFalsePositive(sec, comment: 'dossier temporaire'), 1);
+    final cases = await log.read();
+    expect(cases.single['rule'], 'SEC004');
+    expect(cases.single['comment'], 'dossier temporaire');
+    expect(jsonEncode(cases), isNot(contains('S3cr3tP@ss')));
   });
 
   group('export / import de la configuration', () {

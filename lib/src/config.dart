@@ -36,11 +36,12 @@ class ToolConfig {
       this.exclude = const [],
       this.config});
 
-  ToolConfig copyWith({bool? enabled}) => ToolConfig(
-      enabled: enabled ?? this.enabled,
-      executable: executable,
-      exclude: exclude,
-      config: config);
+  ToolConfig copyWith({bool? enabled, String? Function()? config}) =>
+      ToolConfig(
+          enabled: enabled ?? this.enabled,
+          executable: executable,
+          exclude: exclude,
+          config: config == null ? this.config : config());
 }
 
 class ScoringConfig {

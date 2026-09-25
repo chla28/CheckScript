@@ -211,6 +211,8 @@ extension dont le shebang désigne un shell ou Python. Les dossiers cachés
 |`--with OUTIL` |Active un outil désactivé par défaut (`pylint`, `pyright`) ; répétable ou séparé par des virgules.
 |`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…) ; répétable ou séparé par des virgules.
 |`--no-external` |N'utilise que les règles intégrées.
+|`--dashboard FICHIER.html` |Tableau de bord d'équipe : chaque cible (dossier) est un dépôt ; note moyenne, évolution (courbe de l'historique), problèmes graves, niveaux, règles les plus fréquentes, scripts les plus faibles. L'historique est enregistré à chaque exécution.
+|`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
 |`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
 |`--[no-]cache` |Réutilise le rapport d'un script inchangé (défaut ; `~/.cache/check-script/results`). La clé couvre le contenu et le chemin du script, la configuration, la langue, les versions de check-script et des outils (et les règles Semgrep) ; une analyse où un outil a échoué n'est pas mise en cache ; désactivé avec `--follow-source`.
 |`--explain` |Terminal : ce que coûte chaque règle (points retirés à sa catégorie, gain sur la note globale en la corrigeant, correction automatique disponible).
@@ -621,7 +623,10 @@ intégrées, communs aux deux).
 === Outils et classement
 
 Ruff::
-Familles retenues : `E4`, `E7`, `E9`, `E501`, `W`, `F`, `B`, `S`, `UP`,
+`tools.ruff.config: project` suit la configuration Ruff du projet du script
+(`ruff.toml`, `.ruff.toml` ou `pyproject.toml` avec `[tool.ruff]`, jusqu'à la
+racine git ; réglage de l'interface) ; un chemin désigne un fichier de
+configuration. Sinon, familles retenues : `E4`, `E7`, `E9`, `E501`, `W`, `F`, `B`, `S`, `UP`,
 `PERF`, `C4`, `SIM`, `BLE`, `PLE`, `PLW`, `PLR`, `PIE`, `RUF`, `EXE`,
 `T10`, `ISC`, `A`, `ASYNC` (les familles de pur style — docstrings,
 annotations, nommage — sont écartées). `PLR2004` (constantes « magiques ») et
@@ -782,7 +787,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.10.0
+    rev: v0.11.0
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----
@@ -859,6 +864,12 @@ Les analyses de dossier traitent plusieurs scripts à la fois.
 * *Dossier* : *Historique* des analyses du dossier (courbe de la note
   moyenne ; `~/.local/share/check-script/history`, 200 analyses par
   dossier) ;
+* *Signaler un faux positif* (problème déplié) : le cas est enregistré sur
+  le poste, *anonymisé* (contenu des chaînes et jetons longs masqués, ligne à
+  secret jamais recopiée), avec un commentaire, dans
+  `~/.local/share/check-script/false-positives.jsonl` ;
+  `dart run tool/false_positives.dart --details` en fait la synthèse par
+  règle pour enrichir le corpus ;
 * sans fichier de configuration choisi, le `.checkscript.yaml` de projet du
   script ou du dossier analysé s'applique ; *Réutiliser les résultats d'un
   script inchangé* active le cache, comme la CLI.
