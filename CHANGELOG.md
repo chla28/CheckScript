@@ -1,11 +1,15 @@
 # Changelog
 
-## Non publié
+## 0.14.2 — 2026-09-25
 
 - CI : actions GitHub passées sur Node.js 24 (`checkout@v7`,
   `upload-artifact@v7`, `download-artifact@v8`, `upload-sarif@v4`,
   `action-gh-release@v3`) : plus d'avertissement « Node.js 20 is
   deprecated » ; exemples de la documentation alignés.
+
+### Intégration continue
+
+- actions GitHub sur Node.js 24 (fc6d363)
 
 ## 0.14.1 — 2026-09-25
 
