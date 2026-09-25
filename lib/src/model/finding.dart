@@ -211,6 +211,15 @@ class ToolRun {
         if (detail != null) 'detail': detail,
         'findings': findings,
       };
+
+  factory ToolRun.fromJson(Map<String, Object?> j) => ToolRun(
+        '${j['tool']}',
+        ToolStatus.values.firstWhere((s) => s.name == j['status'],
+            orElse: () => ToolStatus.failed),
+        version: j['version'] as String?,
+        detail: j['detail'] as String?,
+        findings: jsonInt(j['findings']) ?? 0,
+      );
 }
 
 enum ToolStatus { ok, missing, skipped, failed, disabled }

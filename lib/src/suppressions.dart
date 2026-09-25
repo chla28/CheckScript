@@ -27,6 +27,20 @@ final _directive = RegExp(
     r'#\s*check-script\s+(disable|disable-file|disable-next-line)\s*=\s*([\w*,\s-]+)',
     caseSensitive: false);
 
+/// Une directive `# check-script disable…` du script.
+class Directive {
+  /// Ligne de la directive (1-based).
+  final int line;
+
+  /// Identifiants neutralisés (majuscules, jokers compris).
+  final Set<String> ids;
+
+  /// Ligne visée ; 0 pour tout le fichier (`disable-file`).
+  final int target;
+
+  const Directive(this.line, this.ids, this.target);
+}
+
 class Suppressions {
   /// Règles supprimées pour tout le fichier.
   final Set<String> file;
@@ -37,7 +51,11 @@ class Suppressions {
   /// Lignes où les problèmes de sécurité sont supprimés (`# nosec`).
   final Set<int> security;
 
-  const Suppressions(this.file, this.lines, [this.security = const {}]);
+  /// Directives `# check-script` (pour repérer celles qui ne servent plus).
+  final List<Directive> directives;
+
+  const Suppressions(this.file, this.lines,
+      [this.security = const {}, this.directives = const []]);
 
   static const none = Suppressions({}, {});
 
@@ -48,6 +66,7 @@ class Suppressions {
     final file = <String>{};
     final lines = <int, Set<String>>{};
     final security = <int>{};
+    final directives = <Directive>[];
     Set<String> withSame(String codes) => {
           for (final c in codes.split(RegExp(r'[\s,]+')))
             if (c.isNotEmpty) ...{c.toUpperCase(), ...sameRuleIds(c)}
@@ -78,6 +97,7 @@ class Suppressions {
       final kind = m.group(1)!.toLowerCase();
       if (kind == 'disable-file') {
         file.addAll(ids);
+        directives.add(Directive(i + 1, ids, 0));
         continue;
       }
       final commentOnly = raw.trimLeft().startsWith('#');
@@ -93,8 +113,9 @@ class Suppressions {
         target = j + 1;
       }
       (lines[target] ??= <String>{}).addAll(ids);
+      directives.add(Directive(i + 1, ids, target));
     }
-    return Suppressions(file, lines, security);
+    return Suppressions(file, lines, security, directives);
   }
 
   static bool _matches(String pattern, String id) {
@@ -103,6 +124,16 @@ class Suppressions {
         ? id.startsWith(pattern.substring(0, pattern.length - 1))
         : pattern == id;
   }
+
+  /// Directives `# check-script` qui ne neutralisent aucun problème de
+  /// [found] (problèmes détectés, avant neutralisation).
+  List<Directive> unused(Iterable<Finding> found) => [
+        for (final d in directives)
+          if (!found.any((f) =>
+              (d.target == 0 || f.line == d.target) &&
+              d.ids.any((p) => _matches(p, f.ruleId.toUpperCase()))))
+            d
+      ];
 
   bool suppresses(Finding f) {
     final id = f.ruleId.toUpperCase();

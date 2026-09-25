@@ -2,6 +2,7 @@
 /// analyse d'un dossier, référence (baseline), progression et annulation.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,6 +10,7 @@ import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart' hide Baseline;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'history.dart';
 import 'widgets/split_view.dart';
 
 /// Réglages de l'interface (persistés dans shared_preferences).
@@ -36,6 +38,16 @@ class GuiSettings {
   /// à `rules.disabled` de la configuration.
   final Set<String> disabledRules;
 
+  /// Réutiliser les résultats d'un script inchangé (cache).
+  final bool useCache;
+
+  /// Relancer l'analyse quand le script ouvert est enregistré.
+  final bool watchFile;
+
+  /// Commande d'ouverture dans l'éditeur ({file}, {line}) ; null :
+  /// détection automatique.
+  final String? editorCommand;
+
   static const defaultWideSplit = SplitState(0.66);
   static const defaultNarrowSplit = SplitState(0.35);
 
@@ -52,6 +64,9 @@ class GuiSettings {
     this.wideSplit = defaultWideSplit,
     this.narrowSplit = defaultNarrowSplit,
     this.disabledRules = const {},
+    this.useCache = true,
+    this.watchFile = true,
+    this.editorCommand,
   });
 
   /// Outil actif selon ces réglages (sa valeur par défaut, sauf choix
@@ -83,6 +98,9 @@ class GuiSettings {
     SplitState? wideSplit,
     SplitState? narrowSplit,
     Set<String>? disabledRules,
+    bool? useCache,
+    bool? watchFile,
+    String? Function()? editorCommand,
   }) =>
       GuiSettings(
         lang: lang == null ? this.lang : lang(),
@@ -97,6 +115,10 @@ class GuiSettings {
         wideSplit: wideSplit ?? this.wideSplit,
         narrowSplit: narrowSplit ?? this.narrowSplit,
         disabledRules: disabledRules ?? this.disabledRules,
+        useCache: useCache ?? this.useCache,
+        watchFile: watchFile ?? this.watchFile,
+        editorCommand:
+            editorCommand == null ? this.editorCommand : editorCommand(),
       );
 
   static Future<GuiSettings> load() async {
@@ -123,6 +145,9 @@ class GuiSettings {
           SplitState.decode(p.getString('narrowSplit'), defaultNarrowSplit),
       disabledRules:
           (p.getStringList('disabledRules') ?? const <String>[]).toSet(),
+      useCache: p.getBool('useCache') ?? true,
+      watchFile: p.getBool('watchFile') ?? true,
+      editorCommand: p.getString('editorCommand'),
     );
   }
 
@@ -152,6 +177,13 @@ class GuiSettings {
     await p.setString('wideSplit', wideSplit.encode());
     await p.setString('narrowSplit', narrowSplit.encode());
     await p.setStringList('disabledRules', disabledRules.toList()..sort());
+    await p.setBool('useCache', useCache);
+    await p.setBool('watchFile', watchFile);
+    if (editorCommand == null) {
+      await p.remove('editorCommand');
+    } else {
+      await p.setString('editorCommand', editorCommand!);
+    }
   }
 }
 
@@ -166,10 +198,84 @@ class AppState extends ChangeNotifier {
   AppState(
       {CommandRunner? runner,
       GuiSettings? settings,
-      Map<String, RuleEntry>? seenRules})
+      Map<String, RuleEntry>? seenRules,
+      FolderHistory? history,
+      bool? watchFiles})
       : runner = runner ?? const ProcessCommandRunner(),
         _settings = settings ?? const GuiSettings(),
-        seenRules = seenRules ?? {};
+        seenRules = seenRules ?? {},
+        // Historique et surveillance : par défaut seulement avec les vrais
+        // outils (les tests les activent explicitement).
+        history = history ??
+            (runner == null || runner is ProcessCommandRunner
+                ? FolderHistory.standard()
+                : null),
+        watchFiles =
+            watchFiles ?? (runner == null || runner is ProcessCommandRunner);
+
+  /// Historique des analyses de dossier (null : pas d'historique).
+  final FolderHistory? history;
+
+  /// Analyses du dossier courant, de la plus ancienne à la plus récente.
+  List<HistoryEntry> folderHistory = [];
+
+  /// Surveillance du script ouvert autorisée (voir [GuiSettings.watchFile]).
+  final bool watchFiles;
+  StreamSubscription<FileSystemEvent>? _watchSub;
+  Timer? _debounce;
+
+  /// Délai de regroupement des événements d'un même enregistrement.
+  static const watchDelay = Duration(milliseconds: 700);
+
+  /// Surveille [path] : à chaque enregistrement (contenu réellement
+  /// modifié), l'analyse est relancée. Le dossier est surveillé plutôt que
+  /// le fichier, car beaucoup d'éditeurs enregistrent par renommage.
+  void _watch(String path) {
+    _unwatch();
+    if (!watchFiles || !_settings.watchFile || path == '<stdin>') return;
+    final target = File(path).absolute.path;
+    try {
+      _watchSub = File(target).parent.watch().listen((e) {
+        final hit = e.path == target ||
+            (e is FileSystemMoveEvent && e.destination == target);
+        if (!hit) return;
+        _debounce?.cancel();
+        _debounce = Timer(watchDelay, () => _onWatched(path));
+      });
+    } on FileSystemException {
+      // Surveillance impossible (système de fichiers) : ignorée.
+    }
+  }
+
+  void _unwatch() {
+    _debounce?.cancel();
+    _watchSub?.cancel();
+    _watchSub = null;
+  }
+
+  Future<void> _onWatched(String path) async {
+    final c = current;
+    if (c == null || c.script.path != path) return;
+    if (busy) {
+      _debounce = Timer(watchDelay, () => _onWatched(path));
+      return;
+    }
+    try {
+      final now = ScriptInfo.fromContent(path, await File(path).readAsString());
+      if (now.content == c.script.content) return;
+    } on FileSystemException {
+      return; // enregistrement en cours ou fichier supprimé
+    }
+    await analyzeFile(path);
+    message = 'fileChanged';
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _unwatch();
+    super.dispose();
+  }
 
   /// Règles rencontrées lors des analyses (clé → règle), pour l'onglet
   /// Règles : elles complètent le registre des règles connues.
@@ -196,15 +302,26 @@ class AppState extends ChangeNotifier {
   Map<String, String?> toolVersions = {};
 
   Future<void> updateSettings(GuiSettings s) async {
+    final watchChanged = s.watchFile != _settings.watchFile;
     _settings = s;
+    if (watchChanged) {
+      final c = current;
+      if (c != null && s.watchFile) {
+        _watch(c.script.path);
+      } else {
+        _unwatch();
+      }
+    }
     notifyListeners();
     await s.save();
   }
 
   /// Configuration effective : fichier YAML éventuel, profil, contextes,
   /// outils désactivés.
-  Future<CheckConfig> buildConfig() async {
-    final c = await baseConfig();
+  /// [near] : script ou dossier analysé ; sans fichier de configuration
+  /// choisi, son `.checkscript.yaml` de projet s'applique.
+  Future<CheckConfig> buildConfig({String? near}) async {
+    final c = await baseConfig(near: near);
     return c
         .withToolsEnabled(_settings.enabledTools)
         .withToolsDisabled(_settings.disabledTools)
@@ -218,8 +335,9 @@ class AppState extends ChangeNotifier {
 
   /// Configuration du profil et du fichier YAML, sans les choix faits dans
   /// l'interface : ses règles désactivées ne se réactivent pas ici.
-  Future<CheckConfig> baseConfig() async {
-    final path = _settings.configPath;
+  Future<CheckConfig> baseConfig({String? near}) async {
+    final path =
+        _settings.configPath ?? (near == null ? null : findProjectConfig(near));
     if (path != null && await File(path).exists()) {
       return CheckConfig.parse(await File(path).readAsString(),
           profile: _settings.profile);
@@ -250,6 +368,9 @@ class AppState extends ChangeNotifier {
       theme: _settings.theme,
       wideSplit: _settings.wideSplit,
       narrowSplit: _settings.narrowSplit,
+      useCache: _settings.useCache,
+      watchFile: _settings.watchFile,
+      editorCommand: _settings.editorCommand,
       configPath: path,
       profile: c.profile,
       contexts: c.contexts,
@@ -313,11 +434,16 @@ class AppState extends ChangeNotifier {
         _seenKey, jsonEncode([for (final e in rules.values) e.toJson()]));
   }
 
-  Future<Engine> _engine() async => Engine(
-        config: await buildConfig(),
+  Future<Engine> _engine({String? near}) async => Engine(
+        config: await buildConfig(near: near),
         lang: lang,
         runner: runner,
         baseline: baseline,
+        // Cache seulement avec les vrais outils (pas avec un exécuteur de
+        // test), et si le réglage l'autorise.
+        cache: _settings.useCache && runner is ProcessCommandRunner
+            ? ResultCache.standard()
+            : null,
       );
 
   void _start() {
@@ -342,12 +468,13 @@ class AppState extends ChangeNotifier {
     _start();
     final token = _cancel!;
     try {
-      final engine = await _engine();
+      final engine = await _engine(near: path);
       current = await engine.analyzeFile(path, cancel: token, onProgress: (p) {
         progress = ProgressInfo(p.tool ?? '', p.fraction);
         notifyListeners();
       });
       await _recordSeen([current!]);
+      _watch(path);
       _finish();
     } on AnalysisCancelled {
       _finish('cancelled');
@@ -362,9 +489,10 @@ class AppState extends ChangeNotifier {
     _start();
     final token = _cancel!;
     folderPath = path;
+    folderHistory = await history?.load(path) ?? [];
     try {
       final files = await collectScripts(path) ?? const [];
-      final engine = await _engine();
+      final engine = await _engine(near: path);
       // Plusieurs scripts à la fois ; fichiers illisibles ou non textuels
       // ignorés.
       final out = await engine.analyzeFiles(files, cancel: token,
@@ -374,6 +502,9 @@ class AppState extends ChangeNotifier {
       });
       folderReports = out;
       await _recordSeen(out);
+      if (history != null && out.isNotEmpty) {
+        folderHistory = await history!.append(path, HistoryEntry.of(path, out));
+      }
       _finish(files.isEmpty ? 'noScripts' : null);
     } on AnalysisCancelled {
       _finish('cancelled');
@@ -415,7 +546,8 @@ class AppState extends ChangeNotifier {
     if (c == null) return null;
     final script = ScriptInfo.fromContent(
         c.script.path, await File(c.script.path).readAsString());
-    return fixScript(script, config: await buildConfig(), runner: runner);
+    return fixScript(script,
+        config: await buildConfig(near: c.script.path), runner: runner);
   }
 
   /// Scripts déjà sauvegardés en .orig depuis le lancement.

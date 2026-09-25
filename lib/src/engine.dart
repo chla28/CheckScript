@@ -12,10 +12,13 @@ import 'analyzers/secrets.dart';
 import 'analyzers/shellcheck.dart';
 import 'baseline.dart';
 import 'config.dart';
+import 'explain.dart';
 import 'fixer.dart';
 import 'i18n.dart';
 import 'model/finding.dart';
 import 'model/report.dart';
+import 'result_cache.dart';
+import 'version.dart';
 import 'rules/catalog.dart';
 import 'scoring.dart';
 import 'script_info.dart';
@@ -77,12 +80,16 @@ class Engine {
   /// Outils d'un même script lancés en parallèle (sinon l'un après l'autre).
   final bool parallel;
 
+  /// Cache des résultats (null : toujours réanalyser).
+  final ResultCache? cache;
+
   Engine({
     this.config = const CheckConfig(),
     this.lang = Lang.fr,
     this.runner = const ProcessCommandRunner(),
     this.baseline,
     this.parallel = true,
+    this.cache,
     List<Analyzer>? analyzers,
   }) : analyzers = analyzers ?? defaultAnalyzers();
 
@@ -145,10 +152,53 @@ class Engine {
   /// Analyse un contenu. Sans [filePath], le contenu est écrit dans un fichier
   /// temporaire pour les outils externes. Lève [AnalysisCancelled] si
   /// [cancel] est déclenché.
+  /// Clé du cache pour [script] : tout ce qui peut changer le rapport
+  /// (contenu, chemin, configuration, langue, versions de check-script et
+  /// des outils, règles Semgrep en cache). Null si le cache est inutilisable
+  /// (désactivé, ou fichiers sourcés suivis : leur contenu n'y figure pas).
+  Future<String?> cacheKey(ScriptInfo script) async {
+    if (cache == null || config.followSource) return null;
+    final applicable = [
+      for (final a in analyzersFor(script))
+        if (config.tool(a.name).enabled) a
+    ];
+    final versions = await Future.wait([
+      for (final a in applicable)
+        (_versions[a.name] ??= a.version(runner, config))
+            .then((v) => '${a.name}=$v')
+    ]);
+    var rules = '';
+    final sg = config.tool('semgrep');
+    if (script.dialect.isPython && sg.enabled && sg.config == null) {
+      final f = File('${SemgrepAnalyzer.defaultCacheDir()?.path}/'
+          'semgrep-${semgrepRuleset.replaceAll('/', '-')}.yaml');
+      rules = f.existsSync() ? '${f.lastModifiedSync()}' : 'registre';
+    }
+    final key = fastHash([
+      appVersion,
+      lang.name,
+      script.path,
+      script.dialect.name,
+      script.hasCrlf,
+      config.toYaml(),
+      ...versions,
+      rules,
+      script.content,
+    ].join('\u0000'));
+    return '$key-${script.content.length.toRadixString(16)}';
+  }
+
   Future<ScriptReport> analyze(ScriptInfo script,
       {String? filePath,
       void Function(AnalysisProgress)? onProgress,
       CancelToken? cancel}) async {
+    cancel?.check();
+    final key = await cacheKey(script);
+    final hit = key == null ? null : cache!.read(key, script);
+    if (hit != null) {
+      onProgress?.call(AnalysisProgress(script.path, null, 1, 1));
+      return hit.withComparison(baseline?.compare(hit));
+    }
     Directory? tmp;
     var path = filePath;
     if (path == null) {
@@ -217,7 +267,8 @@ class Engine {
       final deduped = deduplicate(raw);
       final kept = [
         for (final f in deduped)
-          if (!suppressions.suppresses(f)) f
+          if (!suppressions.suppresses(f)) f,
+        ...staleDirectives(suppressions, raw, runs, lang),
       ];
       final findings = sortFindings(attachFixes(
           shell: !script.dialect.isPython,
@@ -243,8 +294,13 @@ class Engine {
         suppressed: deduped.length - kept.length,
         profile: config.profile.name,
         contexts: [for (final c in config.contexts) c.name],
+        explanation: explainScore(findings, script.codeLines, config.scoring),
       );
       onProgress?.call(AnalysisProgress(script.path, null, total, total));
+      // Pas de mise en cache si un outil a échoué (réseau…) : on réessaiera.
+      if (key != null && !runs.any((r) => r.status == ToolStatus.failed)) {
+        await cache!.write(key, report);
+      }
       return report.withComparison(baseline?.compare(report));
     } finally {
       await tmp?.delete(recursive: true);
@@ -302,6 +358,34 @@ List<Finding> deduplicate(List<Finding> findings) {
     if (!kept.any((k) => isDuplicate(k, f))) kept.add(f);
   }
   return kept;
+}
+
+/// Directives `# check-script` devenues inutiles (règle MNT011). Une
+/// directive n'est signalée que si l'absence de problème est certaine : ses
+/// identifiants sont tous des règles intégrées, ou tous les outils ont
+/// fonctionné (un outil absent ou en échec aurait pu signaler le problème).
+List<Finding> staleDirectives(
+    Suppressions s, List<Finding> detected, List<ToolRun> runs, Lang lang) {
+  if (s.directives.isEmpty) return const [];
+  final builtinRan =
+      runs.any((r) => r.tool == 'builtin' && r.status == ToolStatus.ok);
+  final allRan = runs.every(
+      (r) => r.status == ToolStatus.ok || r.status == ToolStatus.disabled);
+  final builtinIds = {for (final r in ruleCatalog) r.id};
+  final info = ruleInfo('MNT011');
+  return [
+    for (final d in s.unused(detected))
+      if (allRan || (builtinRan && d.ids.every(builtinIds.contains)))
+        Finding(
+          tool: 'builtin',
+          ruleId: info.id,
+          category: info.category,
+          severity: info.severity,
+          line: d.line,
+          message: '${info.title.of(lang)} (${d.ids.join(', ')})',
+          hint: info.fix.of(lang),
+        ),
+  ];
 }
 
 /// Règles signalant un secret : la ligne concernée n'est jamais recopiée

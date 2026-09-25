@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 
+import '../explain.dart';
 import '../i18n.dart';
 import 'codeclimate.dart';
 import 'html.dart';
@@ -60,11 +61,19 @@ class RenderOptions {
   /// Affiche sous chaque problème la ligne de code concernée (terminal).
   final bool showSource;
 
+  /// Terminal : détail du coût de chaque règle (`--explain`).
+  final bool explain;
+
+  /// Terminal : problèmes triés par gain rapide plutôt que par catégorie.
+  final bool byQuickWin;
+
   const RenderOptions(
       {this.lang = Lang.fr,
       this.color = false,
       this.maxDetails,
-      this.showSource = true});
+      this.showSource = true,
+      this.explain = false,
+      this.byQuickWin = false});
 }
 
 String render(
@@ -97,6 +106,14 @@ String _toolsLine(ScriptReport r, Messages t) => [
         '${run.tool}${run.version != null ? ' ${run.version}' : ''} '
             '(${t.toolStatus(run.status)})'
     ].join(', ');
+
+/// « Niveau B (7,6) en corrigeant : SC2164, ROB001 », ou null.
+String? planLine(ScriptReport r, Messages t, Lang lang) {
+  final e = r.explanation;
+  if (e.plan.isEmpty || e.nextGrade == null) return null;
+  return t.nextGradeLine(e.nextGrade!, fmtScore(e.planScore!, lang),
+      e.plan.map((i) => i.ruleId).join(', '));
+}
 
 /// Outils dont l'absence est signalée (gitleaks et trufflehog sont des
 /// compléments facultatifs, couverts par les règles SEC002/SEC022 ; semgrep,
@@ -245,6 +262,20 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
     b.writeln(a.bold('${t.globalScore}${t.colon}') +
         a.score(r.global, '${fmtScore(r.global, o.lang)}/10 (${r.grade})'));
     if (r.suppressed > 0) b.writeln(a.dim(t.suppressedCount(r.suppressed)));
+    final plan = planLine(r, t, o.lang);
+    if (plan != null) b.writeln(a.bold('→ $plan'));
+    if (o.explain && r.explanation.impacts.isNotEmpty) {
+      b.writeln();
+      b.writeln(a.bold(t.explainTitle));
+      for (final i in r.explanation.impacts.take(10)) {
+        b.writeln('  ${_pad('−${fmtScore(i.penalty, o.lang)}', 7)}'
+            '${_pad('+${fmtScore(i.gain, o.lang)}', 7)}'
+            '${a.severity(i.severity, _pad(i.severity.label, 9))}'
+            '${_pad('${i.ruleId} [${i.tool}]', 26)}'
+            '×${_pad('${i.occurrences}', 4)}'
+            '${i.fixable ? a.dim(t.autoFix) : ''}');
+      }
+    }
     final cmp = r.comparison;
     if (cmp != null) {
       b.writeln();
@@ -260,10 +291,16 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
       b.writeln();
       b.writeln(a.bold(cmp == null ? t.details : t.newIssuesOnly));
       if (detailFindings(r).isEmpty) b.writeln('  ${t.noIssue}');
-      for (final c in Category.values) {
-        final fs = detailFindings(r, c);
+      // Tri par gain rapide : une seule liste, la plus rentable d'abord.
+      final sections = o.byQuickWin
+          ? [(t.byQuickWin, sortByQuickWin(detailFindings(r), r.explanation))]
+          : [
+              for (final c in Category.values)
+                (t.category(c), detailFindings(r, c))
+            ];
+      for (final (title, fs) in sections) {
         if (fs.isEmpty) continue;
-        b.writeln(a.magenta('▶ ${t.category(c)} (${fs.length})'));
+        b.writeln(a.magenta('▶ $title (${fs.length})'));
         final shown = o.maxDetails == null ? fs : fs.take(o.maxDetails!);
         for (final f in shown) {
           b.writeln('  ${_pad(f.line == 0 ? t.wholeFile : 'L${f.line}', 9)}'
@@ -351,6 +388,20 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
           '${Severity.values.map(s.count).join(' | ')} | ${s.total} |');
     }
     b.writeln('\n_${t.scoringNote}_\n');
+    final plan = planLine(r, t, o.lang);
+    if (plan != null) b.writeln('**→ $plan**\n');
+    if (r.explanation.impacts.isNotEmpty) {
+      b.writeln('$h# ${t.explainTitle}\n');
+      b.writeln(
+          '| ${t.rule} | ${t.category_} | ${t.severity} | ${t.occurrences} | ${t.pointsHeader} | ${t.gainHeader} | |');
+      b.writeln('|---|---|---|---:|---:|---:|---|');
+      for (final i in r.explanation.impacts.take(10)) {
+        b.writeln('| `${i.ruleId}` (${i.tool}) | ${t.category(i.category)} | '
+            '${i.severity.label} | ${i.occurrences} | −${fmtScore(i.penalty, o.lang)} | +${fmtScore(i.gain, o.lang)} | '
+            '${i.fixable ? t.autoFix : ''} |');
+      }
+      b.writeln();
+    }
 
     final cmp = r.comparison;
     if (cmp != null) {

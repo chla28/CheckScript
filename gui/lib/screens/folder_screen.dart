@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import '../app_state.dart';
 import '../strings.dart';
 import '../widgets/common.dart';
+import '../widgets/history_chart.dart';
 import 'analysis_screen.dart';
 
 /// Colonne de tri : -2 script, -1 note globale, 0..4 catégorie, 5 problèmes.
@@ -102,6 +103,45 @@ class _FolderScreenState extends State<FolderScreen> {
                     style: Theme.of(context).textTheme.bodySmall),
             ]),
       ),
+      if (state.folderHistory.length >= 2)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(children: [
+                SizedBox(
+                  width: 240,
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(s.history,
+                            style: Theme.of(context).textTheme.titleSmall),
+                        const SizedBox(height: 4),
+                        Text(s.historyLine(
+                            state.folderHistory.length,
+                            fmtScore(
+                                state.folderHistory.first.average, state.lang),
+                            fmtScore(
+                                state.folderHistory.last.average, state.lang),
+                            fmtDelta(
+                                state.folderHistory.last.average,
+                                state.folderHistory.first.average,
+                                state.lang))),
+                      ]),
+                ),
+                Expanded(
+                  child: SizedBox(
+                    height: 110,
+                    child: HistoryChart(
+                        entries: state.folderHistory, lang: state.lang),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ),
       const Divider(height: 1),
       Expanded(
         child: reports.isEmpty

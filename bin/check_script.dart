@@ -108,6 +108,16 @@ ArgParser buildParser(Lang lang) {
         allowed: [...externalTools, 'builtin'],
         help: t('Désactive un outil ; répétable ou séparé par des virgules.',
             'Disable a tool; repeatable or comma-separated.'))
+    ..addOption('changed-since',
+        valueHelp: 'REF',
+        help: t(
+            'N\'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers).',
+            'Only analyse scripts changed since git reference REF (commits, pending changes, new files).'))
+    ..addFlag('cache',
+        defaultsTo: true,
+        help: t(
+            'Réutilise les résultats d\'un script inchangé (~/.cache/check-script) ; --no-cache pour tout réanalyser.',
+            'Reuse the results of an unchanged script (~/.cache/check-script); --no-cache to re-analyse everything.'))
     ..addOption('jobs',
         abbr: 'j',
         valueHelp: 'N',
@@ -148,6 +158,17 @@ ArgParser buildParser(Lang lang) {
         help: t(
             'Terminal : liste tous les problèmes et leur correction (défaut : 10 par catégorie).',
             'Terminal: list every issue and its fix (default: 10 per category).'))
+    ..addFlag('explain',
+        negatable: false,
+        help: t(
+            'Terminal : coût de chaque règle sur la note, et gain en la corrigeant.',
+            'Terminal: cost of each rule on the score, and gain from fixing it.'))
+    ..addOption('sort',
+        allowed: ['category', 'impact'],
+        defaultsTo: 'category',
+        help: t(
+            'Terminal : problèmes par catégorie, ou par gain rapide (impact sur la note, corrections automatiques d\'abord).',
+            'Terminal: issues by category, or by quick win (score impact, automatic fixes first).'))
     ..addFlag('summary',
         negatable: false,
         help: t('Terminal : synthèse seule, sans détail des problèmes.',
@@ -298,7 +319,9 @@ Future<int> run(List<String> argv,
         '--python-target: invalid version "$pyTarget" (e.g. 3.9).'));
     return exitUsage;
   }
-  config = config
+  // Options de la ligne de commande, appliquées à toute configuration
+  // (générale ou de projet).
+  CheckConfig withCli(CheckConfig c) => c
       .withToolsEnabled(
           [for (final w in a['with'] as List<String>) ...w.split(',')])
       .withToolsDisabled(without)
@@ -312,6 +335,7 @@ Future<int> run(List<String> argv,
               },
         followSource: (a['follow-source'] as bool) ? true : null,
       );
+  config = withCli(config);
 
   Map<String, double> failUnder;
   try {
@@ -355,8 +379,44 @@ Future<int> run(List<String> argv,
   }
 
   final commandRunner = runner ?? const ProcessCommandRunner();
+  // Cache seulement avec les vrais outils (pas avec un exécuteur de test).
+  final cache = (a['cache'] as bool) && commandRunner is ProcessCommandRunner
+      ? ResultCache.standard()
+      : null;
+  await cache?.prune();
   final engine = Engine(
-      config: config, lang: lang, runner: commandRunner, baseline: baseline);
+      config: config,
+      lang: lang,
+      runner: commandRunner,
+      baseline: baseline,
+      cache: cache);
+
+  // Configuration de projet : sans --config, chaque script prend le
+  // .checkscript.yaml le plus proche (jusqu'à la racine du dépôt git) ; un
+  // moteur par fichier de configuration.
+  final explicitConfig = a['config'] as String?;
+  final engines = <String?, Engine>{null: engine};
+  Engine engineFor(String? path) {
+    if (explicitConfig != null || path == null) return engine;
+    final found = findProjectConfig(path);
+    return engines.putIfAbsent(found, () {
+      final CheckConfig c;
+      try {
+        c = withCli(CheckConfig.parse(File(found!).readAsStringSync(),
+            profile: profile));
+      } on FormatException catch (e) {
+        throw _ConfigError('$found : ${e.message}');
+      } on FileSystemException {
+        throw _ConfigError('$found : illisible / unreadable');
+      }
+      return Engine(
+          config: c,
+          lang: lang,
+          runner: commandRunner,
+          baseline: baseline,
+          cache: cache);
+    });
+  }
 
   if (a['list-tools'] as bool) {
     await listTools(engine, out, lang);
@@ -385,6 +445,24 @@ Future<int> run(List<String> argv,
     return exitUsage;
   }
 
+  // Fichiers modifiés depuis une référence git (--changed-since).
+  final since = a['changed-since'] as String?;
+  Set<String>? changed;
+  if (since != null) {
+    // Dépôt de la première cible (fichier ou dossier), pas du dossier
+    // courant : la commande marche depuis n'importe où.
+    final first = a.rest.firstWhere((x) => x != '-', orElse: () => '.');
+    final gitDir =
+        FileSystemEntity.isDirectorySync(first) ? first : p.dirname(first);
+    final r = await changedSince(since, dir: gitDir, runner: commandRunner);
+    if (r.files == null) {
+      err.writeln('--changed-since : ${r.error}');
+      return exitUsage;
+    }
+    changed = r.files;
+  }
+  var skippedUnchanged = 0;
+
   // ── Analyse (et correction) ───────────────────────────────────────────────
   final dialect =
       a['shell'] == null ? null : Dialect.tryParse(a['shell'] as String);
@@ -394,8 +472,10 @@ Future<int> run(List<String> argv,
   // Les closures ne profitent pas de la promotion de type de out/err.
   final IOSink outSink = out, errSink = err;
   Future<void> handle(ScriptInfo script, String? path) async {
+    final eng = engineFor(path);
     if (fix) {
-      final r = await fixScript(script, config: config, runner: commandRunner);
+      final r =
+          await fixScript(script, config: eng.config, runner: commandRunner);
       final name = path ?? '<stdin>';
       if (r.aborted != null) {
         errSink.writeln(t(
@@ -424,55 +504,92 @@ Future<int> run(List<String> argv,
         }
       }
     }
-    reports.add(await engine.analyze(script, filePath: dryRun ? null : path));
+    reports.add(await eng.analyze(script, filePath: dryRun ? null : path));
   }
 
-  for (final target in a.rest) {
-    if (target == '-') {
-      final content = await _readStdin();
-      await handle(
-          ScriptInfo.fromContent('<stdin>', content, forcedDialect: dialect),
-          null);
-      continue;
-    }
-    final files = await collectScripts(target);
-    if (files == null) {
-      err.writeln(t('Introuvable : $target', 'Not found: $target'));
-      inputError = true;
-      continue;
-    }
-    if (files.isEmpty) {
-      err.writeln(t('Aucun script shell ou Python dans : $target',
-          'No shell or Python script in: $target'));
-    }
-    // Sans correction ni dialecte forcé, les scripts d'un dossier sont
-    // analysés en parallèle (ordre des rapports conservé).
-    if (!fix && dialect == null && jobs != 1) {
-      reports
-          .addAll(await engine.analyzeFiles(files, jobs: jobs, onSkip: (f, e) {
-        errSink.writeln(e is FormatException
-            ? t('Fichier non textuel ignoré : $f', 'Non-text file skipped: $f')
-            : t('Lecture impossible : $f', 'Cannot read: $f'));
-        inputError = true;
-      }));
-      continue;
-    }
-    for (final f in files) {
-      try {
-        final content = await File(f).readAsString();
+  // Une configuration de projet invalide arrête l'analyse (code 2).
+  try {
+    for (final target in a.rest) {
+      if (target == '-') {
+        final content = await _readStdin();
         await handle(
-            ScriptInfo.fromContent(f, content, forcedDialect: dialect), f);
-      } on FileSystemException catch (e) {
-        err.writeln(t(
-            'Lecture impossible : $f (${e.osError?.message ?? e.message})',
-            'Cannot read: $f (${e.osError?.message ?? e.message})'));
+            ScriptInfo.fromContent('<stdin>', content, forcedDialect: dialect),
+            null);
+        continue;
+      }
+      var files = await collectScripts(target);
+      if (files != null && changed != null) {
+        final all = files.length;
+        files = [
+          for (final f in files)
+            if (changed.contains(normalizedPath(f))) f
+        ];
+        skippedUnchanged += all - files.length;
+        if (files.isEmpty) continue;
+      }
+      if (files == null) {
+        err.writeln(t('Introuvable : $target', 'Not found: $target'));
         inputError = true;
-      } on FormatException {
-        err.writeln(
-            t('Fichier non textuel ignoré : $f', 'Non-text file skipped: $f'));
-        inputError = true;
+        continue;
+      }
+      if (files.isEmpty) {
+        err.writeln(t('Aucun script shell ou Python dans : $target',
+            'No shell or Python script in: $target'));
+      }
+      // Sans correction ni dialecte forcé, les scripts d'un dossier sont
+      // analysés en parallèle (ordre des rapports conservé).
+      if (!fix && dialect == null && jobs != 1) {
+        // Regroupés par configuration de projet, puis remis dans l'ordre.
+        final byEngine = <Engine, List<String>>{};
+        for (final f in files) {
+          (byEngine[engineFor(f)] ??= []).add(f);
+        }
+        final done = <String, ScriptReport>{};
+        for (final e in byEngine.entries) {
+          for (final r in await e.key.analyzeFiles(e.value, jobs: jobs,
+              onSkip: (f, err) {
+            errSink.writeln(err is FormatException
+                ? t('Fichier non textuel ignoré : $f',
+                    'Non-text file skipped: $f')
+                : t('Lecture impossible : $f', 'Cannot read: $f'));
+            inputError = true;
+          })) {
+            done[r.script.path] = r;
+          }
+        }
+        reports.addAll([
+          for (final f in files)
+            if (done[f] != null) done[f]!
+        ]);
+        continue;
+      }
+      for (final f in files) {
+        try {
+          final content = await File(f).readAsString();
+          await handle(
+              ScriptInfo.fromContent(f, content, forcedDialect: dialect), f);
+        } on FileSystemException catch (e) {
+          err.writeln(t(
+              'Lecture impossible : $f (${e.osError?.message ?? e.message})',
+              'Cannot read: $f (${e.osError?.message ?? e.message})'));
+          inputError = true;
+        } on FormatException {
+          err.writeln(t(
+              'Fichier non textuel ignoré : $f', 'Non-text file skipped: $f'));
+          inputError = true;
+        }
       }
     }
+  } on _ConfigError catch (e) {
+    err.writeln(t('Configuration invalide : ${e.message}',
+        'Invalid configuration: ${e.message}'));
+    return exitUsage;
+  }
+  if (reports.isEmpty && changed != null && !inputError) {
+    err.writeln(t(
+        'Aucun script modifié depuis $since ($skippedUnchanged inchangé${skippedUnchanged > 1 ? 's' : ''}).',
+        'No script changed since $since ($skippedUnchanged unchanged).'));
+    return exitOk;
   }
   if (reports.isEmpty) return inputError ? exitInput : exitUsage;
   if (baseline != null) {
@@ -505,7 +622,9 @@ Future<int> run(List<String> argv,
             lang: lang,
             color: color && fmt == OutputFormat.terminal,
             maxDetails: maxDetails,
-            showSource: a['source'] as bool)));
+            showSource: a['source'] as bool,
+            explain: a['explain'] as bool,
+            byQuickWin: a['sort'] == 'impact')));
   }
   for (final path in outputs) {
     final fmt = forced ?? OutputFormat.fromPath(path) ?? OutputFormat.markdown;
@@ -655,4 +774,10 @@ void listRules(IOSink out, Lang lang, {bool all = false}) {
         '${t.category(r.category).padRight(17)}'
         '${r.severity.label.padRight(10)}${r.title.of(lang)}$ctx');
   }
+}
+
+/// Configuration de projet invalide rencontrée pendant l'analyse.
+class _ConfigError implements Exception {
+  const _ConfigError(this.message);
+  final String message;
 }

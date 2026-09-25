@@ -130,6 +130,27 @@ class S {
   String get summary => _t('Synthèse', 'Summary');
   String get wholeFile => _t('fichier entier', 'whole file');
   String get copy => _t('Copier', 'Copy');
+  String get fileChanged => _t(
+      'Script modifié : analyse relancée.', 'Script changed: analysis re-run.');
+  String get openInEditor => _t('Ouvrir dans l\'éditeur', 'Open in editor');
+  String openAtLine(int line) =>
+      _t('Ouvrir dans l\'éditeur (ligne $line)', 'Open in editor (line $line)');
+  String get editorCommand => _t('Commande de l\'éditeur', 'Editor command');
+  String editorHint(String? detected) => _t(
+      '{file} et {line} sont remplacés ; vide : ${detected ?? 'xdg-open (sans ligne)'}',
+      '{file} and {line} are replaced; empty: ${detected ?? 'xdg-open (no line)'}');
+  String get watchFileSetting => _t(
+      'Relancer l\'analyse quand le script est enregistré',
+      'Re-run the analysis when the script is saved');
+  String get useCacheSetting => _t(
+      'Réutiliser les résultats d\'un script inchangé (cache)',
+      'Reuse results of an unchanged script (cache)');
+  String get history => _t('Historique', 'History');
+  String historyLine(int n, String first, String last, String delta) => _t(
+      '$n analyses : note moyenne $first → $last ($delta)',
+      '$n analyses: average score $first → $last ($delta)');
+  String get sortCategory => _t('Par catégorie', 'By category');
+  String get sortQuickWin => _t('Par gain rapide', 'By quick win');
   String get hideSource => _t('Masquer le code', 'Hide the code');
   String get hideResults => _t('Masquer les résultats', 'Hide the results');
   String get showBoth => _t('Réafficher les deux panneaux', 'Show both panels');

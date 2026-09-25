@@ -13,7 +13,7 @@ _check_script() {
   prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   opts="--output -o --format -f --lang -l --shell -s --python-target --profile -p --context \
---follow-source --config -c --with --without --no-external --jobs -j --all --baseline -b --fail-on-new \
+--follow-source --config -c --with --without --no-external --jobs -j --all --changed-since --cache --no-cache --explain --sort --baseline -b --fail-on-new \
 --fix --dry-run --backup --details --summary --source --no-source --color --no-color --quiet -q \
 --fail-under --list-tools --list-rules --version -v --help -h"
 
@@ -40,6 +40,10 @@ _check_script() {
       ;;
     --with | --without)
       mapfile -t COMPREPLY < <(compgen -W "shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin gitleaks trufflehog syntax builtin" -- "$cur")
+      return 0
+      ;;
+    --sort)
+      mapfile -t COMPREPLY < <(compgen -W "category impact" -- "$cur")
       return 0
       ;;
     --python-target)

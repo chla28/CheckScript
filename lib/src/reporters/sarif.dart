@@ -70,6 +70,31 @@ String renderSarif(List<ScriptReport> reports) {
         ],
         if (f.fingerprint != null)
           'partialFingerprints': {'checkScript/v1': f.fingerprint},
+        // Correction concrète : suggestion applicable (GitHub Code Scanning,
+        // IDE). Positions 1-based, colonne de fin exclusive, comme TextEdit.
+        if (f.edits.isNotEmpty)
+          'fixes': [
+            {
+              'description': {'text': f.hint ?? f.message},
+              'artifactChanges': [
+                {
+                  'artifactLocation': {'uri': _uri(r.script.path)},
+                  'replacements': [
+                    for (final e in f.edits)
+                      {
+                        'deletedRegion': {
+                          'startLine': e.line,
+                          'startColumn': e.column,
+                          'endLine': e.endLine,
+                          'endColumn': e.endColumn,
+                        },
+                        'insertedContent': {'text': e.replacement},
+                      }
+                  ],
+                }
+              ],
+            }
+          ],
         'properties': {
           'severity': f.severity.name,
           'category': f.category.name,

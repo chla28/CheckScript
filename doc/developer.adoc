@@ -58,6 +58,11 @@ lib/src/
   rules/catalog.dart               Catalogue des règles intégrées (titre, conseil, contexte),
                                    ExecContext, escalades de sévérité par contexte
   rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
+  explain.dart                     ScoreExplanation, explainScore (coût et gain par règle, plan
+                                   vers le niveau supérieur), sortByQuickWin
+  result_cache.dart                ResultCache (rapports JSON par clé), fastHash (FNV-1a 64 bits)
+  git.dart                         changedSince (--changed-since), normalizedPath
+  config_discovery.dart            findProjectConfig (.checkscript.yaml jusqu'à la racine git)
   rules/same_rules.dart            sameRuleIds : la même règle dans plusieurs outils (Ruff S ↔
                                    Bandit B, Ruff PL ↔ Pylint, ShellCheck ↔ intégrées)
   rules/registry.dart              RuleEntry, knownRules : règles intégrées et codes externes
@@ -340,7 +345,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.7.0",
+  "tool": "check-script", "version": "0.8.0",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -380,6 +385,8 @@ gui/lib/strings.dart               Libellés propres à l'interface (fr/en)
 gui/lib/screens/analysis_screen.dart   Source + onglets Synthèse / Problèmes, correction, export
 gui/lib/screens/folder_screen.dart     Tableau triable, tendance (sortReports)
 gui/lib/screens/settings_screen.dart   Langue, thème, profil, contextes, outils, YAML
+gui/lib/history.dart               FolderHistory, HistoryEntry (historique des analyses de dossier)
+gui/lib/editor.dart                detectEditor, editorCommandLine, openInEditor
 gui/lib/screens/rules_screen.dart      Règles : cases à cocher (GuiSettings.disabledRules, fusionné
                                        à rules.disabled par buildConfig ; celles de baseConfig
                                        sont verrouillées), recherche, filtres, règles rencontrées
@@ -430,6 +437,7 @@ dart analyze --fatal-infos
 |`engine_test.dart`, `scoring_test.dart`, `config_test.dart` |Moteur, notation, configuration
 |`reporters_test.dart`, `cli_test.dart` |Rapports, options et codes de sortie
 |`corpus_test.dart` |Instantanés, règles obligatoires / interdites, plages de niveaux
+|`v080_test.dart` |Directives obsolètes (MNT011), explication de la note et gain rapide, SARIF `fixes`, cache des résultats, `--changed-since` (dépôt git réel), configuration de projet
 |`improvements_test.dart` |Même règle entre outils, exclusions transmises, `--fix` et règles désactivées, doublons multi-lignes, `# noqa` / `# nosec`, analyses parallèles, cache Semgrep, export YAML (aller-retour), rapport HTML de dossier, calibrage Python
 |`python_test.dart` |Parseurs des outils Python (sorties réelles de `fixtures/outputs/python/`, capturées sur `fixtures/bad.py`), dédoublonnage, secrets, règles intégrées Python (lexer et `ast` réel), `--fix`, découverte, `pythonTarget`
 |`fix_suggestions_test.dart` |Corrections par problème, exemples, rapport HTML

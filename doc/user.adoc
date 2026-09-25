@@ -176,6 +176,10 @@ extension dont le shebang désigne un shell ou Python. Les dossiers cachés
 |`--with OUTIL` |Active un outil désactivé par défaut (`pylint`, `pyright`) ; répétable ou séparé par des virgules.
 |`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…) ; répétable ou séparé par des virgules.
 |`--no-external` |N'utilise que les règles intégrées.
+|`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
+|`--[no-]cache` |Réutilise le rapport d'un script inchangé (défaut ; `~/.cache/check-script/results`). La clé couvre le contenu et le chemin du script, la configuration, la langue, les versions de check-script et des outils (et les règles Semgrep) ; une analyse où un outil a échoué n'est pas mise en cache ; désactivé avec `--follow-source`.
+|`--explain` |Terminal : ce que coûte chaque règle (points retirés à sa catégorie, gain sur la note globale en la corrigeant, correction automatique disponible).
+|`--sort category\|impact` |Terminal : problèmes par catégorie (défaut) ou par *gain rapide* (impact sur la note, corrections automatiques favorisées).
 |`-j`, `--jobs N` |Nombre de scripts d'un dossier analysés simultanément (défaut : selon le nombre de processeurs, au plus 4 ; `1` : l'un après l'autre). Les outils d'un même script tournent toujours en parallèle.
 |`-b`, `--baseline RAPPORT.json` |Référence : seuls les nouveaux problèmes sont détaillés, l'évolution des notes est affichée (voir <<reference>>).
 |`--fail-on-new SÉVÉRITÉ` |Avec `--baseline` : code de sortie 1 si un nouveau problème atteint cette sévérité.
@@ -242,6 +246,19 @@ secret est détecté n'est jamais recopiée dans le rapport.
 Les messages des outils externes restent en anglais ; ceux des règles
 intégrées suivent `--lang`. Les *secrets* détectés ne sont jamais recopiés
 dans le rapport.
+
+=== Comprendre et améliorer la note
+
+Le rapport indique, quand c'est possible, *comment gagner un niveau* :
+`→ Niveau B (7,6) en corrigeant : SC2164, ROB001`. Avec `--explain`
+(terminal), et toujours en Markdown, HTML, JSON (`explanation`) et dans
+l'interface, un tableau donne pour chaque règle les *points retirés* à sa
+catégorie et le *gain sur la note globale* si toutes ses occurrences sont
+corrigées. Un gain nul signifie que la note est plafonnée par une autre
+catégorie plus faible (la globale ne dépasse pas la pire + 1,5) : il faut
+d'abord corriger celle-ci. `--sort impact` (interface : *Par gain rapide*)
+classe les problèmes du plus rentable au moins rentable ; une règle
+corrigeable automatiquement compte 1,5 fois son gain.
 
 === Sévérités
 
@@ -361,6 +378,12 @@ CLE_PUBLIQUE="AAAAC3NzaC1lZDI1NTE5AAAAI…"
 Les identifiants acceptent le joker final (`SC20*`) et `all`. Le nombre de
 problèmes neutralisés figure dans le rapport. Les directives
 `# shellcheck disable=…` restent traitées par ShellCheck.
+
+Une directive `# check-script` qui ne neutralise plus rien (problème corrigé,
+règle changée) est signalée par *MNT011* à sa ligne, pour être retirée. Par
+prudence, elle ne l'est pas si un outil visé est absent ou en échec (rien ne
+prouve alors qu'elle soit inutile). Les `# noqa` inutiles relèvent de la
+règle Ruff RUF100.
 
 Dans un script Python, les directives natives valent pour *tous* les
 outils, et un code vise aussi la même règle dans les autres outils :
@@ -661,8 +684,12 @@ dans <<directives>>.
 
 == Configuration
 
-Fichier YAML lu, dans l'ordre : `--config FICHIER`, `./.checkscript.yaml`,
-`${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml`. Toutes les clés sont
+Fichier YAML lu, dans l'ordre : `--config FICHIER` ; sinon, pour chaque
+script, le `.checkscript.yaml` le plus proche (son dossier, puis les dossiers
+parents jusqu'à la racine du dépôt git) — des réglages par sous-projet dans
+un monodépôt ; sinon `./.checkscript.yaml`, puis
+`${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml`. Les options de la
+ligne de commande s'appliquent par-dessus. Toutes les clés sont
 facultatives ; exemple commenté : `doc/checkscript.example.yaml`.
 L'interface graphique sait l'*exporter* avec ses propres choix (règles,
 outils, version de Python) : la CLI et la CI notent alors comme elle.
@@ -720,7 +747,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.7.0
+    rev: v0.8.0
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----
@@ -782,6 +809,24 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
   l'interface — dans un `.checkscript.yaml` utilisable par la CLI et la CI).
 
 Les analyses de dossier traitent plusieurs scripts à la fois.
+
+Également dans l'interface :
+
+* *Synthèse* : « Ce qui pèse sur la note » (règles les plus coûteuses, gain
+  en les corrigeant, niveau atteignable) ; *Problèmes* : tri *Par
+  catégorie* ou *Par gain rapide* ;
+* *Ouvrir dans l'éditeur* (barre d'outils, ou depuis un problème déplié à
+  sa ligne) : éditeur détecté (VS Code, VSCodium, GNOME Text Editor, gedit,
+  Kate, KWrite, Xed, Geany) ou commande des *Réglages*, avec `{file}` et
+  `{line}` (ex. `code -g {file}:{line}`) ;
+* le script ouvert est *surveillé* : à chaque enregistrement, l'analyse est
+  relancée (réglage *Relancer l'analyse quand le script est enregistré*) ;
+* *Dossier* : *Historique* des analyses du dossier (courbe de la note
+  moyenne ; `~/.local/share/check-script/history`, 200 analyses par
+  dossier) ;
+* sans fichier de configuration choisi, le `.checkscript.yaml` de projet du
+  script ou du dossier analysé s'applique ; *Réutiliser les résultats d'un
+  script inchangé* active le cache, comme la CLI.
 
 La progression outil par outil s'affiche pendant l'analyse, qui peut être
 annulée. Un chemin passé en argument (`check-script-gui deploy.sh` ou un

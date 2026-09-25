@@ -24,6 +24,12 @@ class CategoryScore {
         'total': total,
         for (final s in Severity.values) s.name: count(s),
       };
+
+  factory CategoryScore.fromJson(Map<String, Object?> j) => CategoryScore(
+        Category.tryParse('${j['category']}') ?? Category.robustness,
+        (j['score'] as num?)?.toDouble() ?? 0,
+        {for (final s in Severity.values) s: (j[s.name] as num?)?.toInt() ?? 0},
+      );
 }
 
 /// Facteur d'atténuation des pénalités Medium/Low selon la taille du script :

@@ -139,6 +139,7 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
       b.writeln('<td class="n">${s.total}</td></tr>');
     }
     b.writeln('</table><p class="muted">${_e(t.scoringNote)}</p></div>');
+    _explainHtml(b, r, t, o.lang);
 
     final cmp = r.comparison;
     if (cmp != null) {
@@ -329,4 +330,28 @@ void _folderSummary(
         '<td>${_e(f.message)}</td></tr>');
   }
   b.writeln('</tbody></table></div>');
+}
+
+/// Ce qui pèse sur la note et comment gagner un niveau.
+void _explainHtml(StringBuffer b, ScriptReport r, Messages t, Lang lang) {
+  final e = r.explanation;
+  if (e.impacts.isEmpty) return;
+  final plan = planLine(r, t, lang);
+  b.writeln('<div class="card"><strong>${_e(t.explainTitle)}</strong>');
+  if (plan != null) b.writeln('<p><strong>→ ${_e(plan)}</strong></p>');
+  b.writeln('<table><tr><th>${t.rule}</th><th>${t.category_}</th>'
+      '<th>${t.severity}</th><th class="n">${t.occurrences}</th>'
+      '<th class="n">${t.pointsHeader}</th>'
+      '<th class="n">${t.gainHeader}</th><th></th></tr>');
+  for (final i in e.impacts.take(10)) {
+    b.writeln('<tr><td><code>${_e(i.ruleId)}</code> '
+        '<span class="muted">${_e(i.tool)}</span></td>'
+        '<td>${_e(t.category(i.category))}</td>'
+        '<td class="sev ${i.severity.name}">${i.severity.label}</td>'
+        '<td class="n">${i.occurrences}</td>'
+        '<td class="n">−${fmtScore(i.penalty, lang)}</td>'
+        '<td class="n">+${fmtScore(i.gain, lang)}</td>'
+        '<td class="muted">${i.fixable ? _e(t.autoFix) : ''}</td></tr>');
+  }
+  b.writeln('</table></div>');
 }

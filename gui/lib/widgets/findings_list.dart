@@ -21,6 +21,8 @@ class FindingsList extends StatefulWidget {
     this.onApplyFix,
     this.onDisableRule,
     this.onApplyRule,
+    this.explanation,
+    this.onOpenInEditor,
   });
 
   final List<Finding> findings;
@@ -40,6 +42,13 @@ class FindingsList extends StatefulWidget {
   /// de bouton.
   final void Function(Finding f)? onApplyRule;
 
+  /// Explication de la note : permet le tri par gain rapide.
+  final ScoreExplanation? explanation;
+
+  /// Ouvre le script dans l'éditeur à la ligne du problème ; null : pas de
+  /// bouton.
+  final void Function(Finding f)? onOpenInEditor;
+
   @override
   State<FindingsList> createState() => _FindingsListState();
 }
@@ -50,6 +59,9 @@ class _FindingsListState extends State<FindingsList> {
 
   /// Problème déplié (code de correction affiché).
   Finding? _open;
+
+  /// Tri par gain rapide plutôt que par catégorie.
+  bool _quickWin = false;
 
   @override
   void didUpdateWidget(FindingsList old) {
@@ -70,7 +82,10 @@ class _FindingsListState extends State<FindingsList> {
     final s = S(widget.lang);
     final t = s.m;
     final b = Theme.of(context).brightness;
-    final shown = filter(widget.findings, _categories, _severities);
+    final filtered = filter(widget.findings, _categories, _severities);
+    final e = widget.explanation;
+    final shown =
+        _quickWin && e != null ? sortByQuickWin(filtered, e) : filtered;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Wrap(spacing: 6, runSpacing: 4, children: [
@@ -99,6 +114,20 @@ class _FindingsListState extends State<FindingsList> {
                 () => v ? _severities.add(sev) : _severities.remove(sev)),
           ),
       ]),
+      if (widget.explanation != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: SegmentedButton<bool>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            segments: [
+              ButtonSegment(value: false, label: Text(s.sortCategory)),
+              ButtonSegment(value: true, label: Text(s.sortQuickWin)),
+            ],
+            selected: {_quickWin},
+            onSelectionChanged: (v) => setState(() => _quickWin = v.first),
+          ),
+        ),
       const Divider(),
       Expanded(
         child: shown.isEmpty
@@ -157,6 +186,17 @@ class _FindingsListState extends State<FindingsList> {
                               onApplyRule: widget.onApplyRule == null
                                   ? null
                                   : () => widget.onApplyRule!(f),
+                            ),
+                          if (open &&
+                              widget.onOpenInEditor != null &&
+                              f.line > 0)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                icon: const Icon(Icons.edit_note, size: 18),
+                                label: Text(s.openAtLine(f.line)),
+                                onPressed: () => widget.onOpenInEditor!(f),
+                              ),
                             ),
                           if (open && widget.onDisableRule != null)
                             Align(

@@ -78,7 +78,9 @@ void main() {
 
   test('Les | des messages sont échappés', () {
     final md = renderMarkdown([bad], const RenderOptions());
-    final line = md.split('\n').firstWhere((l) => l.contains('`SEC001`'));
+    final line = md
+        .split('\n')
+        .firstWhere((l) => l.contains('`SEC001`') && l.contains('curl'));
     expect(line, contains(r'(curl\|sh)'));
   });
 

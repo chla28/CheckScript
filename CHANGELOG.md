@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.8.0 — 2026-09-25
+
+- **`--changed-since REF`** : n'analyse que les scripts modifiés depuis une
+  référence git (commits, modifications en cours, nouveaux fichiers) ; code
+  0 si rien n'a changé.
+- **Cache des résultats** (`--no-cache` pour le désactiver ; aussi dans
+  l'interface) : un script inchangé — contenu, configuration, versions des
+  outils — n'est pas réanalysé. Mesuré sur le corpus : 12 s → 1,5 s.
+- **Configuration de projet** : le `.checkscript.yaml` le plus proche de
+  chaque script (jusqu'à la racine du dépôt git) s'applique, CLI et
+  interface.
+- **SARIF** : corrections concrètes en `fixes` (suggestions GitHub Code
+  Scanning, IDE).
+- **Expliquer la note** : points retirés et gain de chaque règle, plan pour
+  gagner un niveau (« Niveau B (7,6) en corrigeant : … ») ; `--explain`,
+  Markdown, HTML, JSON, interface.
+- **Tri par gain rapide** (`--sort impact`, interface) : le plus rentable
+  d'abord, corrections automatiques favorisées.
+- **Historique** des analyses d'un dossier dans l'interface (courbe de la
+  note moyenne).
+- **Directives obsolètes** : MNT011 signale une directive `# check-script`
+  qui ne neutralise plus rien.
+- Interface : **surveillance** du script ouvert (analyse relancée à
+  l'enregistrement) et **ouverture dans l'éditeur** à la ligne d'un
+  problème (éditeur détecté ou commande configurable).
+- Correctif : barre d'outils de l'écran d'analyse défilante sur une fenêtre
+  basse.
+
 ## 0.7.0 — 2026-09-25
 
 - **Configuration** : l'interface exporte la configuration effective

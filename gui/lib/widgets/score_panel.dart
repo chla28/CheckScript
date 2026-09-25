@@ -106,6 +106,59 @@ class ScorePanel extends StatelessWidget {
           child: Text(t.suppressedCount(report.suppressed),
               style: theme.textTheme.bodySmall),
         ),
+      if (report.explanation.impacts.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        Text(t.explainTitle, style: theme.textTheme.titleSmall),
+        if (planLine(report, t, lang) case final plan?)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text('→ $plan',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+          ),
+        Table(
+          columnWidths: const {
+            0: FlexColumnWidth(3),
+            1: FixedColumnWidth(56),
+            2: FixedColumnWidth(56),
+          },
+          children: [
+            TableRow(children: [
+              _h(context, t.rule),
+              _h(context, t.pointsHeader, right: true),
+              _h(context, t.gainHeader, right: true),
+            ]),
+            for (final i in report.explanation.impacts.take(6))
+              TableRow(children: [
+                Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Row(children: [
+                    SeverityBadge(i.severity),
+                    const SizedBox(width: 6),
+                    Flexible(
+                        child: Text(
+                            '${i.ruleId}${i.occurrences > 1 ? ' ×${i.occurrences}' : ''}'
+                            '${i.fixable ? ' · ${t.autoFix}' : ''}',
+                            overflow: TextOverflow.ellipsis)),
+                  ]),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Text('−${fmtScore(i.penalty, lang)}',
+                      textAlign: TextAlign.right),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Text('+${fmtScore(i.gain, lang)}',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                          color: i.gain > 0 ? scoreColor(10, b) : null,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ]),
+          ],
+        ),
+      ],
     ]);
   }
 

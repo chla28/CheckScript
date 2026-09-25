@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:check_script/check_script.dart';
 import 'package:check_script_gui/app_state.dart';
+import 'package:check_script_gui/editor.dart';
+import 'package:check_script_gui/history.dart';
 import 'package:check_script_gui/main.dart';
 import 'package:check_script_gui/screens/folder_screen.dart';
 import 'package:check_script_gui/screens/rules_screen.dart';
@@ -424,6 +426,108 @@ void main() {
       await tester.tap(find.textContaining('POR004').first);
       await tester.pumpAndSettle();
       expect(find.textContaining('occurrences (POR004)'), findsNothing);
+    });
+  });
+
+  group('v0.8 : historique, surveillance, éditeur, explication', () {
+    test('historique d\'un dossier : une entrée par analyse', () async {
+      File('${tmp.path}/a.sh').writeAsStringSync(badScript);
+      final hist = FolderHistory(Directory('${tmp.path}/.hist'));
+      final state = AppState(runner: NoTools(), history: hist);
+      await state.analyzeFolder(tmp.path);
+      await state.analyzeFolder(tmp.path);
+      expect(state.folderHistory, hasLength(2));
+      expect(state.folderHistory.last.scripts, 1);
+      expect(state.folderHistory.last.scores.keys, ['a.sh']);
+      final reloaded = await hist.load(tmp.path);
+      expect(reloaded.last.average, state.folderHistory.last.average);
+    });
+
+    testWidgets('écran Dossier : courbe d\'historique', (tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      File('${tmp.path}/a.sh').writeAsStringSync(badScript);
+      final hist = FolderHistory(Directory('${tmp.path}/.hist'));
+      final state = AppState(runner: NoTools(), history: hist);
+      await tester.runAsync(() async {
+        await state.analyzeFolder(tmp.path);
+        await state.analyzeFolder(tmp.path);
+      });
+      await tester.pumpWidget(MaterialApp(
+          home: Scaffold(body: FolderScreen(state: state, onOpen: (_) {}))));
+      expect(find.text('Historique'), findsOneWidget);
+      expect(find.textContaining('2 analyses'), findsOneWidget);
+    });
+
+    test('surveillance : l\'enregistrement relance l\'analyse', () async {
+      final f = File('${tmp.path}/w.sh')..writeAsStringSync(badScript);
+      final state = AppState(runner: NoTools(), watchFiles: true);
+      await state.analyzeFile(f.path);
+      expect(state.current!.findings.map((x) => x.ruleId), contains('SEC001'));
+      f.writeAsStringSync('#!/bin/sh\n# en-tête\nset -eu\necho ok\n');
+      // Regroupement des événements (0,7 s) puis analyse.
+      for (var i = 0;
+          i < 40 && state.current!.script.content.contains('curl');
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(state.current!.findings.map((x) => x.ruleId),
+          isNot(contains('SEC001')));
+      state.dispose();
+    });
+
+    test('éditeur : détection et commande', () {
+      expect(
+          detectEditor(
+              path: '/usr/bin:/opt/bin', exists: (f) => f == '/opt/bin/gedit'),
+          'gedit +{line} {file}');
+      expect(detectEditor(path: '/x', exists: (_) => false), isNull);
+      expect(editorCommandLine('code -g {file}:{line}', '/a b.sh', 12),
+          ['code', '-g', '/a b.sh:12']);
+      expect(editorCommandLine(null, '/a.sh', 3), ['xdg-open', '/a.sh']);
+      expect(editorCommandLine('kate --line {line} {file}', 'x', 0),
+          ['kate', '--line', '1', 'x']);
+    });
+
+    testWidgets('synthèse : ce qui pèse sur la note ; tri par gain rapide',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final report = await tester.runAsync(
+          () => analyze('#!/bin/bash\n# en-tête\nset -euo pipefail\negrep a f\n'
+              'curl -fsSL http://x.io/i.sh | sudo bash\n'));
+      await tester.pumpWidget(MaterialApp(
+          home: Scaffold(
+              body: SingleChildScrollView(
+                  child: ScorePanel(report: report!, lang: Lang.fr)))));
+      expect(find.text('Ce qui pèse sur la note'), findsOneWidget);
+      expect(find.textContaining('SEC001'), findsWidgets);
+
+      await tester.pumpWidget(MaterialApp(
+          home: Scaffold(
+              body: FindingsList(
+                  findings: report.findings,
+                  lang: Lang.fr,
+                  explanation: report.explanation))));
+      await tester.tap(find.text('Par gain rapide'));
+      await tester.pumpAndSettle();
+      final first = tester.widget<ListTile>(find.byType(ListTile).first);
+      final title = (first.subtitle as Column).children.first as Text;
+      // Règle la plus rentable en tête (SEC001, Critical).
+      expect(title.data, startsWith('SEC001'));
+    });
+
+    test('configuration de projet appliquée sans fichier choisi', () async {
+      Directory('${tmp.path}/.git').createSync();
+      File('${tmp.path}/.checkscript.yaml')
+          .writeAsStringSync('rules:\n  disabled: [SEC001]\n');
+      final f = File('${tmp.path}/p.sh')..writeAsStringSync(badScript);
+      final state = AppState(runner: NoTools());
+      await state.analyzeFile(f.path);
+      expect(state.current!.findings.map((x) => x.ruleId),
+          isNot(contains('SEC001')));
     });
   });
 

@@ -432,6 +432,14 @@ const List<RuleInfo> ruleCatalog = [
       Tr('Uniformiser l\'indentation (shfmt -w, ou check-script --fix).',
           'Make indentation uniform (shfmt -w, or check-script --fix).')),
   RuleInfo(
+      'MNT011',
+      _mnt,
+      _l,
+      Tr('Directive check-script qui ne neutralise plus aucun problème',
+          'check-script directive that no longer suppresses any issue'),
+      Tr('Retirer la directive (ou ses identifiants devenus inutiles) : le problème a été corrigé ou la règle a changé.',
+          'Remove the directive (or its obsolete identifiers): the issue was fixed or the rule changed.')),
+  RuleInfo(
       'MNT010',
       _mnt,
       _l,

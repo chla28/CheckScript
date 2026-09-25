@@ -79,6 +79,19 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
 *--no-external*::
   N'utilise que les règles intégrées.
 
+*--changed-since* _REF_::
+  N'analyse que les scripts modifiés depuis la référence git _REF_.
+
+*--no-cache*::
+  Réanalyse tout, sans réutiliser les rapports des scripts inchangés
+  (_~/.cache/check-script/results_).
+
+*--explain*::
+  Terminal : coût de chaque règle sur la note, et gain en la corrigeant.
+
+*--sort* *category*|*impact*::
+  Terminal : problèmes par catégorie, ou par gain rapide.
+
 *-j, --jobs* _N_::
   Scripts d'un dossier analysés simultanément (défaut : selon le nombre de
   processeurs ; *1* : l'un après l'autre).
@@ -155,7 +168,7 @@ Jokers : *SC20\**, *all*.
 
 == FICHIERS
 
-_~/.config/check-script/config.yaml_, _./.checkscript.yaml_::
+_.checkscript.yaml_ (dossier du script, puis parents jusqu'à la racine git), _~/.config/check-script/config.yaml_::
   Configuration (exemple : _/usr/share/doc/check-script/checkscript.example.yaml_).
 
 == VOIR AUSSI

@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../editor.dart';
 import '../strings.dart';
 import '../widgets/findings_list.dart';
 import '../widgets/score_panel.dart';
@@ -38,111 +39,146 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Widget build(BuildContext context) {
     final s = S(state.lang);
     final report = state.current;
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-        child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              FilledButton.icon(
-                  onPressed: state.busy ? null : _open,
-                  icon: const Icon(Icons.file_open),
-                  label: Text(s.openScript)),
-              OutlinedButton.icon(
-                  onPressed:
-                      state.busy || report == null ? null : state.reanalyze,
-                  icon: const Icon(Icons.refresh),
-                  label: Text(s.reanalyze)),
-              OutlinedButton.icon(
-                  onPressed:
-                      state.busy || report == null ? null : () => _fix(context),
-                  icon: const Icon(Icons.auto_fix_high),
-                  label: Text(s.fix)),
-              OutlinedButton.icon(
-                  onPressed: report == null
-                      ? null
-                      : () => exportReports(context, state, [report]),
-                  icon: const Icon(Icons.save_alt),
-                  label: Text(s.export)),
-              BaselineButton(state: state),
-              if (report != null)
-                Text(report.script.path,
-                    style: Theme.of(context).textTheme.bodySmall),
-            ]),
-      ),
-      const Divider(height: 1),
-      Expanded(
-        child: report == null
-            ? Center(child: Text(s.dropHere, textAlign: TextAlign.center))
-            : LayoutBuilder(builder: (context, c) {
-                final issues = detailFindings(report);
-                final side = DefaultTabController(
-                  length: 2,
-                  child: Column(children: [
-                    TabBar(tabs: [
-                      Tab(text: s.summary),
-                      Tab(text: '${s.issues} (${issues.length})'),
-                    ]),
-                    Expanded(
-                      child: TabBarView(children: [
-                        SingleChildScrollView(
-                          padding: const EdgeInsets.all(12),
-                          child: ScorePanel(report: report, lang: state.lang),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: FindingsList(
-                            findings: issues,
-                            lang: state.lang,
-                            lines: report.script.lines,
-                            onSelect: (f) =>
-                                setState(() => _selectedLine = f.line),
-                            onApplyFix: state.busy
-                                ? null
-                                : (f) => _applyOne(context, f),
-                            onDisableRule: (f) => _disableRule(context, f),
-                            onApplyRule: state.busy
-                                ? null
-                                : (f) => _applyRule(context, f),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ]),
-                );
-                final source = SourceView(
-                  lines: report.script.lines,
-                  findings: report.findings,
-                  selectedLine: _selectedLine,
-                  onLineTap: (l) => setState(() => _selectedLine = l),
-                );
-                // Code et résultats séparés par une barre déplaçable ;
-                // répartition mémorisée par disposition.
-                final wide = c.maxWidth > 1000;
-                final g = state.settings;
-                return SplitView(
-                  key: ValueKey(wide),
-                  axis: wide ? Axis.horizontal : Axis.vertical,
-                  first: source,
-                  second: side,
-                  state: wide ? g.wideSplit : g.narrowSplit,
-                  defaultState: wide
-                      ? GuiSettings.defaultWideSplit
-                      : GuiSettings.defaultNarrowSplit,
-                  minFirst: wide ? 240 : 120,
-                  minSecond: wide ? 360 : 200,
-                  collapseFirstTooltip: s.hideSource,
-                  collapseSecondTooltip: s.hideResults,
-                  restoreTooltip: s.showBoth,
-                  onChanged: (v) => state.updateSettings(wide
-                      ? g.copyWith(wideSplit: v)
-                      : g.copyWith(narrowSplit: v)),
-                );
-              }),
-      ),
-    ]);
+    return LayoutBuilder(
+        builder: (context, outer) => Column(children: [
+              // Barre d'outils : au plus 40 % de la hauteur, défilante au-delà
+              // (fenêtre basse et étroite : les boutons passent sur plusieurs lignes).
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: outer.maxHeight * 0.4),
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          FilledButton.icon(
+                              onPressed: state.busy ? null : _open,
+                              icon: const Icon(Icons.file_open),
+                              label: Text(s.openScript)),
+                          OutlinedButton.icon(
+                              onPressed: state.busy || report == null
+                                  ? null
+                                  : state.reanalyze,
+                              icon: const Icon(Icons.refresh),
+                              label: Text(s.reanalyze)),
+                          OutlinedButton.icon(
+                              onPressed: state.busy || report == null
+                                  ? null
+                                  : () => _fix(context),
+                              icon: const Icon(Icons.auto_fix_high),
+                              label: Text(s.fix)),
+                          OutlinedButton.icon(
+                              onPressed: report == null
+                                  ? null
+                                  : () =>
+                                      exportReports(context, state, [report]),
+                              icon: const Icon(Icons.save_alt),
+                              label: Text(s.export)),
+                          OutlinedButton.icon(
+                              onPressed: report == null ||
+                                      report.script.path == '<stdin>'
+                                  ? null
+                                  : () => _edit(context, report.script.path,
+                                      _selectedLine ?? 1),
+                              icon: const Icon(Icons.edit_note),
+                              label: Text(s.openInEditor)),
+                          BaselineButton(state: state),
+                          if (report != null)
+                            Text(report.script.path,
+                                style: Theme.of(context).textTheme.bodySmall),
+                        ]),
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: report == null
+                    ? Center(
+                        child: Text(s.dropHere, textAlign: TextAlign.center))
+                    : LayoutBuilder(builder: (context, c) {
+                        final issues = detailFindings(report);
+                        final side = DefaultTabController(
+                          length: 2,
+                          child: Column(children: [
+                            TabBar(tabs: [
+                              Tab(text: s.summary),
+                              Tab(text: '${s.issues} (${issues.length})'),
+                            ]),
+                            Expanded(
+                              child: TabBarView(children: [
+                                SingleChildScrollView(
+                                  padding: const EdgeInsets.all(12),
+                                  child: ScorePanel(
+                                      report: report, lang: state.lang),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: FindingsList(
+                                    findings: issues,
+                                    lang: state.lang,
+                                    lines: report.script.lines,
+                                    onSelect: (f) =>
+                                        setState(() => _selectedLine = f.line),
+                                    onApplyFix: state.busy
+                                        ? null
+                                        : (f) => _applyOne(context, f),
+                                    onDisableRule: (f) =>
+                                        _disableRule(context, f),
+                                    onApplyRule: state.busy
+                                        ? null
+                                        : (f) => _applyRule(context, f),
+                                    explanation: report.explanation,
+                                    onOpenInEditor: (f) => _edit(
+                                        context, report.script.path, f.line),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                          ]),
+                        );
+                        final source = SourceView(
+                          lines: report.script.lines,
+                          findings: report.findings,
+                          selectedLine: _selectedLine,
+                          onLineTap: (l) => setState(() => _selectedLine = l),
+                        );
+                        // Code et résultats séparés par une barre déplaçable ;
+                        // répartition mémorisée par disposition.
+                        final wide = c.maxWidth > 1000;
+                        final g = state.settings;
+                        return SplitView(
+                          key: ValueKey(wide),
+                          axis: wide ? Axis.horizontal : Axis.vertical,
+                          first: source,
+                          second: side,
+                          state: wide ? g.wideSplit : g.narrowSplit,
+                          defaultState: wide
+                              ? GuiSettings.defaultWideSplit
+                              : GuiSettings.defaultNarrowSplit,
+                          minFirst: wide ? 240 : 120,
+                          minSecond: wide ? 360 : 200,
+                          collapseFirstTooltip: s.hideSource,
+                          collapseSecondTooltip: s.hideResults,
+                          restoreTooltip: s.showBoth,
+                          onChanged: (v) => state.updateSettings(wide
+                              ? g.copyWith(wideSplit: v)
+                              : g.copyWith(narrowSplit: v)),
+                        );
+                      }),
+              ),
+            ]));
+  }
+
+  /// Ouvre le script dans l'éditeur, à la ligne [line].
+  Future<void> _edit(BuildContext context, String path, int line) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    final err = await openInEditor(state.settings.editorCommand, path, line);
+    if (err != null) {
+      messenger.showSnackBar(SnackBar(content: Text(s.error(err))));
+    }
   }
 
   /// Corrige toutes les occurrences de la règle d'un problème.

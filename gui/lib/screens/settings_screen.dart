@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../editor.dart';
 import '../strings.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -135,6 +136,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 state.updateSettings(g.copyWith(pythonTarget: () => v)),
           ),
         ]),
+      ),
+      SwitchListTile(
+        title: Text(s.useCacheSetting),
+        value: g.useCache,
+        onChanged: (v) => state.updateSettings(g.copyWith(useCache: v)),
+      ),
+      SwitchListTile(
+        title: Text(s.watchFileSetting),
+        value: g.watchFile,
+        onChanged: (v) => state.updateSettings(g.copyWith(watchFile: v)),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        child: TextFormField(
+          initialValue: g.editorCommand,
+          decoration: InputDecoration(
+            labelText: s.editorCommand,
+            helperText: s.editorHint(detectEditor()),
+            border: const OutlineInputBorder(),
+            isDense: true,
+          ),
+          onChanged: (v) => state.updateSettings(g.copyWith(
+              editorCommand: () => v.trim().isEmpty ? null : v.trim())),
+        ),
       ),
       SwitchListTile(
         title: Text(s.followSource),

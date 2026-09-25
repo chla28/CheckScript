@@ -249,6 +249,9 @@ main "$@"''', badEn: r'''#!/bin/bash
   'MNT009': CodeExample('if true; then\n\techo a\n    echo b\nfi',
       'if true; then\n  echo a\n  echo b\nfi'),
   'MNT010': CodeExample('echo ok   ', 'echo ok'),
+  'MNT011': CodeExample(r'''# check-script disable=SEC005
+curl --cacert /etc/pki/ca.pem "$URL"''',
+      r'''curl --cacert /etc/pki/ca.pem "$URL"'''),
 
   // ── Portabilité ───────────────────────────────────────────────────────────
   'POR001': CodeExample(r'''set -eu

@@ -1,6 +1,7 @@
 /// Résultat complet de l'analyse d'un script.
 library;
 
+import '../explain.dart';
 import '../scoring.dart';
 import '../script_info.dart';
 import 'finding.dart';
@@ -57,6 +58,9 @@ class ScriptReport {
   /// Comparaison avec la référence, si `--baseline` a été fourni.
   final Comparison? comparison;
 
+  /// Ce que coûte chaque règle, et comment gagner un niveau.
+  final ScoreExplanation explanation;
+
   const ScriptReport({
     required this.script,
     required this.tools,
@@ -68,6 +72,7 @@ class ScriptReport {
     this.profile = 'standard',
     this.contexts = const [],
     this.comparison,
+    this.explanation = ScoreExplanation.empty,
   });
 
   ScriptReport withComparison(Comparison? c) => ScriptReport(
@@ -81,7 +86,35 @@ class ScriptReport {
         profile: profile,
         contexts: contexts,
         comparison: c,
+        explanation: explanation,
       );
+
+  /// Relit [toJson] pour [script] (cache des résultats) ; la comparaison
+  /// avec une référence n'est pas conservée. Lève en cas de format invalide.
+  factory ScriptReport.fromJson(Map<String, Object?> j, ScriptInfo script) {
+    final g = j['global'] as Map;
+    return ScriptReport(
+      script: script,
+      tools: [
+        for (final t in j['tools'] as List)
+          ToolRun.fromJson((t as Map).cast<String, Object?>())
+      ],
+      findings: [
+        for (final f in j['findings'] as List)
+          Finding.fromJson((f as Map).cast<String, Object?>())
+      ],
+      scores: [
+        for (final s in j['categories'] as List)
+          CategoryScore.fromJson((s as Map).cast<String, Object?>())
+      ],
+      global: (g['score'] as num).toDouble(),
+      date: DateTime.parse('${j['date']}'),
+      suppressed: (j['suppressed'] as num?)?.toInt() ?? 0,
+      profile: '${j['profile'] ?? 'standard'}',
+      contexts: [for (final c in (j['contexts'] as List? ?? const [])) '$c'],
+      explanation: ScoreExplanation.fromJson(j['explanation']),
+    );
+  }
 
   String get grade => gradeFor(global);
 
@@ -104,6 +137,7 @@ class ScriptReport {
         'global': {'score': global, 'grade': grade},
         'categories': [for (final s in scores) s.toJson()],
         'suppressed': suppressed,
+        if (explanation.impacts.isNotEmpty) 'explanation': explanation.toJson(),
         if (comparison != null) 'comparison': comparison!.toJson(),
         'tools': [for (final t in tools) t.toJson()],
         'findings': [for (final f in findings) f.toJson()],

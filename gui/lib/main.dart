@@ -93,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final text = switch (msg) {
       'cancelled' => s.cancelled,
       'noScripts' => s.noScripts,
+      'fileChanged' => s.fileChanged,
       _ when msg.startsWith('error:') => s.error(msg.substring(6)),
       _ => msg,
     };

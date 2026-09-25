@@ -114,6 +114,16 @@ class Messages {
   String get backToSummary => _t('↑ Sommaire', '↑ Summary');
   String get sortHint =>
       _t('Cliquer sur un en-tête pour trier.', 'Click a header to sort.');
+  String get explainTitle =>
+      _t('Ce qui pèse sur la note', 'What weighs on the score');
+  String nextGradeLine(String grade, String score, String rules) => _t(
+      'Niveau $grade ($score) en corrigeant : $rules',
+      'Grade $grade ($score) by fixing: $rules');
+  String get gainHeader => _t('Gain global', 'Overall gain');
+  String get pointsHeader => _t('Points retirés', 'Points lost');
+  String get autoFix => _t('corr. auto', 'auto-fix');
+  String get byQuickWin =>
+      _t('Problèmes par gain rapide', 'Issues by quick win');
   String get suggestedFix => _t('Correction proposée', 'Suggested fix');
   String get fixExample => _t('Exemple de correction', 'Fix example');
   String get avoid => _t('À éviter', 'Avoid');

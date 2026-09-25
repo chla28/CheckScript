@@ -18,6 +18,11 @@ _arguments -s \
   '--no-external[règles intégrées seules]' \
   {-j,--jobs}'[scripts analysés simultanément]:nombre:' \
   '--all[avec --list-rules : aussi les codes des outils]' \
+  '--changed-since[scripts modifiés depuis la référence git]:référence:' \
+  '(--no-cache)--cache[réutiliser les résultats (défaut)]' \
+  '(--cache)--no-cache[tout réanalyser]' \
+  '--explain[coût de chaque règle sur la note]' \
+  '--sort[ordre des problèmes]:ordre:(category impact)' \
   {-b,--baseline}'[rapport JSON de référence]:fichier:_files -g "*.json"' \
   '--fail-on-new[échec si nouveau problème]:sévérité:(low medium high critical)' \
   '--fix[corriger les défauts sûrs]' \
