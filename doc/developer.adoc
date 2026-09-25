@@ -350,7 +350,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.11.1",
+  "tool": "check-script", "version": "0.11.2",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -361,7 +361,7 @@ Format JSON (extrait) :
     "suppressed": 0,
     "comparison": {"new": 1, "fixed": 2, "unchanged": 30, "previousGlobal": 2.5,
                    "previousScores": {"security": 0.0}},
-    "tools": [{"tool": "shellcheck", "status": "ok", "version": "0.11.1", "findings": 14}],
+    "tools": [{"tool": "shellcheck", "status": "ok", "version": "0.11.2", "findings": 14}],
     "findings": [{"tool": "builtin", "rule": "SEC001", "category": "security",
                   "severity": "critical", "line": 5, "column": 0, "message": "…",
                   "snippet": "…", "hint": "…", "fingerprint": "9f2c…",

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.2 — 2026-09-25
+
+- Correctif CI : le test « bad.py sous 6 » n'est joué que si Bandit et Ruff
+  sont installés (sans eux, seules les règles intégrées s'appliquent) ;
+  vérifié dans un environnement sans outils d'analyse, comme le runner
+  GitHub.
+
 ## 0.11.1 — 2026-09-25
 
 - Correctif CI : les tests qui vérifient des messages français fixent la

@@ -97,10 +97,16 @@ void main() {
         isNotEmpty);
   }, skip: _skip('vermin'));
 
-  test('good.py obtient A, bad.py moins de 6', () async {
+  test('good.py obtient A (avec ou sans outils)', () async {
     final good = await pyEngine.analyzeFile(fixture('good.py'));
     expect(good.grade, 'A', reason: good.findings.join('\n'));
-    final bad = await pyEngine.analyzeFile(fixture('bad.py'));
-    expect(bad.global, lessThan(6));
   });
+
+  // Les défauts graves de bad.py (shell=True, eval, pickle, secret…) sont
+  // détectés par Bandit et Ruff : sans eux, seules les règles intégrées
+  // s'appliquent (note élevée, cas des serveurs de CI).
+  test('bad.py moins de 6 avec Bandit et Ruff', () async {
+    final bad = await pyEngine.analyzeFile(fixture('bad.py'));
+    expect(bad.global, lessThan(6), reason: bad.findings.join('\n'));
+  }, skip: _skip('bandit') ?? _skip('ruff'));
 }
