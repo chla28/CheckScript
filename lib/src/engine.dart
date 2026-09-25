@@ -7,17 +7,20 @@ import 'dart:io';
 import 'analyzers/analyzer.dart';
 import 'analyzers/builtin_rules.dart';
 import 'analyzers/external_tools.dart';
+import 'analyzers/python_deps.dart';
 import 'analyzers/python_tools.dart';
 import 'analyzers/secrets.dart';
 import 'analyzers/shellcheck.dart';
 import 'baseline.dart';
 import 'config.dart';
+import 'embedded.dart';
 import 'explain.dart';
 import 'fixer.dart';
 import 'i18n.dart';
 import 'model/finding.dart';
 import 'model/report.dart';
 import 'result_cache.dart';
+import 'rules/custom_rules.dart';
 import 'version.dart';
 import 'rules/catalog.dart';
 import 'scoring.dart';
@@ -38,10 +41,13 @@ List<Analyzer> defaultAnalyzers() => [
       PylintAnalyzer(),
       VerminAnalyzer(),
       RadonAnalyzer(),
+      PythonDepsAnalyzer(),
+      PipAuditAnalyzer(),
       GitleaksAnalyzer(),
       TrufflehogAnalyzer(),
       CheckbashismsAnalyzer(),
       BuiltinAnalyzer(),
+      CustomRulesAnalyzer(),
       ShfmtAnalyzer(),
       BashateAnalyzer(),
     ];
@@ -131,9 +137,14 @@ class Engine {
   }
 
   /// Analyseurs du langage de [script].
+  /// Analyseurs du langage de [script] (sans Bashate pour les scripts
+  /// intégrés : leur mise en forme est celle du fichier hôte).
   List<Analyzer> analyzersFor(ScriptInfo script) => [
         for (final a in analyzers)
-          if (a.language.accepts(script)) a
+          if (a.language.accepts(script) &&
+              !(script.embedded != null && a.name == 'bashate') &&
+              !(a.name == 'custom' && config.customRules.isEmpty))
+            a
       ];
 
   /// Analyse un fichier sur disque.
@@ -181,6 +192,12 @@ class Engine {
     if (ruffFile != null && File(ruffFile).existsSync()) {
       rules += '|ruff:${File(ruffFile).lastModifiedSync()}';
     }
+    // Dépendances déclarées du projet (pydeps, pip-audit).
+    if (script.dialect.isPython && File(script.path).existsSync()) {
+      for (final f in PythonProject.find(script.path).files) {
+        rules += '|${f.path}:${f.lastModifiedSync()}';
+      }
+    }
     final key = fastHash([
       appVersion,
       lang.name,
@@ -191,6 +208,8 @@ class Engine {
       ...versions,
       rules,
       script.content,
+      // Scripts intégrés : les détecteurs de secrets lisent tout le fichier.
+      if (script.embedded != null) script.displayLines.join('\n'),
     ].join('\u0000'));
     return '$key-${script.content.length.toRadixString(16)}';
   }
@@ -207,7 +226,9 @@ class Engine {
       return hit.withComparison(baseline?.compare(hit));
     }
     Directory? tmp;
-    var path = filePath;
+    // Scripts intégrés : les outils reçoivent le script virtuel.
+    final host = script.embedded == null ? null : filePath;
+    var path = script.embedded == null ? filePath : null;
     if (path == null) {
       tmp = await Directory.systemTemp.createTemp('check_script_');
       path = '${tmp.path}/script.${script.dialect.isPython ? 'py' : 'sh'}';
@@ -217,6 +238,7 @@ class Engine {
       final ctx = AnalysisContext(
           script: script,
           filePath: path,
+          hostPath: host,
           config: config,
           lang: lang,
           runner: runner,
@@ -267,26 +289,37 @@ class Engine {
       }
       cancel?.check();
       final runs = [for (final r in results) r!.run];
-      final raw = [for (final r in results) ...r!.findings];
+      final embedded = script.embedded;
+      final raw = [
+        for (final r in results)
+          for (final f in r!.findings)
+            if (embedded == null || !ignoredInEmbedded(f, embedded)) f
+      ];
 
-      final suppressions =
-          Suppressions.parse(script.lines, python: script.dialect.isPython);
+      final suppressions = Suppressions.parse(
+          embedded?.directiveLines ?? script.lines,
+          python: script.dialect.isPython);
       final deduped = deduplicate(raw);
       final kept = [
         for (final f in deduped)
           if (!suppressions.suppresses(f)) f,
         ...staleDirectives(suppressions, raw, runs, lang),
       ];
-      final findings = sortFindings(attachFixes(
+      final fixed = attachFixes(
           shell: !script.dialect.isPython,
           attachSource(
               fingerprintAll(
                   applyConfig(
                       escalate(enrich(kept, lang), config.contexts), config),
-                  script.lines),
-              script.lines,
+                  script.displayLines),
+              script.displayLines,
               detected: raw),
-          script.lines));
+          script.lines);
+      // Pas de correction automatique dans un fichier hôte : les positions
+      // du script virtuel ne sont pas toujours celles du fichier.
+      final findings = sortFindings(embedded == null
+          ? fixed
+          : [for (final f in fixed) f.copyWith(edits: const [])]);
       final scores = [
         for (final c in Category.values)
           scoreCategory(c, findings, script.codeLines, config.scoring)
@@ -314,6 +347,22 @@ class Engine {
     }
   }
 }
+
+/// Règles sans objet pour des scripts intégrés à un autre fichier : en-tête
+/// et options de script (shebang, set -e…, fournis par l'hôte), mise en
+/// forme, code inaccessible et variables non définies (les blocs sont
+/// indépendants et l'hôte définit des variables : ENV, env:, variables:).
+bool ignoredInEmbedded(Finding f, EmbeddedScript e) =>
+    switch ((f.tool, f.ruleId)) {
+      ('builtin', 'POR001' || 'POR002' || 'ROB001' || 'ROB003' || 'ROB014') ||
+      ('builtin', 'SEC017' || 'ROB016' || 'MNT004' || 'MNT005' || 'MNT008') ||
+      ('builtin', 'MNT009' || 'ROB011' || 'SEC015' || 'POR006') ||
+      ('shellcheck', 'SC2148' || 'SC2317' || 'SC2154') ||
+      ('shfmt', 'FORMAT') =>
+        true,
+      ('builtin', 'ROB002') => e.pipefail,
+      _ => false,
+    };
 
 bool _matches(String pattern, String id) => pattern.endsWith('*')
     ? id.startsWith(pattern.substring(0, pattern.length - 1))

@@ -16,6 +16,7 @@ library;
 import 'dart:math' as math;
 
 import '../config.dart';
+import '../embedded.dart' show EmbeddedIssue;
 import '../i18n.dart';
 import '../model/finding.dart';
 import '../rules/catalog.dart';
@@ -347,6 +348,10 @@ List<Finding> runBuiltinRules(ScriptInfo s, CheckConfig config, Lang lang,
     if (lineHasSecret(l.raw)) {
       add('SEC022', l.number, eq: const ['SEC002', 'GL*', 'TH*']);
     }
+  }
+  // Scripts intégrés : problèmes relevés dans le fichier hôte.
+  for (final i in s.embedded?.issues ?? const <EmbeddedIssue>[]) {
+    add(i.ruleId, i.line, extra: i.detail);
   }
 
   // ── Structure : fonctions, imbrication, boucles, commandes ───────────────

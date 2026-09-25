@@ -22,6 +22,7 @@ import 'analyzers/python_tools.dart';
 import 'analyzers/shell_lexer.dart';
 import 'analyzers/shellcheck.dart';
 import 'config.dart';
+import 'i18n.dart';
 import 'script_info.dart';
 import 'json_num.dart';
 import 'model/finding.dart';
@@ -310,9 +311,41 @@ Future<String?> syntaxRegression(ScriptInfo script, String fixed,
 Future<FixResult> fixScript(ScriptInfo script,
     {CheckConfig config = const CheckConfig(),
     CommandRunner runner = const ProcessCommandRunner()}) async {
-  if (script.dialect.isPython) {
-    return _fixPython(script, config: config, runner: runner);
+  // Fichier hôte (Dockerfile, CI…) : pas de réécriture automatique.
+  if (script.embedded != null) {
+    return FixResult(script.content, script.content, const {});
   }
+  final r = script.dialect.isPython
+      ? await _fixPython(script, config: config, runner: runner)
+      : await _fixShell(script, config: config, runner: runner);
+  if (r.aborted != null) return r;
+  // Remplacements des règles personnalisées, en dernier.
+  final (text, counts) = applyCustomFixes(
+      ScriptInfo.fromContent(script.path, r.fixed,
+          forcedDialect: script.dialect),
+      config);
+  if (counts.isEmpty) return r;
+  final broken =
+      await syntaxRegression(script, text, config: config, runner: runner);
+  if (broken != null) return r;
+  return FixResult(r.original, text, {...r.applied, ...counts});
+}
+
+/// Applique les remplacements des règles personnalisées (non désactivées)
+/// à [script] ; renvoie le texte et le nombre de corrections par règle.
+(String, Map<String, int>) applyCustomFixes(
+    ScriptInfo script, CheckConfig config) {
+  final edits = [
+    for (final rule in config.customRules)
+      if (rule.replace != null && !config.isRuleDisabled(rule.id))
+        for (final f in rule.check(script, Lang.en)) ...f.edits,
+  ];
+  if (edits.isEmpty) return (script.content, const {});
+  return applyEdits(script.content, edits);
+}
+
+Future<FixResult> _fixShell(ScriptInfo script,
+    {required CheckConfig config, required CommandRunner runner}) async {
   final applied = <String, int>{};
   void merge(Map<String, int> m) =>
       m.forEach((k, v) => applied[k] = (applied[k] ?? 0) + v);

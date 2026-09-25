@@ -1,6 +1,8 @@
 /// Informations structurelles sur un script : shebang, dialecte, métriques.
 library;
 
+import 'embedded.dart';
+
 /// Dialecte déduit du shebang ou de l'extension (ou forcé par l'utilisateur) :
 /// un shell, ou Python 3.
 enum Dialect {
@@ -55,13 +57,34 @@ class ScriptInfo {
   /// Le fichier d'origine contient des fins de ligne Windows (CRLF).
   final bool hasCrlf;
 
-  const ScriptInfo._(this.path, this.content, this.lines, this.shebang,
-      this.dialect, this.hasCrlf);
+  /// Scripts intégrés à un autre fichier (Dockerfile, CI…) : [content] et
+  /// [lines] sont alors le script virtuel analysé, [displayLines] le fichier.
+  final EmbeddedScript? embedded;
 
+  const ScriptInfo._(this.path, this.content, this.lines, this.shebang,
+      this.dialect, this.hasCrlf,
+      [this.embedded]);
+
+  /// Lignes à montrer (extraits, source) : celles du fichier.
+  List<String> get displayLines => embedded?.source ?? lines;
+
+  /// Dialecte, suivi du type de fichier hôte pour les scripts intégrés.
+  String get dialectLabel => embedded == null
+      ? dialect.name
+      : '${dialect.name} (${embedded!.kind.label}, ${embedded!.blocks.length})';
+
+  /// [embedded] : false pour lire un fichier hôte (Dockerfile…) comme un
+  /// script ordinaire.
   factory ScriptInfo.fromContent(String path, String content,
-      {Dialect? forcedDialect}) {
+      {Dialect? forcedDialect, bool embedded = true}) {
     final hasCrlf = content.contains('\r\n');
     final normalized = content.replaceAll('\r\n', '\n');
+    final kind = embedded ? detectEmbedded(path, normalized) : null;
+    if (kind != null) {
+      final e = extractEmbedded(kind, normalized);
+      return ScriptInfo._(path, '${e.lines.join('\n')}\n', e.lines, null,
+          forcedDialect ?? e.dialect, hasCrlf, e);
+    }
     var lines = normalized.split('\n');
     // Un fichier terminé par \n ne compte pas de ligne vide finale.
     if (lines.isNotEmpty && lines.last.isEmpty) {

@@ -45,7 +45,7 @@ class GitleaksAnalyzer extends Analyzer {
       '--exit-code=0',
       '--report-format=json',
       '--report-path=/dev/stdout',
-      '--source=${ctx.filePath}',
+      '--source=${ctx.secretsPath}',
     ]);
     if (r == null) return AnalyzerResult(ToolRun(name, ToolStatus.missing));
     try {
@@ -107,7 +107,7 @@ class TrufflehogAnalyzer extends Analyzer {
     final tc = ctx.config.tool(name);
     final r = await ctx.run(tc.executable, [
       'filesystem',
-      ctx.filePath,
+      ctx.secretsPath,
       '--json',
       '--no-update',
       '--no-verification',

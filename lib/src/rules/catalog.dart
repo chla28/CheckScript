@@ -234,6 +234,14 @@ const List<RuleInfo> ruleCatalog = [
           'High-entropy string: potential secret'),
       Tr('Si c\'est un secret, le sortir du script ; sinon, neutraliser la règle sur cette ligne (# check-script disable=SEC022).',
           'If it is a secret, move it out of the script; otherwise suppress the rule on this line (# check-script disable=SEC022).')),
+  RuleInfo(
+      'SEC023',
+      _sec,
+      _c,
+      Tr('Expression GitHub non fiable insérée dans un script : injection de commande',
+          'Untrusted GitHub expression inserted into a script: command injection'),
+      Tr('Passer la valeur par l\'environnement (env: TITRE: \${{ … }}) et utiliser "\$TITRE" dans le script.',
+          'Pass the value through the environment (env: TITLE: \${{ … }}) and use "\$TITLE" in the script.')),
 
   // ── Robustesse ────────────────────────────────────────────────────────────
   RuleInfo(
@@ -617,6 +625,14 @@ const List<RuleInfo> ruleCatalog = [
       Tr('Écrire sys.exit(main()) pour que les échecs soient visibles (cron, CI, systemd).',
           'Write sys.exit(main()) so that failures are visible (cron, CI, systemd).')),
   RuleInfo(
+      'PYROB005',
+      _rob,
+      _h,
+      Tr('Module importé introuvable (ni installé, ni déclaré dans les dépendances)',
+          'Imported module not found (neither installed nor declared as a dependency)'),
+      Tr('Vérifier le nom du module, le déclarer (requirements.txt, pyproject.toml ou en-tête PEP 723) et l\'installer ; un import facultatif se place dans try / except ImportError.',
+          'Check the module name, declare it (requirements.txt, pyproject.toml or PEP 723 header) and install it; an optional import goes in try / except ImportError.')),
+  RuleInfo(
       'PYMNT001',
       _mnt,
       _l,
@@ -640,6 +656,14 @@ const List<RuleInfo> ruleCatalog = [
           'Ambiguous "python" shebang (Python 2 on old systems, missing elsewhere)'),
       Tr('Utiliser #!/usr/bin/env python3 (ou #!/usr/bin/python3).',
           'Use #!/usr/bin/env python3 (or #!/usr/bin/python3).')),
+  RuleInfo(
+      'PYPOR002',
+      _por,
+      _m,
+      Tr('Dépendance tierce non déclarée dans le projet',
+          'Third-party dependency not declared in the project'),
+      Tr('Ajouter le paquet aux dépendances (requirements.txt, pyproject.toml ou en-tête PEP 723 du script) pour qu\'il s\'installe ailleurs.',
+          'Add the package to the dependencies (requirements.txt, pyproject.toml or the script\'s PEP 723 header) so it installs elsewhere.')),
 ];
 
 final Map<String, RuleInfo> _byId = {for (final r in ruleCatalog) r.id: r};

@@ -53,11 +53,14 @@ lib/src/
   baseline.dart                    Empreintes (FNV-1a), Baseline, comparaison
   fixer.dart                       --fix : corrections ShellCheck, intégrées, shfmt ; contrôle syntaxe
   diff.dart                        Diff unifié (Myers)
-  discovery.dart                   collectScripts (fichiers / dossiers)
+  discovery.dart                   collectScripts (fichiers / dossiers, fichiers hôtes)
+  embedded.dart                    Scripts intégrés (GitHub Actions, GitLab CI, Dockerfile,
+                                   Makefile, Ansible) : script virtuel ligne à ligne, SEC023
   version.dart                     appVersion (synchronisée avec pubspec.yaml)
   rules/catalog.dart               Catalogue des règles intégrées (titre, conseil, contexte),
                                    ExecContext, escalades de sévérité par contexte
   rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
+  rules/custom_rules.dart          CustomRule (rules.custom), CustomRulesAnalyzer
   explain.dart                     ScoreExplanation, explainScore (coût et gain par règle, plan
                                    vers le niveau supérieur), sortByQuickWin
   result_cache.dart                ResultCache (rapports JSON par clé), fastHash (FNV-1a 64 bits)
@@ -80,6 +83,8 @@ lib/src/
                                    invocation, parseurs, classement, équivalents
     python_rules.dart              Règles intégrées Python ; PythonFacts (module ast via python3,
                                    repli ligne à ligne)
+    python_deps.dart               Imports (pydeps : PYROB005, PYPOR002), dépendances déclarées
+                                   (requirements, pyproject, PEP 723…), pip-audit
     secrets.dart                   gitleaks, trufflehog
     ast.dart                       AstFacts : faits extraits de `shfmt --to-json`
     shell_lexer.dart               Lexer heuristique (repli sans shfmt)

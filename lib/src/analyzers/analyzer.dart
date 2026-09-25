@@ -189,14 +189,22 @@ class AnalysisContext {
   final CommandRunner runner;
   final CancelToken? cancel;
 
+  /// Fichier hôte des scripts intégrés (Dockerfile, CI…) : les détecteurs
+  /// de secrets le parcourent en entier (null : [filePath]).
+  final String? hostPath;
+
   const AnalysisContext({
     required this.script,
     required this.filePath,
+    this.hostPath,
     required this.config,
     required this.lang,
     required this.runner,
     this.cancel,
   });
+
+  /// Fichier à parcourir pour y chercher des secrets.
+  String get secretsPath => hostPath ?? filePath;
 
   /// Raccourci : exécute une commande avec le jeton d'annulation de l'analyse.
   Future<CommandResult?> run(String executable, List<String> args,

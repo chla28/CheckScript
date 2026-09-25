@@ -9,10 +9,13 @@ AsciiDoc ou JSON, en français ou en anglais.
 `check-script` exploite **ShellCheck, shfmt, bashate, checkbashisms**,
 gitleaks, trufflehog et `bash -n` pour le shell, **Ruff, Bandit, Semgrep,
 mypy, Radon, Vermin** (et sur demande Pylint, Pyright) pour Python,
-lorsqu'ils sont installés, et les complète par des règles intégrées (64 pour
-le shell, 6 pour Python : secrets, `curl | sh`, permissions, PATH,
-`subprocess` sans timeout, structure…) avec un conseil de correction pour
-chacune. Il corrige les défauts sûrs
+lorsqu'ils sont installés, et les complète par des règles intégrées (66 pour
+le shell, 10 pour Python : secrets, `curl | sh`, permissions, PATH,
+`subprocess` sans timeout, dépendances non déclarées, structure…) avec un
+conseil de correction pour chacune, et par les règles personnalisées du
+projet (`rules.custom`). Il analyse aussi le shell intégré aux workflows
+GitHub Actions et GitLab CI, aux Dockerfile, aux Makefile et aux tâches
+Ansible (dont l'injection d'expressions GitHub non fiables). Il corrige les défauts sûrs
 (`--fix`), compare une analyse à une référence, produit du SARIF et du GitLab
 Code Quality, et propose une interface graphique (`check-script-gui`).
 
@@ -26,6 +29,7 @@ check-script --fix --dry-run deploy.sh         # corrections proposées (diff)
 check-script -b reference.json --fail-on-new high scripts/
 check-script outil.py                          # script Python (cible : 3.9)
 check-script --python-target 3.11 --with pylint scripts/
+check-script Dockerfile .github/workflows/     # scripts intégrés
 check-script --list-tools                      # outils détectés
 check-script-gui                               # interface graphique
 ./CheckScript-VERSION-x86_64.AppImage          # interface (AppImage, sans installation)

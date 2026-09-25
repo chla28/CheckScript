@@ -32,6 +32,9 @@ class _RulesScreenState extends State<RulesScreen> {
   Set<String> _locked = const {};
   (Profile, String?)? _lockedFor;
 
+  /// Règles personnalisées de la configuration (rules.custom).
+  List<CustomRule> _custom = const [];
+
   AppState get state => widget.state;
 
   @override
@@ -47,14 +50,20 @@ class _RulesScreenState extends State<RulesScreen> {
     if (_lockedFor == key) return;
     _lockedFor = key;
     state.baseConfig().then((c) {
-      if (mounted) setState(() => _locked = c.disabledRules);
+      if (mounted) {
+        setState(() {
+          _locked = c.disabledRules;
+          _custom = c.customRules;
+        });
+      }
     }, onError: (_) {});
   }
 
   /// Règles connues, puis rencontrées, puis saisies (désactivées mais
   /// inconnues du registre).
-  static List<RuleEntry> allEntries(AppState state, Lang lang, String typed) {
-    final known = knownRules(lang);
+  static List<RuleEntry> allEntries(AppState state, Lang lang, String typed,
+      {List<CustomRule> custom = const []}) {
+    final known = [...knownRules(lang), ...customRuleEntries(custom, lang)];
     final keys = {for (final e in known) e.key};
     final out = [...known];
     for (final e in state.seenRules.values) {
@@ -102,7 +111,7 @@ class _RulesScreenState extends State<RulesScreen> {
     final t = s.m;
     final g = state.settings;
     final theme = Theme.of(context);
-    final entries = allEntries(state, state.lang, s.typedCode);
+    final entries = allEntries(state, state.lang, s.typedCode, custom: _custom);
     final shown = entries.where(_matches).toList();
     final disabled = entries
         .where(

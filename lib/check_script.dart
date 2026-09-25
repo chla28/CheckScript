@@ -20,6 +20,7 @@ export 'src/analyzers/builtin_rules.dart'
         lineHasSecret,
         BuiltinAnalyzer;
 export 'src/analyzers/external_tools.dart';
+export 'src/analyzers/python_deps.dart';
 export 'src/analyzers/python_rules.dart';
 export 'src/analyzers/python_tools.dart';
 export 'src/analyzers/secrets.dart';
@@ -29,6 +30,7 @@ export 'src/config.dart';
 export 'src/config_discovery.dart';
 export 'src/diff.dart';
 export 'src/discovery.dart';
+export 'src/embedded.dart';
 export 'src/engine.dart';
 export 'src/explain.dart';
 export 'src/feedback.dart';
@@ -45,6 +47,7 @@ export 'src/reporters/reporters.dart';
 export 'src/reporters/sarif.dart';
 export 'src/result_cache.dart';
 export 'src/rules/catalog.dart';
+export 'src/rules/custom_rules.dart';
 export 'src/rules/examples.dart';
 export 'src/rules/registry.dart';
 export 'src/rules/same_rules.dart';

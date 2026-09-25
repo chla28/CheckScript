@@ -79,6 +79,10 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
 *--no-external*::
   N'utilise que les règles intégrées.
 
+*--no-embedded*::
+  Dans un dossier, n'analyse pas les scripts intégrés (GitHub Actions,
+  GitLab CI, Dockerfile, Makefile, Ansible).
+
 *--dashboard* _FICHIER.html_::
   Tableau de bord d'équipe (un dépôt par dossier cible, évolution).
 

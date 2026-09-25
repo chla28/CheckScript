@@ -126,6 +126,8 @@ class ScriptReport {
   Map<String, Object?> toJson() => {
         'file': script.path,
         'dialect': script.dialect.name,
+        if (script.embedded case final e?)
+          'embedded': {'kind': e.kind.name, 'blocks': e.blocks.length},
         'lines': {
           'total': script.totalLines,
           'code': script.codeLines,

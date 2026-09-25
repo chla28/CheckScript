@@ -233,7 +233,7 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
   for (final r in reports) {
     final title = '${t.reportTitle}${t.colon}${r.script.path}';
     b.writeln(a.bold('═══ $title ═══'));
-    b.writeln('${t.dialect}${t.colon}${r.script.dialect.name}    '
+    b.writeln('${t.dialect}${t.colon}${r.script.dialectLabel}    '
         '${t.lines}${t.colon}${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln(a.dim('${t.tools}${t.colon}${_toolsLine(r, t)}'));
     final pl = _profileLine(r, t);
@@ -368,7 +368,7 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
   final h = reports.length > 1 ? '##' : '#';
   for (final r in reports) {
     b.writeln('$h ${t.reportTitle}${t.colon}`${r.script.path}`\n');
-    b.writeln('- **${t.dialect}**${t.colon}${r.script.dialect.name}');
+    b.writeln('- **${t.dialect}**${t.colon}${r.script.dialectLabel}');
     b.writeln(
         '- **${t.lines}**${t.colon}${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln('- **${t.date}**${t.colon}${_date(r.date)}');
@@ -484,7 +484,7 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
   for (final r in reports) {
     if (multi) b.writeln('== ${t.reportTitle}${t.colon}`${r.script.path}`\n');
     b.writeln('[horizontal]');
-    b.writeln('${t.dialect}:: ${r.script.dialect.name}');
+    b.writeln('${t.dialect}:: ${r.script.dialectLabel}');
     b.writeln(
         '${t.lines}:: ${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln('${t.date}:: ${_date(r.date)}');

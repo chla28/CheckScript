@@ -1,5 +1,25 @@
 # Changelog
 
+## Non publié
+
+- **Scripts intégrés** : le shell des workflows GitHub Actions (`run:`), de
+  GitLab CI (`script:`…), des Dockerfile (`RUN`), des Makefile (recettes)
+  et des tâches Ansible (`shell:`) est analysé avec les mêmes outils ; les
+  problèmes désignent les lignes du fichier d'origine. Nouvelle règle
+  SEC023 (Critical) : expression GitHub non fiable insérée dans `run:`
+  (injection) ; SEC007 sur `rm -rf $(VAR)/…` des Makefile. Découverte dans
+  les dossiers (`.github`, `.gitlab`, `.gitlab-ci.yml` compris),
+  `--no-embedded` pour s'en passer.
+- **Règles personnalisées** (`rules.custom` de `.checkscript.yaml`) : motif,
+  message bilingue, gravité, catégorie, conseil, langage, règle d'absence
+  (`absent: true`) et remplacement appliqué par `--fix` et l'interface ;
+  listées par `--list-rules` et l'onglet Règles.
+- **Dépendances Python** : analyseur `pydeps` (imports classés par
+  l'interpréteur sans exécution) ; PYROB005 (module introuvable et non
+  déclaré), PYPOR002 (paquet non déclaré) d'après requirements,
+  pyproject.toml, setup.cfg, Pipfile ou l'en-tête PEP 723 ; `pip-audit`
+  (facultatif) signale les vulnérabilités des paquets importés.
+
 ## 0.12.0 — 2026-09-25
 
 - Adoption des **Conventional Commits** : hook `commit-msg` et

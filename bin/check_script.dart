@@ -35,6 +35,9 @@ const externalTools = [
   'pylint',
   'radon',
   'vermin',
+  'pydeps',
+  'pip-audit',
+  'custom',
 ];
 
 ArgParser buildParser(Lang lang) {
@@ -141,6 +144,11 @@ ArgParser buildParser(Lang lang) {
         negatable: false,
         help: t(
             'N\'utilise que les règles intégrées.', 'Use built-in rules only.'))
+    ..addFlag('embedded',
+        defaultsTo: true,
+        help: t(
+            'Dans un dossier, analyse aussi les scripts intégrés : GitHub Actions, GitLab CI, Dockerfile, Makefile, Ansible.',
+            'In a folder, also analyze embedded scripts: GitHub Actions, GitLab CI, Dockerfile, Makefile, Ansible.'))
     ..addOption('baseline',
         abbr: 'b',
         valueHelp: 'RAPPORT.json',
@@ -436,7 +444,16 @@ Future<int> run(List<String> argv,
     return exitOk;
   }
   if (a['list-rules'] as bool) {
-    listRules(out, lang, all: a['all'] as bool);
+    // Règles personnalisées : --config, ou configuration du dossier courant.
+    final CheckConfig listed;
+    try {
+      listed = engineFor('${Directory.current.path}/.').config;
+    } on _ConfigError catch (e) {
+      err.writeln(t('Configuration invalide : ${e.message}',
+          'Invalid configuration: ${e.message}'));
+      return exitUsage;
+    }
+    listRules(out, lang, all: a['all'] as bool, custom: listed.customRules);
     return exitOk;
   }
 
@@ -530,7 +547,7 @@ Future<int> run(List<String> argv,
             null);
         continue;
       }
-      var files = await collectScripts(target);
+      var files = await collectScripts(target, embedded: a['embedded'] as bool);
       if (files != null && changed != null) {
         final all = files.length;
         files = [
@@ -765,6 +782,12 @@ Future<void> listTools(Engine engine, IOSink out, Lang lang) async {
       out.writeln('$head${t.toolStatus(ToolStatus.disabled)}');
       continue;
     }
+    if (an.name == 'custom') {
+      final n = engine.config.customRules.length;
+      out.writeln('$head${builtIn.padRight(20)}'
+          '$n ${lang == Lang.fr ? 'règle(s) personnalisée(s)' : 'custom rule(s)'}');
+      continue;
+    }
     if (an.name == 'syntax') {
       out.writeln('$head${builtIn.padRight(20)}'
           'bash -n / sh -n / $pythonExecutable compile()');
@@ -792,7 +815,8 @@ String _installHint(String tool, Lang lang) {
     'mypy' ||
     'pylint' ||
     'radon' ||
-    'vermin' =>
+    'vermin' ||
+    'pip-audit' =>
       'pipx install $tool',
     'pyright' => 'pipx install pyright | npm install -g pyright',
     _ => '',
@@ -802,11 +826,12 @@ String _installHint(String tool, Lang lang) {
       : '(${lang == Lang.fr ? 'installer' : 'install'} : $how)';
 }
 
-void listRules(IOSink out, Lang lang, {bool all = false}) {
+void listRules(IOSink out, Lang lang,
+    {bool all = false, List<CustomRule> custom = const []}) {
   final t = Messages(lang);
   if (all) {
     // Registre complet : règles intégrées et codes externes classés.
-    for (final e in knownRules(lang)) {
+    for (final e in [...knownRules(lang), ...customRuleEntries(custom, lang)]) {
       out.writeln('${e.id.padRight(16)}${e.tool.padRight(15)}'
           '${t.toolLanguage(e.language).padRight(8)}'
           '${t.category(e.category).padRight(17)}'
@@ -822,6 +847,11 @@ void listRules(IOSink out, Lang lang, {bool all = false}) {
         '${r.id.padRight(9)}${(r.python ? 'python' : 'shell').padRight(8)}'
         '${t.category(r.category).padRight(17)}'
         '${r.severity.label.padRight(10)}${r.title.of(lang)}$ctx');
+  }
+  for (final r in custom) {
+    out.writeln('${r.id.padRight(9)}${'custom'.padRight(8)}'
+        '${t.category(r.category).padRight(17)}'
+        '${r.severity.label.padRight(10)}${r.message.of(lang)}');
   }
 }
 

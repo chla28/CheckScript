@@ -7,6 +7,7 @@ import 'package:yaml/yaml.dart';
 
 import 'model/finding.dart';
 import 'rules/catalog.dart' show ExecContext;
+import 'rules/custom_rules.dart';
 import 'rules/same_rules.dart';
 
 /// Reclassement d'une règle (catégorie et/ou sévérité).
@@ -128,6 +129,9 @@ class CheckConfig {
   /// Vermin, Ruff (`--target-version`), Pylint, Pyright.
   final String pythonTarget;
 
+  /// Règles personnalisées du projet (`rules.custom`).
+  final List<CustomRule> customRules;
+
   const CheckConfig({
     this.tools = defaultTools,
     this.disabledRules = const {},
@@ -138,6 +142,7 @@ class CheckConfig {
     this.followSource = false,
     this.profile = Profile.standard,
     this.pythonTarget = defaultPythonTarget,
+    this.customRules = const [],
   });
 
   /// Python de RHEL / Rocky 9.
@@ -155,6 +160,7 @@ class CheckConfig {
     'trufflehog': ToolConfig(executable: 'trufflehog'),
     'syntax': ToolConfig(executable: ''),
     'builtin': ToolConfig(executable: ''),
+    'custom': ToolConfig(executable: ''),
     // Python. PLR2004 (constantes « magiques ») et S603 / B603 / B404
     // (tout appel à subprocess) sont trop bavards pour des scripts.
     'ruff': ToolConfig(executable: 'ruff', exclude: ['PLR2004', 'S603']),
@@ -163,6 +169,9 @@ class CheckConfig {
     'mypy': ToolConfig(executable: 'mypy'),
     'radon': ToolConfig(executable: 'radon'),
     'vermin': ToolConfig(executable: 'vermin'),
+    // Interpréteur des dépendances : '' → VIRTUAL_ENV, sinon python3.
+    'pydeps': ToolConfig(executable: ''),
+    'pip-audit': ToolConfig(executable: 'pip-audit'),
     // Redondants avec Ruff et mypy : activables dans la configuration.
     'pylint': ToolConfig(
         enabled: false,
@@ -255,6 +264,7 @@ class CheckConfig {
     bool? followSource,
     Profile? profile,
     String? pythonTarget,
+    List<CustomRule>? customRules,
   }) =>
       CheckConfig(
         tools: tools ?? this.tools,
@@ -266,6 +276,7 @@ class CheckConfig {
         followSource: followSource ?? this.followSource,
         profile: profile ?? this.profile,
         pythonTarget: pythonTarget ?? this.pythonTarget,
+        customRules: customRules ?? this.customRules,
       );
 
   /// Copie avec certains outils activés (option `--with` : outils désactivés
@@ -330,7 +341,19 @@ class CheckConfig {
     final rules = doc['rules'];
     final disabled = <String>{...base.disabledRules};
     final overrides = <String, RuleOverride>{...base.overrides};
+    final custom = <CustomRule>[];
     if (rules is YamlMap) {
+      final c = rules['custom'];
+      if (c != null && c is! YamlList) {
+        throw const FormatException('rules.custom : liste de règles attendue');
+      }
+      for (final y in c is YamlList ? c : const []) {
+        final r = CustomRule.fromYaml(y);
+        if (custom.any((x) => x.id == r.id)) {
+          throw FormatException('rules.custom : ${r.id} déclarée deux fois');
+        }
+        custom.add(r);
+      }
       if (rules['disabled'] is YamlList) {
         for (final r in rules['disabled'] as YamlList) {
           disabled.add('$r'.toUpperCase());
@@ -418,6 +441,7 @@ class CheckConfig {
 
     return base.copyWith(
         pythonTarget: target,
+        customRules: custom,
         tools: tools,
         disabledRules: disabled,
         overrides: overrides,
@@ -475,9 +499,17 @@ class CheckConfig {
 
     final disabled = disabledRules.difference(base.disabledRules).toList()
       ..sort();
-    if (disabled.isNotEmpty || overrides.isNotEmpty) {
+    if (disabled.isNotEmpty || overrides.isNotEmpty || customRules.isNotEmpty) {
       b.writeln('rules:');
       if (disabled.isNotEmpty) b.writeln('  disabled: ${list(disabled)}');
+      if (customRules.isNotEmpty) {
+        b.writeln('  custom:');
+        for (final r in customRules) {
+          for (final l in r.toYaml()) {
+            b.writeln('    $l');
+          }
+        }
+      }
       if (overrides.isNotEmpty) {
         b.writeln('  overrides:');
         for (final e in overrides.entries) {

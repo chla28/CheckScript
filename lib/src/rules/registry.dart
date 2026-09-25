@@ -14,6 +14,7 @@ import '../analyzers/shellcheck.dart' show classifyShellcheck;
 import '../i18n.dart';
 import '../model/finding.dart';
 import 'catalog.dart';
+import 'custom_rules.dart';
 
 class RuleEntry {
   /// Identifiant tel que rapporté (`SC2086`, `B602`, `arg-type`, `PYSEC001`).
@@ -696,6 +697,20 @@ const List<_Ext> _external = [
     _ => (ToolLanguage.any, Category.robustness, null),
   };
 }
+
+/// Entrées du registre pour les règles personnalisées de la configuration.
+List<RuleEntry> customRuleEntries(List<CustomRule> rules, Lang lang) => [
+      for (final r in rules)
+        RuleEntry(
+          id: r.id,
+          tool: 'custom',
+          language: r.language,
+          category: r.category,
+          severity: r.severity,
+          title: r.message.of(lang),
+          url: r.url,
+        ),
+    ];
 
 /// Toutes les règles connues : intégrées (shell puis Python), contrôle de
 /// syntaxe, puis codes externes classés.

@@ -118,7 +118,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                   child: FindingsList(
                                     findings: issues,
                                     lang: state.lang,
-                                    lines: report.script.lines,
+                                    lines: report.script.displayLines,
                                     onSelect: (f) =>
                                         setState(() => _selectedLine = f.line),
                                     onApplyFix: state.busy
@@ -145,7 +145,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           ]),
                         );
                         final source = SourceView(
-                          lines: report.script.lines,
+                          lines: report.script.displayLines,
                           findings: report.findings,
                           selectedLine: _selectedLine,
                           onLineTap: (l) => setState(() => _selectedLine = l),

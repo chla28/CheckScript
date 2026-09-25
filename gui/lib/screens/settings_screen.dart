@@ -95,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           s.pythonTools,
           [
             'ruff', 'bandit', 'semgrep', 'mypy', 'radon', 'vermin', //
-            'pylint', 'pyright',
+            'pydeps', 'pip-audit', 'pylint', 'pyright',
           ]
         ),
         (s.commonTools, ['gitleaks', 'trufflehog', 'syntax']),

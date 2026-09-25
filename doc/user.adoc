@@ -32,8 +32,10 @@ L'outil exploite les analyseurs de référence lorsqu'ils sont installés
 (ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n`
 pour le shell ; Ruff, Bandit, Semgrep, mypy, Radon, Vermin — et en option
 Pylint, Pyright — pour Python, voir <<python>>) et les complète par des
-*règles intégrées* qui fonctionnent toujours (64 pour le shell, 6 pour
-Python).
+*règles intégrées* qui fonctionnent toujours (66 pour le shell, 10 pour
+Python), et par les *règles personnalisées* du projet. Il analyse aussi le
+shell *intégré* aux workflows GitHub Actions, à GitLab CI, aux Dockerfile,
+aux Makefile et aux tâches Ansible.
 Il sait aussi *corriger* les défauts sûrs (`--fix`), *comparer* deux analyses
 (référence) et s'intègre à l'intégration continue (SARIF, GitLab Code
 Quality, hook pre-commit). Une *interface graphique* (`check-script-gui`)
@@ -136,6 +138,7 @@ Pour les scripts Python :
 |`vermin` |Version minimale de Python requise (portabilité) |`pipx install vermin`
 |`pylint` |Linter complet, redondant avec Ruff : *désactivé par défaut* (`--with pylint`) |`pipx install pylint`
 |`pyright` |Typage, redondant avec mypy : *désactivé par défaut* (`--with pyright`) |`pipx install pyright`
+|`pip-audit` |Vulnérabilités connues des paquets déclarés dans les `requirements*.txt` du projet (*accès réseau* à PyPI / OSV) |`pipx install pip-audit`
 |`python3` |Contrôle syntaxique (compilation, sans rien écrire sur disque) et faits de l'arbre syntaxique pour les règles intégrées |présent sur toute distribution
 |===
 
@@ -158,7 +161,10 @@ radon           python    disponible          6.0.1
 gitleaks        tous      absent              (installer : https://github.com/gitleaks/gitleaks/releases)
 trufflehog      tous      absent              (installer : https://github.com/trufflesecurity/trufflehog/releases)
 checkbashisms   shell     disponible          2.26.5
-builtin         tous      intégré             64 + 6 règles
+pydeps          python    disponible          3.14.7
+pip-audit       python    absent              (installer : pipx install pip-audit)
+custom          tous      intégré             0 règle(s) personnalisée(s)
+builtin         tous      intégré             66 + 10 règles
 shfmt           shell     disponible          ?
 bashate         shell     disponible          2.1.1
 ----
@@ -186,13 +192,16 @@ check-script --fix --backup deploy.sh               # corrections appliquées
 check-script -b reference.json scripts/             # nouveaux problèmes seulement
 check-script outil.py                               # script Python
 check-script --python-target 3.6 --with pylint outil.py
+check-script Dockerfile .github/workflows/ci.yml    # scripts intégrés
 ----
 
 Un *dossier* est parcouru récursivement ; y sont retenus les fichiers
 `.sh`, `.bash`, `.ksh`, `.dash`, `.zsh`, `.py`, `.pyw` et les fichiers sans
 extension dont le shebang désigne un shell ou Python. Les dossiers cachés
 (`.git`, `.venv`…) et de dépendances (`venv`, `site-packages`,
-`__pycache__`, `node_modules`) sont ignorés.
+`__pycache__`, `node_modules`) sont ignorés, sauf `.github`, `.gitlab` et
+`.gitlab-ci.yml`. S'y ajoutent les fichiers qui contiennent des scripts
+intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 
 === Options
 
@@ -211,6 +220,7 @@ extension dont le shebang désigne un shell ou Python. Les dossiers cachés
 |`--with OUTIL` |Active un outil désactivé par défaut (`pylint`, `pyright`) ; répétable ou séparé par des virgules.
 |`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…) ; répétable ou séparé par des virgules.
 |`--no-external` |N'utilise que les règles intégrées.
+|`--no-embedded` |Dans un dossier, ignore les scripts intégrés (voir <<integres>>).
 |`--dashboard FICHIER.html` |Tableau de bord d'équipe : chaque cible (dossier) est un dépôt ; note moyenne, évolution (courbe de l'historique), problèmes graves, niveaux, règles les plus fréquentes, scripts les plus faibles. L'historique est enregistré à chaque exécution.
 |`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
 |`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
@@ -560,6 +570,7 @@ crochets : règle active seulement dans ce contexte.
 |SEC020 |Sécurité |Medium |Option SSH risquée (`-A`, `ForwardAgent=yes`, `PermitLocalCommand`)
 |SEC021 |Sécurité |Low |Secret exporté dans l'environnement
 |SEC022 |Sécurité |Medium |Chaîne à forte entropie (secret potentiel ; sommes de contrôle exclues)
+|SEC023 |Sécurité |Critical |Workflow GitHub : expression non fiable (`${{ github.event.issue.title }}`, `github.head_ref`…) insérée dans un `run:` — injection de commande
 |ROB001 |Robustesse |Medium |Pas d'arrêt sur erreur (`set -e`)
 |ROB002 |Robustesse |Low |Pipelines sans `set -o pipefail`
 |ROB003 |Robustesse |Low |Pas de `set -u`
@@ -698,9 +709,11 @@ entre guillemets : `3.10` sans guillemets serait lu comme le nombre 3.1.
 |PYROB002 |Robustesse |Medium |`input()` dans un script sans terminal [cron, systemd]
 |PYROB003 |Robustesse |Medium |Tâche planifiée sans verrou (`fcntl.flock`…) : exécutions concurrentes possibles [cron]
 |PYROB004 |Robustesse |Medium |Code de retour de `main()` ignoré (appel sans `sys.exit(...)`) : le script sort toujours avec 0
+|PYROB005 |Robustesse |High |Module importé introuvable : ni installé, ni déclaré dans les dépendances (voir <<dependances>>)
 |PYMNT001 |Maintenabilité |Low |Ni docstring ni commentaire d'en-tête décrivant le script
 |PYMNT002 |Maintenabilité |Low |Code exécuté au chargement du module, sans garde `if __name__ == "__main__":`
 |PYPOR001 |Portabilité |High |Shebang `python` / `python2` : absent de RHEL 8+ et Debian 11+ (le script ne démarre pas) ; utiliser `python3`
+|PYPOR002 |Portabilité |Medium |Paquet tiers installé mais absent des dépendances déclarées du projet
 |===
 
 Elles s'appuient sur le module `ast` de Python (appels répartis sur
@@ -713,6 +726,43 @@ script bien documenté n'est pas traité comme un script plus long.
 
 La notation Python est calibrée sur un corpus de 12 scripts
 (`test/corpus/scripts/py_*`, voir le guide développeur).
+
+[[dependances]]
+=== Dépendances
+
+L'analyseur `pydeps` fait classer chaque import par l'interpréteur, sans
+l'exécuter (`importlib.util.find_spec`) : bibliothèque standard, module local
+(à côté du script), paquet installé ou introuvable. Il le compare aux
+dépendances *déclarées* : l'en-tête PEP 723 du script (`# /// script`) s'il
+existe, sinon les fichiers du projet le plus proche (en remontant jusqu'à la
+racine git) : `requirements*.txt` (et `requirements/*.txt`, `-r` suivis),
+`pyproject.toml` (`[project]`, extras, `[dependency-groups]`, Poetry),
+`setup.cfg`, `Pipfile`.
+
+* *PYROB005* : module introuvable et non déclaré (faute de frappe, dépendance
+  oubliée). Un import placé dans `try: … except ImportError:` est facultatif
+  et n'est pas signalé ; un module déclaré mais absent de l'environnement
+  d'analyse non plus (ce n'est pas un défaut du script).
+* *PYPOR002* : paquet installé mais non déclaré (le script ne fonctionnera
+  pas ailleurs). Sans aucun fichier de dépendances, rien n'est signalé.
+
+Les noms de module et de paquet sont rapprochés par les métadonnées des
+paquets installés, une table des cas courants (`yaml` → PyYAML, `PIL` →
+Pillow, `cv2` → opencv-python…) et les variantes (`psycopg2` couvert par
+`psycopg2-binary`).
+
+L'interpréteur utilisé est celui de l'environnement virtuel *actif*
+(`VIRTUAL_ENV`), sinon `python3`, ou `tools.pydeps.path` de la
+configuration. Celui d'un `.venv` du projet analysé n'est jamais lancé
+d'office (le dépôt peut être étranger) : activer l'environnement avant
+l'analyse.
+
+*pip-audit* (facultatif) audite les `requirements*.txt` du projet, une seule
+fois pour tous ses scripts : directement si les versions sont épinglées
+(`==`), sinon après résolution par pip dans un environnement temporaire
+(plus lent). Chaque vulnérabilité est signalée (High, Sécurité, lien OSV)
+sur l'import du paquet concerné, avec la version corrigée. Les paquets que
+le script n'importe pas sont ignorés.
 
 === Correction
 
@@ -753,6 +803,11 @@ rules:
   disabled: [MNT005, E006]             # règles ignorées, tout outil confondu
   overrides:
     SC2086: { category: security, severity: medium }
+  custom:                              # règles personnalisées (voir ci-dessous)
+    - id: ACME001
+      pattern: 'set -euo pipefail'
+      absent: true
+      message: Toujours set -euo pipefail
 scoring:
   weights: { critical: 4, high: 2, medium: 0.75, low: 0.25 }
   referenceLines: 100
@@ -763,6 +818,83 @@ thresholds:
   maxNesting: 4
   maxLinesWithoutFunction: 150
 ----
+
+[[personnalisees]]
+=== Règles personnalisées
+
+`rules.custom` déclare des règles propres au projet (conventions maison),
+vérifiées ligne par ligne par expression régulière (syntaxe Dart, proche de
+PCRE). Elles apparaissent dans les rapports (outil `custom`), dans l'onglet
+*Règles* de l'interface et dans `--list-rules`, se désactivent et se
+neutralisent (`# check-script disable=ACME001`) comme les autres.
+
+[source,yaml]
+----
+rules:
+  custom:
+    - id: ACME001                      # majuscules, chiffres, _ et - ; pas un code intégré
+      pattern: '\bcurl\b[^|]*\|\s*(ba)?sh\b'
+      message: Pas de curl | sh dans nos scripts
+      severity: critical               # critical, high, medium (défaut), low
+      category: security               # défaut : maintainability
+      fix: Télécharger, vérifier la signature, puis exécuter.
+      url: https://wiki.example.com/scripts#curl
+    - id: ACME002
+      pattern: 'set -euo pipefail'
+      absent: true                     # signalé (ligne 0) si le motif n'apparaît nulle part
+      language: shell                  # shell, python ou any (défaut)
+      message: {fr: Toujours set -euo pipefail, en: Always set -euo pipefail}
+    - id: ACME003
+      pattern: 'mkdir (?!-p )(\S+)'
+      replace: 'mkdir -p $1'           # correction automatique ($0, $1… : groupes)
+      message: mkdir sans -p
+      ignoreCase: false                # défaut : sensible à la casse
+      comments: false                  # défaut : lignes de commentaire ignorées
+----
+
+`message` et `fix` acceptent un texte unique ou `{fr: …, en: …}`. Avec
+`replace`, la correction est proposée dans l'interface et appliquée par
+`--fix` (après les autres corrections, avec le même contrôle de syntaxe).
+Une règle invalide (identifiant, expression, sévérité…) arrête l'analyse
+avec un message explicite, comme toute erreur de configuration.
+
+[[integres]]
+== Scripts intégrés (CI, Dockerfile, Makefile, Ansible)
+
+Le shell écrit dans d'autres fichiers est analysé comme un script, avec les
+mêmes outils ; les problèmes désignent les lignes du fichier d'origine.
+
+[cols="2,3,4",options="header"]
+|===
+|Fichier |Reconnu par |Shell extrait
+|GitHub Actions |`.github/workflows/*.yml`, `action.yml` |`run:` des étapes (bash par défaut, `shell: sh` ; `pwsh`, `python` et jobs Windows ignorés)
+|GitLab CI |`.gitlab-ci.yml`, `*.gitlab-ci.yml`, `.gitlab/**.yml` |`before_script`, `script`, `after_script` (`!reference` ignoré)
+|Dockerfile |`Dockerfile`, `Containerfile`, `*.dockerfile`, `Dockerfile.*` |`RUN` (continuations, options `--mount`…, heredoc ; forme exec ignorée ; `SHELL` respecté)
+|Makefile |`Makefile`, `GNUmakefile`, `*.mk` |Recettes (préfixes `@ - +`, `$$` → `$`, `SHELL` respecté ; `define` ignoré)
+|Ansible |YAML contenant une tâche `shell:` |`shell:` / `ansible.builtin.shell:` (chaîne ou `cmd:`, `executable`)
+|===
+
+Les expressions du fichier hôte (`${{ … }}`, `{{ … }}` de Jinja, `$(VAR)` de
+make) sont remplacées par un mot neutre. Règles propres :
+
+* *SEC023* (Critical) : dans un workflow GitHub, une expression contrôlable
+  par un tiers (titre ou corps d'issue ou de pull request, commentaire,
+  message de commit, nom de branche…) insérée telle quelle dans `run:` :
+  injection de commande. La passer par `env:` et utiliser `"$VAR"`.
+* *SEC007* : `rm -r` sur un chemin qui commence par une variable de make
+  (`rm -rf $(BUILD)/*` vise la racine si elle est vide).
+
+Ne s'appliquent pas aux scripts intégrés : shebang (POR001/002), options
+`set -e/-u` (ROB001/003, fournies ou non par l'hôte), `pipefail` quand
+l'hôte l'active (GitHub Actions, `SHELL [… "pipefail" …]`), PATH et verrou
+(SEC015/017, ROB014/016), en-tête et commentaires (MNT004/005/008/009),
+ROB011, POR006, formatage (shfmt, Bashate), et SC2148, SC2154, SC2317 (les
+blocs sont indépendants et l'hôte définit des variables : `ENV`, `env:`,
+`variables:`). Les détecteurs de secrets parcourent tout le fichier.
+
+Une directive `# check-script disable=…` s'écrit dans le shell ou en
+commentaire du fichier hôte, sur la ligne précédente. Il n'y a pas de
+correction automatique dans un fichier hôte : `--fix` le laisse intact.
 
 == Intégration continue
 

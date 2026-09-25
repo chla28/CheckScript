@@ -57,7 +57,7 @@ class FalsePositive {
   /// détecté ne sont jamais recopiées, même anonymisées.
   factory FalsePositive.of(Finding f, ScriptReport report,
       {String comment = ''}) {
-    final lines = report.script.lines;
+    final lines = report.script.displayLines;
     final masked = {
       for (final x in report.findings)
         if (x.line > 0 && x.snippet == null) x.line

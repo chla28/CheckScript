@@ -134,6 +134,13 @@ tar xzf app.tar.gz'''),
 ./deploy.sh''', r'''API_TOKEN="$token" ./deploy.sh'''),
   'SEC022': CodeExample(
       r'''KEY="9f86d081…"''', r'''IFS= read -r KEY < /etc/myapp/api.key'''),
+  'SEC023': CodeExample(
+      r'''- run: echo "${{ github.event.issue.title }}"''', r'''- env:
+    TITRE: ${{ github.event.issue.title }}
+  run: echo "$TITRE"''',
+      goodEn: r'''- env:
+    TITLE: ${{ github.event.issue.title }}
+  run: echo "$TITLE"'''),
 
   // ── Robustesse ────────────────────────────────────────────────────────────
   'ROB001': CodeExample(r'''#!/bin/bash
@@ -406,6 +413,13 @@ def main():
   'PYROB004': CodeExample(r'''if __name__ == "__main__":
     main()''', r'''if __name__ == "__main__":
     sys.exit(main())'''),
+  'PYROB005': CodeExample(r'''import ujson''', r'''try:
+    import ujson as json
+except ImportError:  # dépendance facultative
+    import json''', goodEn: r'''try:
+    import ujson as json
+except ImportError:  # optional dependency
+    import json'''),
   'PYMNT001': CodeExample(
       r'''import sys''', r'''"""Sauvegarde quotidienne de /srv vers le NAS.
 
@@ -428,6 +442,10 @@ if __name__ == "__main__":
     main()'''),
   'PYPOR001':
       CodeExample(r'''#!/usr/bin/python''', r'''#!/usr/bin/env python3'''),
+  'PYPOR002': CodeExample(r'''# requirements.txt
+requests''', r'''# requirements.txt
+requests
+rich'''),
 
   // ── Python : Ruff (et Bandit, Pylint par alias) ──────────────────────────
   'S602': CodeExample(

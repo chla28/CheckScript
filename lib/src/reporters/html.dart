@@ -109,7 +109,7 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
         '<div class="card"><div class="global" style="color:${_color(r.global)}">'
         '${fmtScore(r.global, o.lang)}/10 <span class="muted">(${r.grade})</span></div>');
     b.writeln(
-        '<div class="muted">${t.dialect}${t.colon}${r.script.dialect.name} · '
+        '<div class="muted">${t.dialect}${t.colon}${_e(r.script.dialectLabel)} · '
         '${t.lines}${t.colon}${_e(t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines))}'
         '${r.profile == 'standard' ? '' : ' · ${t.profile}${t.colon}${r.profile}'}'
         '${r.contexts.isEmpty ? '' : ' · ${t.contexts}${t.colon}${r.contexts.join(', ')}'}</div>');
@@ -175,7 +175,7 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
             '<td class="n">$line</td><td class="sev ${f.severity.name}">${f.severity.label}</td>'
             '<td>${_e(t.category(f.category))}</td><td>$rule<br><span class="muted">${_e(f.tool)}</span></td>'
             '<td>${_e(f.message)}$snip${f.hint == null ? '' : '<div class="hint">→ ${_e(f.hint!)}</div>'}'
-            '${_fixHtml(f, r.script.lines, t, o.lang)}</td></tr>');
+            '${_fixHtml(f, r.script.displayLines, t, o.lang)}</td></tr>');
       }
       b.writeln('</table></div>');
     }
@@ -194,12 +194,12 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
     }
     b.writeln(
         '<details class="card"><summary>${t.source}</summary><pre class="src">');
-    for (var n = 1; n <= r.script.lines.length; n++) {
+    for (var n = 1; n <= r.script.displayLines.length; n++) {
       final sev = worst[n];
       final tip = notes[n]?.map((f) => '${f.ruleId}: ${f.message}').join('\n');
       b.write('<span class="l" id="$sid-L$n"'
           '${sev == null ? '' : ' data-sev="${sev.name}" title="${_e(tip!)}"'}>'
-          '<span class="no">$n</span>${masked.contains(n) ? '<span class="muted">${_e(t.maskedSecret)}</span>' : _e(r.script.lines[n - 1])}</span>');
+          '<span class="no">$n</span>${masked.contains(n) ? '<span class="muted">${_e(t.maskedSecret)}</span>' : _e(r.script.displayLines[n - 1])}</span>');
     }
     b.writeln('</pre></details></section>');
   }
@@ -284,7 +284,7 @@ void _folderSummary(
         '${fmtScore(r.global, lang)}</strong></td><td class="n">${r.grade}</td>'
         '<td class="n" data-v="${count(Severity.critical)}">${count(Severity.critical)}</td>'
         '<td class="n" data-v="${count(Severity.high)}">${count(Severity.high)}</td>'
-        '<td>${r.script.dialect.name}</td>');
+        '<td>${_e(r.script.dialectLabel)}</td>');
     for (final s in r.scores) {
       b.writeln(
           '<td class="n" data-v="${s.score}" style="color:${_color(s.score)}">'
