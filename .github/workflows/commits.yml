@@ -1,0 +1,27 @@
+# Messages de commit au format Conventional Commits (type(portée): description),
+# vérifiés sur les nouveaux commits de chaque push et de chaque pull request.
+name: Messages de commit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  conventional-commits:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dart-lang/setup-dart@v1
+      - name: Vérification
+        env:
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          AFTER: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # Nouvelle branche (pas de commit précédent) : dernier commit seul.
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BEFORE="$AFTER~1"
+          fi
+          dart run tool/commit_lint.dart --range "$BEFORE..$AFTER"
