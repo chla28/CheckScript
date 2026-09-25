@@ -30,6 +30,8 @@ check-script -b reference.json --fail-on-new high scripts/
 check-script outil.py                          # script Python (cible : 3.9)
 check-script --python-target 3.11 --with pylint scripts/
 check-script Dockerfile .github/workflows/     # scripts intégrés
+check-script --watch scripts/                  # réanalyse à chaque enregistrement
+check-script -o rapport.xml scripts/           # JUnit XML (Jenkins, GitLab)
 check-script --list-tools                      # outils détectés
 check-script-gui                               # interface graphique
 ./CheckScript-VERSION-x86_64.AppImage          # interface (AppImage, sans installation)
@@ -46,6 +48,20 @@ Performance        9,0 █████████░            0        0     
 
 Note globale : 1,5/10 (E)
 ```
+
+## Action GitHub
+
+```yaml
+- uses: actions/checkout@v4
+- uses: chla28/CheckScript@v0.14.0
+  with:
+    paths: scripts .github
+    fail-under: '6'
+```
+
+Annotations sur les lignes des pull requests, rapport dans le résumé du job,
+SARIF pour Code Scanning ; sorties `score` et `grade` (voir le guide
+utilisateur, « Intégration continue »).
 
 ## Documentation
 

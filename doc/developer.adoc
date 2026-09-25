@@ -53,7 +53,9 @@ lib/src/
   baseline.dart                    Empreintes (FNV-1a), Baseline, comparaison
   fixer.dart                       --fix : corrections ShellCheck, intégrées, shfmt ; contrôle syntaxe
   diff.dart                        Diff unifié (Myers)
-  discovery.dart                   collectScripts (fichiers / dossiers, fichiers hôtes)
+  discovery.dart                   collectScripts, isScriptFile, isExcluded (fichiers, dossiers,
+                                   fichiers hôtes)
+  watch.dart                       watchTargets : lots de fichiers modifiés (--watch, vue Dossier)
   embedded.dart                    Scripts intégrés (GitHub Actions, GitLab CI, Dockerfile,
                                    Makefile, Ansible) : script virtuel ligne à ligne, SEC023
   version.dart                     appVersion (synchronisée avec pubspec.yaml)
@@ -94,7 +96,10 @@ lib/src/
     html.dart                      HTML autonome (filtres, source annotée)
     sarif.dart                     SARIF 2.1.0
     codeclimate.dart               GitLab Code Quality
+    junit.dart                     JUnit XML, annotations GitHub Actions (--format github)
 gui/                               Interface Flutter (voir <<gui>>)
+action.yml                         Action GitHub composite (compile check-script, annotations,
+                                   résumé, SARIF) ; testée par .github/workflows/self-check.yml
 tool/calibrate.dart                Calibrage sur le corpus
 tool/false_positives.dart          Synthèse des faux positifs signalés (par règle)
 test/                              Tests ; fixtures/ (dont sorties réelles des outils), corpus/

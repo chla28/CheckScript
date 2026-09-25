@@ -1,5 +1,23 @@
 # Changelog
 
+## Non publié
+
+- **`--watch`** : réanalyse chaque script à son enregistrement (ou toutes
+  les cibles quand des rapports `-o` sont écrits) ; la vue Dossier de
+  l'interface réanalyse aussi les scripts enregistrés ou créés.
+- **Action GitHub** (`action.yml`) : compile check-script, installe
+  ShellCheck et shfmt, annote les lignes des pull requests, ajoute le
+  rapport au résumé du job et produit un SARIF ; sorties `score`, `grade`,
+  `scripts`. Le dépôt s'analyse lui-même avec (`self-check.yml`).
+- Formats **JUnit XML** (`-o rapport.xml`, `--format junit` : Jenkins,
+  onglet Tests de GitLab) et **annotations GitHub** (`--format github`).
+- `--format` s'applique à la sortie standard même avec `-o`, et
+  l'extension d'un fichier `-o` prime sur `--format` (comme l'annonçait
+  l'aide).
+- Interface : **correction de la sélection** (cases à cocher sur les
+  problèmes corrigeables, diff global avant application) ; menu **Récents**
+  (10 derniers scripts et dossiers).
+
 ## 0.13.0 — 2026-09-25
 
 - **Scripts intégrés** : le shell des workflows GitHub Actions (`run:`), de

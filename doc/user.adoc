@@ -193,6 +193,8 @@ check-script -b reference.json scripts/             # nouveaux problèmes seulem
 check-script outil.py                               # script Python
 check-script --python-target 3.6 --with pylint outil.py
 check-script Dockerfile .github/workflows/ci.yml    # scripts intégrés
+check-script --watch scripts/                       # réanalyse à chaque enregistrement
+check-script -o rapport.xml scripts/                # JUnit XML (Jenkins, GitLab)
 ----
 
 Un *dossier* est parcouru récursivement ; y sont retenus les fichiers
@@ -209,7 +211,7 @@ intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 |===
 |Option |Effet
 |`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension : `.md`, `.adoc`, `.html`, `.json`, `.sarif`, `.codeclimate.json` (ou `gl-code-quality-report.json`), `.txt`. Répétable.
-|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `json`, `sarif`, `codeclimate` : format des fichiers sans extension reconnue, ou de la sortie standard sans `-o`.
+|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `json`, `sarif`, `codeclimate`, `junit` (JUnit XML), `github` (annotations GitHub Actions) : format de la sortie standard, et des fichiers `-o` sans extension reconnue (l'extension prime).
 |`-l`, `--lang fr\|en` |Langue du rapport. Défaut : `LC_ALL`, `LC_MESSAGES` puis `LANG`.
 |`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Force le dialecte au lieu de le déduire du shebang (ou de l'extension `.py`).
 |`--python-target VERSION` |Version minimale de Python que les scripts doivent supporter (défaut : `3.9`, voir <<python>>).
@@ -221,6 +223,7 @@ intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 |`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…) ; répétable ou séparé par des virgules.
 |`--no-external` |N'utilise que les règles intégrées.
 |`--no-embedded` |Dans un dossier, ignore les scripts intégrés (voir <<integres>>).
+|`-w`, `--watch` |Après l'analyse, surveille les cibles : chaque script enregistré (ou créé) est réanalysé et son rapport affiché ; avec des fichiers `-o`, toutes les cibles sont réanalysées et les rapports réécrits (le cache rend l'opération rapide). Ctrl+C pour arrêter ; incompatible avec `--fix` et l'entrée standard.
 |`--dashboard FICHIER.html` |Tableau de bord d'équipe : chaque cible (dossier) est un dépôt ; note moyenne, évolution (courbe de l'historique), problèmes graves, niveaux, règles les plus fréquentes, scripts les plus faibles. L'historique est enregistré à chaque exécution.
 |`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
 |`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
@@ -909,8 +912,53 @@ check-script --summary -o gl-code-quality-report.json -o check-script.html \
 ----
 
 GitHub::
-Le SARIF s'affiche dans l'onglet « Security → Code scanning ». Exemple :
-`doc/ci/github-actions.yml`.
+L'action du dépôt compile check-script, installe ShellCheck et shfmt,
+*annote* les lignes concernées (visibles dans les pull requests), ajoute le
+rapport au résumé du job et produit un SARIF pour « Security → Code
+scanning ». Exemple complet : `doc/ci/github-actions.yml`.
++
+[source,yaml]
+----
+- uses: actions/checkout@v4
+- id: cs
+  uses: chla28/CheckScript@v0.14.0
+  with:
+    paths: scripts .github          # défaut : .
+    fail-under: '6'                 # ou security=8,global=6 ; défaut : aucun seuil
+    changed-since: ''               # ex. origin/main (checkout avec fetch-depth: 0)
+    args: --profile strict          # options supplémentaires
+    lang: fr                        # fr (défaut) ou en
+    annotations: 'true'
+    summary: 'true'
+    sarif: check-script.sarif       # vide : pas de SARIF
+    install-tools: 'true'           # ShellCheck et shfmt par apt
+- uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: check-script.sarif
+- run: echo "Note moyenne ${{ steps.cs.outputs.score }} (${{ steps.cs.outputs.grade }})"
+----
++
+Sorties : `score` (note moyenne), `grade` (niveau le plus bas), `scripts`
+(nombre analysé), `sarif` (chemin). Le dépôt de l'action doit être
+accessible au dépôt qui l'utilise (public, ou même organisation avec
+l'accès aux actions autorisé). Sans l'action : `--format github` écrit les
+annotations sur la sortie standard.
+
+Jenkins, GitLab (onglet Tests)::
+`-o rapport.xml` (ou `--format junit`) écrit un rapport JUnit XML : une
+suite par script, un cas en échec par problème (type : sévérité).
++
+[source,yaml]
+----
+check-script:
+  script: check-script -q -o check-script.xml -o gl-code-quality-report.json .
+  artifacts:
+    when: always
+    reports:
+      junit: check-script.xml
+      codequality: gl-code-quality-report.json
+----
 
 pre-commit::
 Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
@@ -954,7 +1002,10 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
   (l'un au-dessus de l'autre) ;
 * *Corriger…* : aperçu du diff puis application ; depuis un problème
   déplié, *Appliquer cette correction* (cette occurrence) ou *Corriger les
-  N occurrences* (toute la règle, s'il y en a plusieurs) ;
+  N occurrences* (toute la règle, s'il y en a plusieurs) ; dans l'onglet
+  *Problèmes*, les problèmes corrigeables ont une case à cocher (et
+  *Corrigeables affichés* les coche tous, selon les filtres) : *Corriger la
+  sélection* montre le diff global avant d'appliquer ;
 * *Règles* : toutes les règles de détection — règles intégrées, codes des
   outils classés par l'outil (ShellCheck, Ruff, Bandit, Pylint…) et codes
   rencontrés lors des analyses —, chacune avec une case à cocher : une règle
@@ -967,7 +1018,12 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
   règle. Une règle est désactivée par son identifiant, tout outil confondu,
   comme `rules.disabled` de la configuration ; le choix est mémorisé ;
 * *Dossier* : tableau triable de tous les scripts d'un dossier ; avec une
-  référence chargée, colonne *Tendance* (évolution de la note) ;
+  référence chargée, colonne *Tendance* (évolution de la note) ; les
+  scripts enregistrés ou créés dans le dossier sont réanalysés (même
+  réglage que la surveillance du script ouvert) ;
+* *Récents* (icône d'horloge sous les onglets) : les 10 derniers scripts et
+  dossiers analysés ; un glisser-déposer d'un script ou d'un dossier sur la
+  fenêtre l'analyse aussi ;
 * *Exporter…* : HTML, Markdown, AsciiDoc, JSON, SARIF ; le rapport HTML
   d'un dossier commence par une synthèse (note moyenne, niveaux,
   problèmes par sévérité), un tableau des scripts triable et les règles les
@@ -992,7 +1048,7 @@ Les analyses de dossier traitent plusieurs scripts à la fois.
   Kate, KWrite, Xed, Geany) ou commande des *Réglages*, avec `{file}` et
   `{line}` (ex. `code -g {file}:{line}`) ;
 * le script ouvert est *surveillé* : à chaque enregistrement, l'analyse est
-  relancée (réglage *Relancer l'analyse quand le script est enregistré*) ;
+  relancée (réglage *Relancer l'analyse quand un script est enregistré*) ;
 * *Dossier* : *Historique* des analyses du dossier (courbe de la note
   moyenne ; `~/.local/share/check-script/history`, 200 analyses par
   dossier) ;
