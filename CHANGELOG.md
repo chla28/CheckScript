@@ -1,5 +1,11 @@
 # Changelog
 
+## Non publié
+
+- Adoption des **Conventional Commits** : hook `commit-msg` et
+  vérification CI des messages ; `tool/release.dart` déduit la version et
+  génère le CHANGELOG à partir des commits.
+
 ## 0.11.2 — 2026-09-25
 
 - Correctif CI : le test « bad.py sous 6 » n'est joué que si Bandit et Ruff

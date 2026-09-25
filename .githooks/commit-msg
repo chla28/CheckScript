@@ -1,0 +1,6 @@
+#!/bin/sh
+# Hook commit-msg : message au format Conventional Commits
+# (type(portée): description). Installation : scripts/install-git-hooks.sh ;
+# contournement ponctuel : git commit --no-verify.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+exec dart run tool/commit_lint.dart "$1"

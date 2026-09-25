@@ -70,6 +70,13 @@ dart run tool/calibrate.dart       # calibrage sur le corpus
 Plateforme cible : Linux. L'interface Flutter (`gui/`) réutilise la
 bibliothèque `lib/` ; elle est aussi lancée depuis MainGUI.
 
+## Contribuer
+
+Messages de commit au format *Conventional Commits* (`feat(gui): …`,
+`fix: …`), contrôlés par un hook (`scripts/install-git-hooks.sh`) et par la
+CI ; `dart run tool/release.dart` publie une version (numéro et CHANGELOG
+déduits des commits). Voir le guide développeur.
+
 ## Licence
 
 CheckScript est un logiciel libre, distribué sous licence **GNU LGPL version 3

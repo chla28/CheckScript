@@ -361,7 +361,7 @@ Format JSON (extrait) :
     "suppressed": 0,
     "comparison": {"new": 1, "fixed": 2, "unchanged": 30, "previousGlobal": 2.5,
                    "previousScores": {"security": 0.0}},
-    "tools": [{"tool": "shellcheck", "status": "ok", "version": "0.11.2", "findings": 14}],
+    "tools": [{"tool": "shellcheck", "status": "ok", "version": "0.11.0", "findings": 14}],
     "findings": [{"tool": "builtin", "rule": "SEC001", "category": "security",
                   "severity": "critical", "line": 5, "column": 0, "message": "…",
                   "snippet": "…", "hint": "…", "fingerprint": "9f2c…",
@@ -450,6 +450,38 @@ dart analyze --fatal-infos
 
 Toute correction de règle s'accompagne d'un test qui échoue avant la
 correction ; tout faux positif trouvé sur un script réel rejoint le corpus.
+
+== Commits et publication
+
+Les messages de commit suivent les
+https://www.conventionalcommits.org/fr/[Conventional Commits] : types et
+portées en anglais, description en français, sans point final, première
+ligne de 100 caractères au plus.
+
+[source]
+----
+feat(gui): ajoute l'onglet Règles
+fix(flatpak): lance les outils par leur chemin absolu
+docs(user): précise --changed-since
+feat(engine)!: change le format JSON        ← « ! » ou « BREAKING CHANGE: » : incompatible
+----
+
+Types : `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
+`style`, `chore`, `revert`. Portées usuelles : `engine`, `cli`, `gui`,
+`python`, `rules`, `reporters`, `flatpak`, `appimage`, `rpm`, `ci`, `doc`.
+
+* *Contrôle local* : `scripts/install-git-hooks.sh` active `.githooks/`
+  (`core.hooksPath`) ; le hook `commit-msg` refuse un message non conforme
+  (`git commit --no-verify` pour passer outre).
+* *Contrôle CI* : `.github/workflows/commits.yml` vérifie les nouveaux
+  commits de chaque push et pull request (`tool/commit_lint.dart --range`).
+* *Publication* : `dart run tool/release.dart --dry-run` affiche la version
+  suivante et la section du CHANGELOG ; sans `--dry-run`, synchronise les
+  fichiers de version, écrit le CHANGELOG, commite `chore(release): X.Y.Z`
+  et tague `vX.Y.Z` (`--push` pour pousser, ce qui déclenche la publication
+  GitHub). Version : `feat` → mineure, autre changement → correctif,
+  incompatible → majeure (mineure tant que la version est 0.x). Les notes
+  rédigées sous « ## Non publié » sont gardées en tête de la section.
 
 == Build et packaging
 
