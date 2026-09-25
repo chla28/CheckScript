@@ -42,8 +42,14 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
   *.html*, *.json*, *.sarif*, *.codeclimate.json*, *.txt*). Répétable.
 
 *-f, --format* _FORMAT_::
-  *terminal*, *md*, *adoc*, *html*, *json*, *sarif* ou *codeclimate* (GitLab Code Quality) : format des fichiers
-  sans extension reconnue, ou de la sortie standard sans *-o*.
+  *terminal*, *md*, *adoc*, *html*, *json*, *sarif*, *codeclimate* (GitLab
+  Code Quality), *junit* (JUnit XML) ou *github* (annotations GitHub
+  Actions) : format de la sortie standard, et des fichiers *-o* sans
+  extension reconnue (l'extension prime).
+
+*-w, --watch*::
+  Réanalyse chaque script à son enregistrement (les scripts modifiés, ou
+  toutes les cibles si des fichiers *-o* sont écrits) ; Ctrl+C pour arrêter.
 
 *-l, --lang* *fr*|*en*::
   Langue du rapport (défaut : *LC_ALL*, *LC_MESSAGES* puis *LANG*).

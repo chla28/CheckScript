@@ -34,33 +34,40 @@ Future<List<String>?> collectScripts(String target,
   await for (final e
       in Directory(target).list(recursive: true, followLinks: false)) {
     if (e is! File) continue;
-    final rel = p.relative(e.path, from: target);
-    if (p.split(rel).any((s) =>
-        (s.startsWith('.') && !(embedded && _hiddenHosts.contains(s))) ||
-        _vendorDirs.contains(s))) {
+    if (isExcluded(p.relative(e.path, from: target), embedded: embedded)) {
       continue;
     }
-    if (_scriptExt.contains(p.extension(e.path).toLowerCase())) {
-      found.add(e.path);
-      continue;
-    }
-    if (embedded && await _hasEmbedded(e)) {
-      found.add(e.path);
-      continue;
-    }
-    if (p.extension(e.path).isNotEmpty) continue;
-    try {
-      final head = await e.openRead(0, 128).first;
-      if (_scriptShebang
-          .hasMatch(String.fromCharCodes(head).split('\n').first)) {
-        found.add(e.path);
-      }
-    } on Object {
-      // Fichier illisible ou vide : ignoré.
-    }
+    if (await isScriptFile(e.path, embedded: embedded)) found.add(e.path);
   }
   found.sort();
   return found;
+}
+
+/// Chemin (relatif au dossier parcouru) exclu de la découverte : dossiers
+/// cachés (sauf ceux de la CI avec [embedded]) et de dépendances.
+bool isExcluded(String relative, {bool embedded = true}) =>
+    p.split(relative).any((s) =>
+        (s.startsWith('.') &&
+            s != '.' &&
+            !(embedded && _hiddenHosts.contains(s))) ||
+        _vendorDirs.contains(s));
+
+/// Le fichier est un script à analyser : extension de script, fichier hôte
+/// de scripts intégrés (avec [embedded]), ou shebang d'un shell ou de
+/// Python pour un fichier sans extension.
+Future<bool> isScriptFile(String path, {bool embedded = true}) async {
+  final ext = p.extension(path).toLowerCase();
+  if (_scriptExt.contains(ext)) return true;
+  final f = File(path);
+  if (embedded && await _hasEmbedded(f)) return true;
+  if (ext.isNotEmpty) return false;
+  try {
+    final head = await f.openRead(0, 128).first;
+    return _scriptShebang
+        .hasMatch(String.fromCharCodes(head).split('\n').first);
+  } on Object {
+    return false; // illisible ou vide
+  }
 }
 
 /// Taille maximale d'un fichier hôte examiné.

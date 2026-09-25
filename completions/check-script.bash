@@ -13,13 +13,13 @@ _check_script() {
   prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   opts="--output -o --format -f --lang -l --shell -s --python-target --profile -p --context \
---follow-source --config -c --with --without --no-external --embedded --no-embedded --jobs -j --all --changed-since --dashboard --history-dir --cache --no-cache --explain --sort --baseline -b --fail-on-new \
+--follow-source --config -c --with --without --no-external --embedded --no-embedded --watch -w --jobs -j --all --changed-since --dashboard --history-dir --cache --no-cache --explain --sort --baseline -b --fail-on-new \
 --fix --dry-run --backup --details --summary --source --no-source --color --no-color --quiet -q \
 --fail-under --list-tools --list-rules --version -v --help -h"
 
   case "$prev" in
     --format | -f)
-      mapfile -t COMPREPLY < <(compgen -W "terminal md adoc html json sarif codeclimate" -- "$cur")
+      mapfile -t COMPREPLY < <(compgen -W "terminal md adoc html json sarif codeclimate junit github" -- "$cur")
       return 0
       ;;
     --lang | -l)

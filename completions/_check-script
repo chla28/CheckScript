@@ -5,7 +5,7 @@
 
 _arguments -s \
   '*'{-o,--output}'[fichier de rapport]:fichier:_files' \
-  {-f,--format}'[format]:format:(terminal md adoc html json sarif codeclimate)' \
+  {-f,--format}'[format]:format:(terminal md adoc html json sarif codeclimate junit github)' \
   {-l,--lang}'[langue]:langue:(fr en)' \
   {-s,--shell}'[dialecte]:dialecte:(sh bash dash ksh zsh python)' \
   '--python-target[version minimale de Python]:version:(3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14)' \
@@ -16,6 +16,7 @@ _arguments -s \
   '*--with[activer un outil]:outil:(pylint pyright)' \
   '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit gitleaks trufflehog syntax builtin custom)' \
   '--no-external[règles intégrées seules]' \
+  {-w,--watch}'[réanalyser à chaque enregistrement]' \
   '(--embedded --no-embedded)'{--embedded,--no-embedded}'[scripts intégrés (CI, Dockerfile, Makefile, Ansible)]' \
   {-j,--jobs}'[scripts analysés simultanément]:nombre:' \
   '--all[avec --list-rules : aussi les codes des outils]' \

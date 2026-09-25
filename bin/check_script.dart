@@ -7,6 +7,7 @@
 /// .html / .json / .sarif ; corrige les défauts sûrs avec --fix.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -47,8 +48,8 @@ ArgParser buildParser(Lang lang) {
         abbr: 'o',
         valueHelp: 'FICHIER',
         help: t(
-            'Écrit le rapport dans FICHIER (.md, .adoc, .html, .json, .sarif, .codeclimate.json, .txt) ; répétable.',
-            'Write the report to FILE (.md, .adoc, .html, .json, .sarif, .codeclimate.json, .txt); repeatable.'))
+            'Écrit le rapport dans FICHIER (.md, .adoc, .html, .json, .sarif, .codeclimate.json, .xml (JUnit), .txt) ; répétable.',
+            'Write the report to FILE (.md, .adoc, .html, .json, .sarif, .codeclimate.json, .xml (JUnit), .txt); repeatable.'))
     ..addOption('format',
         abbr: 'f',
         allowed: [
@@ -58,13 +59,17 @@ ArgParser buildParser(Lang lang) {
           'html',
           'json',
           'sarif',
-          'codeclimate'
+          'codeclimate',
+          'junit',
+          'github',
         ],
         help: t(
-            'Format des fichiers de sortie sans extension reconnue, ou de la '
-                'sortie standard si aucun -o.',
-            'Format of output files without a known extension, or of stdout '
-                'when no -o is given.'))
+            'Format de la sortie standard, et des fichiers de sortie sans '
+                'extension reconnue (github : annotations GitHub Actions ; '
+                'junit : JUnit XML).',
+            'Format of standard output, and of output files without a known '
+                'extension (github: GitHub Actions annotations; junit: JUnit '
+                'XML).'))
     ..addOption('lang',
         abbr: 'l',
         allowed: ['fr', 'en'],
@@ -149,6 +154,12 @@ ArgParser buildParser(Lang lang) {
         help: t(
             'Dans un dossier, analyse aussi les scripts intégrés : GitHub Actions, GitLab CI, Dockerfile, Makefile, Ansible.',
             'In a folder, also analyze embedded scripts: GitHub Actions, GitLab CI, Dockerfile, Makefile, Ansible.'))
+    ..addFlag('watch',
+        abbr: 'w',
+        negatable: false,
+        help: t(
+            'Réanalyse chaque script à son enregistrement (Ctrl+C pour arrêter).',
+            'Re-analyse each script whenever it is saved (Ctrl+C to stop).'))
     ..addOption('baseline',
         abbr: 'b',
         valueHelp: 'RAPPORT.json',
@@ -262,8 +273,13 @@ Map<String, double> parseFailUnder(List<String> values) {
 }
 
 /// Point d'entrée testable : renvoie le code de sortie.
+/// [stopWatching] : fin de la surveillance `--watch` (tests) ; sans elle,
+/// la surveillance dure jusqu'à l'interruption (Ctrl+C).
 Future<int> run(List<String> argv,
-    {IOSink? out, IOSink? err, CommandRunner? runner}) async {
+    {IOSink? out,
+    IOSink? err,
+    CommandRunner? runner,
+    Future<void>? stopWatching}) async {
   out ??= stdout;
   err ??= stderr;
 
@@ -474,6 +490,16 @@ Future<int> run(List<String> argv,
         '--fix on standard input requires --dry-run.'));
     return exitUsage;
   }
+  if (a['watch'] as bool) {
+    if (fix || a.rest.contains('-')) {
+      err.writeln(t(
+          '--watch ne s\'utilise ni avec --fix ni avec l\'entrée standard.',
+          '--watch cannot be used with --fix or standard input.'));
+      return exitUsage;
+    }
+    return _watch(argv, a, lang,
+        out: out, err: err, runner: runner, stop: stopWatching);
+  }
 
   // Fichiers modifiés depuis une référence git (--changed-since).
   final since = a['changed-since'] as String?;
@@ -678,9 +704,7 @@ Future<int> run(List<String> argv,
 
   // En --dry-run, la sortie standard porte le diff.
   if (!(a['quiet'] as bool) && !dryRun) {
-    final fmt = outputs.isEmpty
-        ? (forced ?? OutputFormat.terminal)
-        : OutputFormat.terminal;
+    final fmt = forced ?? OutputFormat.terminal;
     out.write(render(
         reports,
         fmt,
@@ -693,7 +717,8 @@ Future<int> run(List<String> argv,
             byQuickWin: a['sort'] == 'impact')));
   }
   for (final path in outputs) {
-    final fmt = forced ?? OutputFormat.fromPath(path) ?? OutputFormat.markdown;
+    // L'extension prime ; --format sert aux fichiers sans extension connue.
+    final fmt = OutputFormat.fromPath(path) ?? forced ?? OutputFormat.markdown;
     try {
       final file = File(path);
       await file.parent.create(recursive: true);
@@ -710,6 +735,65 @@ Future<int> run(List<String> argv,
   if (inputError) return exitInput;
   if (failsThresholds(reports, failUnder, failOnNew)) return exitBelowThreshold;
   return exitOk;
+}
+
+/// `--watch` : une première analyse, puis une nouvelle à chaque
+/// enregistrement d'un script — les scripts modifiés seulement, ou toutes
+/// les cibles quand des fichiers de rapport (-o) sont écrits.
+Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
+    {required IOSink out,
+    required IOSink err,
+    CommandRunner? runner,
+    Future<void>? stop}) async {
+  String t(String fr, String en) => lang == Lang.fr ? fr : en;
+  final once = [
+    for (final x in argv)
+      if (x != '--watch') x
+  ];
+  final options = List.of(once);
+  for (final target in a.rest) {
+    options.removeAt(options.lastIndexOf(target));
+  }
+  final full = (a['output'] as List<String>).isNotEmpty;
+  final embedded = a['embedded'] as bool;
+  var code = await run(once, out: out, err: err, runner: runner);
+  void waiting() => err.writeln(t(
+      '\nSurveillance de ${a.rest.join(', ')} (Ctrl+C pour arrêter)…',
+      '\nWatching ${a.rest.join(', ')} (Ctrl+C to stop)…'));
+  waiting();
+  final explicit = {
+    for (final x in a.rest)
+      if (FileSystemEntity.isFileSync(x)) p.normalize(p.absolute(x)),
+  };
+  final done = Completer<void>();
+  late final StreamSubscription<Set<String>> sub;
+  sub = watchTargets(a.rest, embedded: embedded).listen((changed) async {
+    sub.pause();
+    try {
+      final scripts = [
+        for (final f in changed.toList()..sort())
+          if (explicit.contains(f) ||
+              (File(f).existsSync() &&
+                  await isScriptFile(f, embedded: embedded)))
+            f
+      ];
+      if (scripts.isEmpty) return;
+      final now = DateTime.now().toIso8601String().substring(11, 19);
+      out.writeln(
+          '\n── $now — ${scripts.map((f) => p.relative(f)).join(', ')} ──');
+      code = await run([...options, ...(full ? a.rest : scripts)],
+          out: out, err: err, runner: runner);
+      waiting();
+    } finally {
+      sub.resume();
+    }
+  });
+  stop?.then((_) {
+    if (!done.isCompleted) done.complete();
+  });
+  await done.future;
+  await sub.cancel();
+  return code;
 }
 
 /// Vrai si un rapport passe sous un seuil `--fail-under` ou contient un

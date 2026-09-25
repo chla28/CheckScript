@@ -8,6 +8,7 @@ import '../explain.dart';
 import '../i18n.dart';
 import 'codeclimate.dart';
 import 'html.dart';
+import 'junit.dart';
 import 'sarif.dart';
 import '../model/finding.dart';
 import '../model/report.dart';
@@ -20,7 +21,9 @@ enum OutputFormat {
   json,
   sarif,
   html,
-  codeclimate;
+  codeclimate,
+  junit,
+  github;
 
   /// Format déduit de l'extension d'un fichier de sortie.
   static OutputFormat? fromPath(String path) {
@@ -35,6 +38,7 @@ enum OutputFormat {
     if (p.endsWith('.json')) return json;
     if (p.endsWith('.html') || p.endsWith('.htm')) return html;
     if (p.endsWith('.txt')) return terminal;
+    if (p.endsWith('.xml')) return junit;
     return null;
   }
 
@@ -46,6 +50,8 @@ enum OutputFormat {
         'codeclimate' || 'gitlab' => codeclimate,
         'html' || 'htm' => html,
         'text' || 'txt' || 'terminal' => terminal,
+        'junit' || 'xml' => junit,
+        'github' => github,
         _ => null,
       };
 }
@@ -86,6 +92,8 @@ String render(
       OutputFormat.sarif => renderSarif(reports),
       OutputFormat.html => renderHtml(reports, opts),
       OutputFormat.codeclimate => renderCodeClimate(reports),
+      OutputFormat.junit => renderJunit(reports),
+      OutputFormat.github => renderGithub(reports),
     };
 
 // ─────────────────────────────────────────────────────────────────────────────
