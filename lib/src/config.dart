@@ -1,10 +1,13 @@
 /// Configuration de l'analyse (fichier YAML facultatif + options CLI).
 library;
 
+import 'dart:convert';
+
 import 'package:yaml/yaml.dart';
 
 import 'model/finding.dart';
 import 'rules/catalog.dart' show ExecContext;
+import 'rules/same_rules.dart';
 
 /// Reclassement d'une règle (catégorie et/ou sévérité).
 class RuleOverride {
@@ -23,13 +26,21 @@ class ToolConfig {
   /// permet : `shellcheck -e`, `bashate -i`).
   final List<String> exclude;
 
+  /// Règles de l'outil (Semgrep : fichier ou dossier local, ou jeu du
+  /// registre) ; null : valeur par défaut de l'outil.
+  final String? config;
+
   const ToolConfig(
-      {this.enabled = true, required this.executable, this.exclude = const []});
+      {this.enabled = true,
+      required this.executable,
+      this.exclude = const [],
+      this.config});
 
   ToolConfig copyWith({bool? enabled}) => ToolConfig(
       enabled: enabled ?? this.enabled,
       executable: executable,
-      exclude: exclude);
+      exclude: exclude,
+      config: config);
 }
 
 class ScoringConfig {
@@ -197,6 +208,39 @@ class CheckConfig {
           ),
       };
 
+  /// Règle désactivée (`rules.disabled`), directement ou sous le code de la
+  /// même règle dans un autre outil ([sameRuleIds]).
+  bool isRuleDisabled(String id) {
+    final k = id.toUpperCase();
+    return disabledRules.contains(k) ||
+        sameRuleIds(k).any(disabledRules.contains);
+  }
+
+  /// Format des codes qu'un outil accepte sans erreur dans ses exclusions
+  /// (ShellCheck et mypy refusent un code inconnu, Ruff aussi, Pylint le
+  /// signale comme un problème : ils ne reçoivent pas les règles désactivées).
+  static final Map<String, RegExp> _excludable = {
+    'shellcheck': RegExp(r'^SC\d{4}$'),
+    'bashate': RegExp(r'^[EW]\d{3}$'),
+    'bandit': RegExp(r'^B[1-7]\d\d$'),
+  };
+
+  /// Exclusions à transmettre à [name] : les siennes, plus les règles
+  /// désactivées qu'il reconnaît à coup sûr (il ne les calcule alors pas).
+  List<String> excludedFor(String name) {
+    final own = tool(name).exclude;
+    final pattern = _excludable[name];
+    if (pattern == null) return own;
+    return {
+      ...own,
+      for (final r in disabledRules)
+        if (pattern.hasMatch(r)) r,
+      for (final r in disabledRules)
+        for (final same in sameRuleIds(r))
+          if (pattern.hasMatch(same)) same,
+    }.toList();
+  }
+
   ToolConfig tool(String name) =>
       tools[name] ?? defaultTools[name] ?? ToolConfig(executable: name);
 
@@ -274,6 +318,7 @@ class CheckConfig {
             exclude: v['exclude'] is YamlList
                 ? [for (final e in v['exclude'] as YamlList) '$e']
                 : base.exclude,
+            config: v['config'] is String ? v['config'] as String : base.config,
           );
         } else if (v is bool) {
           tools[name] = base.copyWith(enabled: v);
@@ -381,6 +426,106 @@ class CheckConfig {
         followSource: doc['followSource'] is bool
             ? doc['followSource'] as bool
             : base.followSource);
+  }
+
+  /// Configuration au format YAML, relisible par [parse] : seul ce qui
+  /// diffère du profil est écrit (exportée par l'interface, ou partagée avec
+  /// la CI par `.checkscript.yaml`).
+  String toYaml({String? header}) {
+    final base = CheckConfig.forProfile(profile);
+    String q(String v) => jsonEncode(v); // chaîne YAML entre guillemets
+    String list(Iterable<String> v) => '[${v.map(q).join(', ')}]';
+    String num(double v) => v == v.roundToDouble() ? '${v.toInt()}' : '$v';
+    final b = StringBuffer();
+    if (header != null) {
+      for (final l in header.split('\n')) {
+        b.writeln('# $l');
+      }
+    }
+    b.writeln(
+        'profile: ${profile == Profile.standard ? 'default' : profile.name}');
+    if (contexts.isNotEmpty) {
+      b.writeln('context: ${list([for (final c in contexts) c.name])}');
+    }
+    if (followSource) b.writeln('followSource: true');
+    if (pythonTarget != defaultPythonTarget) {
+      b.writeln('pythonTarget: ${q(pythonTarget)}');
+    }
+
+    final names = {...defaultTools.keys, ...tools.keys}.toList()..sort();
+    final toolLines = <String>[];
+    for (final n in names) {
+      final t = tool(n), d = base.tool(n);
+      final lines = [
+        if (t.enabled != d.enabled) 'enabled: ${t.enabled}',
+        if (t.executable != d.executable) 'path: ${q(t.executable)}',
+        if (t.exclude.join(',') != d.exclude.join(','))
+          'exclude: ${list(t.exclude)}',
+        if (t.config != d.config && t.config != null) 'config: ${q(t.config!)}',
+      ];
+      if (lines.isEmpty) continue;
+      toolLines.add('  $n:');
+      toolLines.addAll([for (final l in lines) '    $l']);
+    }
+    if (toolLines.isNotEmpty) {
+      b.writeln('tools:');
+      toolLines.forEach(b.writeln);
+    }
+
+    final disabled = disabledRules.difference(base.disabledRules).toList()
+      ..sort();
+    if (disabled.isNotEmpty || overrides.isNotEmpty) {
+      b.writeln('rules:');
+      if (disabled.isNotEmpty) b.writeln('  disabled: ${list(disabled)}');
+      if (overrides.isNotEmpty) {
+        b.writeln('  overrides:');
+        for (final e in overrides.entries) {
+          final o = e.value;
+          b.writeln('    ${q(e.key)}: {'
+              '${[
+            if (o.category != null) 'category: ${o.category!.name}',
+            if (o.severity != null) 'severity: ${o.severity!.name}',
+          ].join(', ')}}');
+        }
+      }
+    }
+
+    final sc = scoring, sb = base.scoring;
+    String weights(Map<Enum, double> m) => '{${[
+          for (final e in m.entries) '${e.key.name}: ${num(e.value)}'
+        ].join(', ')}}';
+    final scoringLines = [
+      if (weights(sc.weights) != weights(sb.weights))
+        'weights: ${weights(sc.weights)}',
+      if (sc.referenceLines != sb.referenceLines)
+        'referenceLines: ${sc.referenceLines}',
+      if (weights(sc.categoryWeights) != weights(sb.categoryWeights))
+        'categoryWeights: ${weights(sc.categoryWeights)}',
+    ];
+    if (scoringLines.isNotEmpty) {
+      b.writeln('scoring:');
+      for (final l in scoringLines) {
+        b.writeln('  $l');
+      }
+    }
+
+    final th = thresholds, tb = base.thresholds;
+    final thLines = [
+      if (th.maxLineLength != tb.maxLineLength)
+        'maxLineLength: ${th.maxLineLength}',
+      if (th.maxFunctionLines != tb.maxFunctionLines)
+        'maxFunctionLines: ${th.maxFunctionLines}',
+      if (th.maxNesting != tb.maxNesting) 'maxNesting: ${th.maxNesting}',
+      if (th.maxLinesWithoutFunction != tb.maxLinesWithoutFunction)
+        'maxLinesWithoutFunction: ${th.maxLinesWithoutFunction}',
+    ];
+    if (thLines.isNotEmpty) {
+      b.writeln('thresholds:');
+      for (final l in thLines) {
+        b.writeln('  $l');
+      }
+    }
+    return b.toString();
   }
 
   static double _toDouble(Object? v, String key) {

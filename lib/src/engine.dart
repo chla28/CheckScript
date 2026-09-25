@@ -69,15 +69,59 @@ class Engine {
 
   /// Référence facultative : chaque rapport reçoit sa [Comparison].
   final Baseline? baseline;
-  final _versions = <String, String?>{};
+
+  /// Versions des outils, demandées une seule fois (y compris quand
+  /// plusieurs analyses tournent en parallèle).
+  final _versions = <String, Future<String?>>{};
+
+  /// Outils d'un même script lancés en parallèle (sinon l'un après l'autre).
+  final bool parallel;
 
   Engine({
     this.config = const CheckConfig(),
     this.lang = Lang.fr,
     this.runner = const ProcessCommandRunner(),
     this.baseline,
+    this.parallel = true,
     List<Analyzer>? analyzers,
   }) : analyzers = analyzers ?? defaultAnalyzers();
+
+  /// Nombre de scripts analysés simultanément dans un dossier : chaque
+  /// analyse lance déjà ses outils en parallèle.
+  static int get defaultJobs => (Platform.numberOfProcessors ~/ 4).clamp(1, 4);
+
+  /// Analyse [paths] avec au plus [jobs] scripts à la fois ; les rapports
+  /// sont dans l'ordre de [paths]. Un fichier illisible ou non textuel est
+  /// passé ([onSkip]). [onDone] est appelé à chaque script terminé.
+  Future<List<ScriptReport>> analyzeFiles(List<String> paths,
+      {int? jobs,
+      CancelToken? cancel,
+      void Function(String path, Object error)? onSkip,
+      void Function(int done, int total, String path)? onDone}) async {
+    final out = List<ScriptReport?>.filled(paths.length, null);
+    var next = 0, done = 0;
+    Future<void> worker() async {
+      while (next < paths.length) {
+        cancel?.check();
+        final i = next++;
+        try {
+          out[i] = await analyzeFile(paths[i], cancel: cancel);
+        } on FileSystemException catch (e) {
+          onSkip?.call(paths[i], e);
+        } on FormatException catch (e) {
+          onSkip?.call(paths[i], e);
+        }
+        onDone?.call(++done, paths.length, paths[i]);
+      }
+    }
+
+    final n = (jobs ?? defaultJobs).clamp(1, paths.isEmpty ? 1 : paths.length);
+    await Future.wait([for (var w = 0; w < n; w++) worker()], eagerError: true);
+    return [
+      for (final r in out)
+        if (r != null) r
+    ];
+  }
 
   /// Analyseurs du langage de [script].
   List<Analyzer> analyzersFor(ScriptInfo script) => [
@@ -109,7 +153,7 @@ class Engine {
     var path = filePath;
     if (path == null) {
       tmp = await Directory.systemTemp.createTemp('check_script_');
-      path = '${tmp.path}/script.sh';
+      path = '${tmp.path}/script.${script.dialect.isPython ? 'py' : 'sh'}';
       await File(path).writeAsString(script.content);
     }
     try {
@@ -120,37 +164,56 @@ class Engine {
           lang: lang,
           runner: runner,
           cancel: cancel);
-      final runs = <ToolRun>[];
-      final raw = <Finding>[];
       final applicable = analyzersFor(script);
       final total = applicable.length;
-      for (final a in applicable) {
-        cancel?.check();
-        onProgress
-            ?.call(AnalysisProgress(script.path, a.name, runs.length, total));
+      // Les outils tournent en parallèle ; leurs résultats sont rangés dans
+      // l'ordre de priorité des analyseurs (dédoublonnage inchangé).
+      final results = List<AnalyzerResult?>.filled(total, null);
+      final running = <String>[];
+      var done = 0;
+      cancel?.check();
+      onProgress?.call(AnalysisProgress(script.path,
+          applicable.isEmpty ? null : applicable.first.name, 0, total));
+      Future<void> runOne(int i) async {
+        final a = applicable[i];
         if (!config.tool(a.name).enabled) {
-          runs.add(ToolRun(a.name, ToolStatus.disabled));
-          continue;
+          results[i] = AnalyzerResult(ToolRun(a.name, ToolStatus.disabled));
+          done++;
+          return;
         }
+        running.add(a.name);
         final r = await a.analyze(ctx);
         cancel?.check();
         final v = r.run.status == ToolStatus.ok
-            ? (_versions.containsKey(a.name)
-                ? _versions[a.name]
-                : _versions[a.name] = await a.version(runner, config))
+            ? await (_versions[a.name] ??= a.version(runner, config))
             : null;
         final run = v == null
             ? r.run
             : ToolRun(r.run.tool, r.run.status,
                 version: v, detail: r.run.detail, findings: r.run.findings);
-        runs.add(run);
-        raw.addAll(r.findings);
-        onProgress?.call(AnalysisProgress(
-            script.path, a.name, runs.length, total,
+        results[i] = AnalyzerResult(run, r.findings);
+        running.remove(a.name);
+        done++;
+        onProgress?.call(AnalysisProgress(script.path,
+            running.isEmpty ? a.name : running.join(', '), done, total,
             lastRun: run));
       }
 
-      final suppressions = Suppressions.parse(script.lines);
+      if (parallel) {
+        await Future.wait([for (var i = 0; i < total; i++) runOne(i)],
+            eagerError: true);
+      } else {
+        for (var i = 0; i < total; i++) {
+          cancel?.check();
+          await runOne(i);
+        }
+      }
+      cancel?.check();
+      final runs = [for (final r in results) r!.run];
+      final raw = [for (final r in results) ...r!.findings];
+
+      final suppressions =
+          Suppressions.parse(script.lines, python: script.dialect.isPython);
       final deduped = deduplicate(raw);
       final kept = [
         for (final f in deduped)
@@ -205,12 +268,31 @@ bool isDuplicate(Finding a, Finding b) {
   if (a.tool == b.tool) {
     return a.line == b.line && (a.ruleId == b.ruleId || eq);
   }
-  final sameLine = a.line == b.line ||
+  final sameLine = _overlap(a, b) ||
       a.line == 0 ||
       b.line == 0 ||
       a.ruleId == 'SYNTAX' ||
       b.ruleId == 'SYNTAX';
   return sameLine && eq;
+}
+
+/// Étendue maximale (en lignes) d'une instruction prise en compte : au-delà
+/// (règle couvrant une fonction entière…), seule la première ligne compte.
+const maxDuplicateSpan = 6;
+
+/// Les lignes signalées se recouvrent : même ligne, ou l'une tombe dans
+/// l'instruction multi-ligne de l'autre (Bandit situe un appel sur sa
+/// première ligne, Ruff sur la ligne de l'argument fautif).
+bool _overlap(Finding a, Finding b) {
+  if (a.line == b.line) return true;
+  int end(Finding f) {
+    final e = f.endLine;
+    return e != null && e >= f.line && e - f.line < maxDuplicateSpan
+        ? e
+        : f.line;
+  }
+
+  return a.line <= end(b) && b.line <= end(a);
 }
 
 /// Conserve le premier de chaque groupe de doublons (ordre des analyseurs).
@@ -337,10 +419,11 @@ List<Finding> escalate(List<Finding> findings, Set<ExecContext> contexts) {
   ];
 }
 
-/// Retire les règles désactivées et applique les reclassements.
+/// Retire les règles désactivées (et la même règle sous le code d'un autre
+/// outil) et applique les reclassements.
 List<Finding> applyConfig(List<Finding> findings, CheckConfig config) => [
       for (final f in findings)
-        if (!config.disabledRules.contains(f.ruleId.toUpperCase()))
+        if (!config.isRuleDisabled(f.ruleId))
           () {
             final o = config.overrides[f.ruleId.toUpperCase()];
             return o == null

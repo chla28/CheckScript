@@ -103,6 +103,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                 ? null
                                 : (f) => _applyOne(context, f),
                             onDisableRule: (f) => _disableRule(context, f),
+                            onApplyRule: state.busy
+                                ? null
+                                : (f) => _applyRule(context, f),
                           ),
                         ),
                       ]),
@@ -140,6 +143,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               }),
       ),
     ]);
+  }
+
+  /// Corrige toutes les occurrences de la règle d'un problème.
+  Future<void> _applyRule(BuildContext context, Finding f) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    final n = state.fixableOfRule(f).length;
+    final why = await state.applyRuleFixes(f);
+    messenger.showSnackBar(SnackBar(
+        content: Text(switch (why) {
+      null => s.rulesFixed(n, f.ruleId),
+      AppState.staleFix => s.fixStale,
+      _ => s.fixAborted(why),
+    })));
   }
 
   /// Désactive la règle d'un problème (effet à la prochaine analyse).

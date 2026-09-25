@@ -79,6 +79,10 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
 *--no-external*::
   N'utilise que les règles intégrées.
 
+*-j, --jobs* _N_::
+  Scripts d'un dossier analysés simultanément (défaut : selon le nombre de
+  processeurs ; *1* : l'un après l'autre).
+
 *-b, --baseline* _RAPPORT.json_::
   Rapport JSON de référence : seuls les nouveaux problèmes sont détaillés et
   l'évolution des notes est affichée.
@@ -117,6 +121,9 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
 
 *--list-tools*, *--list-rules*::
   Outils détectés / règles intégrées.
+
+*--all*::
+  Avec *--list-rules* : aussi les codes des outils classés par check-script.
 
 *-v, --version*, *-h, --help*::
   Version / aide.

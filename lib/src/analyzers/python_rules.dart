@@ -39,6 +39,11 @@ class PythonFacts {
   /// Lignes des appels à `input()`.
   final List<int> inputs;
 
+  /// Lignes où une fonction du module qui renvoie une valeur (typiquement
+  /// `main()`) est appelée comme simple instruction : le code de retour du
+  /// script est perdu (toujours 0).
+  final List<int> ignoredExit;
+
   const PythonFacts({
     this.docstring = false,
     this.functions = 0,
@@ -46,6 +51,7 @@ class PythonFacts {
     this.topLevel = const [],
     this.noTimeout = const [],
     this.inputs = const [],
+    this.ignoredExit = const [],
   });
 
   factory PythonFacts.fromJson(Map<String, Object?> j) {
@@ -59,6 +65,7 @@ class PythonFacts {
       topLevel: ints(j['toplevel']),
       noTimeout: ints(j['no_timeout']),
       inputs: ints(j['inputs']),
+      ignoredExit: ints(j['ignored_exit']),
     );
   }
 }
@@ -109,6 +116,30 @@ for s in tree.body:
     elif (isinstance(s, ast.Expr) and isinstance(s.value, ast.Call)) \
             or isinstance(s, (ast.For, ast.While, ast.With, ast.Try)):
         facts["toplevel"].append(s.lineno)
+def own_nodes(fn):
+    # Nœuds de la fonction, sans ceux des fonctions et lambdas imbriquées.
+    todo = list(ast.iter_child_nodes(fn))
+    while todo:
+        n = todo.pop()
+        yield n
+        if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            todo.extend(ast.iter_child_nodes(n))
+returning = {
+    s.name for s in tree.body
+    if isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef))
+    and any(isinstance(n, ast.Return) and n.value is not None
+            and not (isinstance(n.value, ast.Constant) and n.value.value is None)
+            for n in own_nodes(s))
+}
+stmts = list(tree.body)
+for s in tree.body:
+    if isinstance(s, ast.If) and is_main(s.test):
+        stmts.extend(s.body)
+facts["ignored_exit"] = [
+    s.lineno for s in stmts
+    if isinstance(s, ast.Expr) and isinstance(s.value, ast.Call)
+    and isinstance(s.value.func, ast.Name) and s.value.func.id in returning
+]
 for k in ("no_timeout", "inputs"):
     facts[k] = sorted(set(facts[k]))
 print(json.dumps(facts))
@@ -258,6 +289,15 @@ List<Finding> runPythonRules(ScriptInfo s, CheckConfig config, Lang lang,
   }
   for (final l in f.inputs) {
     add('PYROB002', l);
+  }
+  for (final l in f.ignoredExit) {
+    add('PYROB004', l);
+  }
+  // Tâche planifiée sans verrou (comme ROB014 pour le shell).
+  if (!RegExp(r'\bflock\b|\blockf\b|\bfilelock\b|\bpidfile\b|\.lock\b|\.pid\b|'
+          r'\bLockFile\b|\bO_EXCL\b')
+      .hasMatch(s.content)) {
+    add('PYROB003', 0);
   }
   return out;
 }

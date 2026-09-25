@@ -16,6 +16,8 @@ _arguments -s \
   '*--with[activer un outil]:outil:(pylint pyright)' \
   '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin gitleaks trufflehog syntax builtin)' \
   '--no-external[règles intégrées seules]' \
+  {-j,--jobs}'[scripts analysés simultanément]:nombre:' \
+  '--all[avec --list-rules : aussi les codes des outils]' \
   {-b,--baseline}'[rapport JSON de référence]:fichier:_files -g "*.json"' \
   '--fail-on-new[échec si nouveau problème]:sévérité:(low medium high critical)' \
   '--fix[corriger les défauts sûrs]' \

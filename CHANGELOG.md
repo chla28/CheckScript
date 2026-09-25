@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.7.0 — 2026-09-25
+
+- **Configuration** : l'interface exporte la configuration effective
+  (fichier YAML et choix de l'interface) dans un `.checkscript.yaml`
+  utilisable par la CLI et la CI, et l'importe (le fichier devient la
+  référence). `CheckConfig.toYaml()` n'écrit que ce qui diffère du profil.
+- **Analyses parallèles** : les outils d'un même script tournent en
+  parallèle, et les scripts d'un dossier plusieurs à la fois (`-j, --jobs`) ;
+  résultats identiques, ordre conservé. Mesuré : un script Python 5,3 → 2,2 s,
+  le corpus shell (12 scripts) 19,2 → 5,1 s.
+- **Calibrage Python** sur un corpus de 12 scripts : secrets en dur Critical
+  quand la valeur est réaliste, exécution de code ou de données High,
+  PYSEC001 Medium, PYPOR001 High ; nouvelles règles PYROB003 (cron sans
+  verrou) et PYROB004 (code de retour de `main()` perdu) ; docstrings comptées
+  comme documentation.
+- **Semgrep hors ligne** : règles `p/python` gardées en cache une semaine
+  (`~/.cache/check-script`), utilisées sans réseau ; `tools.semgrep.config`
+  pour un fichier ou dossier de règles local.
+- **Doublons multi-lignes** : un appel réparti sur plusieurs lignes est
+  signalé une seule fois (Bandit B607 ligne 46 = Ruff S607 ligne 47).
+- **Directives Python** `# noqa`, `# noqa: CODE`, `# nosec`, `# nosec CODE`
+  pour tous les outils, un code visant aussi la même règle dans les autres
+  outils.
+- **Règles désactivées** : transmises à ShellCheck, bashate et Bandit ;
+  la même règle d'un autre outil est aussi masquée (Ruff S602 ↔ Bandit B602,
+  ShellCheck SC2164 ↔ ROB005…) ; `--fix` ne corrige plus une règle
+  désactivée (dont le formatage si FORMAT l'est).
+- **Rapport HTML de dossier** : synthèse (note moyenne, niveaux, problèmes
+  par sévérité), tableau des scripts triable, règles les plus fréquentes ;
+  les longues lignes de code ne débordent plus de la page.
+- Interface : **Corriger les N occurrences** d'une règle depuis un problème.
+- CLI : **`--list-rules --all`** (règles intégrées et codes des outils).
+- RPM : `Recommends` ruff, python3-mypy ; `Suggests` pylint.
+- Correctif : un script Python lu sur l'entrée standard est copié dans un
+  fichier `.py` (et non `.sh`) pour les outils.
+
 ## 0.6.0 — 2026-09-25
 
 - Interface : onglet **Règles** listant toutes les règles de détection

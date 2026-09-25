@@ -58,6 +58,8 @@ lib/src/
   rules/catalog.dart               Catalogue des règles intégrées (titre, conseil, contexte),
                                    ExecContext, escalades de sévérité par contexte
   rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
+  rules/same_rules.dart            sameRuleIds : la même règle dans plusieurs outils (Ruff S ↔
+                                   Bandit B, Ruff PL ↔ Pylint, ShellCheck ↔ intégrées)
   rules/registry.dart              RuleEntry, knownRules : règles intégrées et codes externes
                                    classés, titres bilingues (onglet Règles de l'interface)
   analyzers/
@@ -101,7 +103,11 @@ Engine.analyze ── pour chaque Analyzer du langage du script (analyzersFor),
               │              → builtin (arbre shfmt si disponible) → shfmt → bashate
               │     python : syntax → bandit → ruff → semgrep → mypy → pyright → pylint
               │              → vermin → radon → gitleaks → trufflehog → builtin (ast)
-              │     onProgress(AnalysisProgress) ; CancelToken vérifié entre outils
+              │     outils lancés en parallèle (Future.wait), résultats rangés dans
+              │     l'ordre de priorité ; Engine(parallel: false) pour l'ordre strict
+              │     onProgress(AnalysisProgress) ; CancelToken vérifié à chaque outil
+              │   analyzeFiles(paths, jobs) : plusieurs scripts à la fois (défaut
+              │     Engine.defaultJobs = processeurs / 4, entre 1 et 4), ordre conservé
               ▼
 deduplicate   ── garde le premier de chaque groupe de doublons
 Suppressions  ── directives # check-script disable… (comptées dans `suppressed`)
@@ -120,7 +126,9 @@ ScriptReport ──► Baseline.compare (si référence) ──► render(format
 `Finding`:: `tool`, `ruleId`, `category`, `severity`, `line` (0 = fichier),
 `column`, `message`, `snippet`, `equivalents` (codes d'autres outils
 désignant le même défaut), `hint` (conseil), `url` (documentation),
-`fingerprint`, `edits` (correction concrète : `TextEdit` 1-based, fin
+`fingerprint`, `endLine` (fin de l'instruction multi-ligne signalée, pour
+le dédoublonnage : recouvrement de lignes, étendue ≤ `maxDuplicateSpan`),
+`edits` (correction concrète : `TextEdit` 1-based, fin
 exclusive ; issue du `fix` ShellCheck ou de `attachFixes` pour les
 corrections intégrées). `Finding.fromJson` relit `toJson`.
 `fixPreview` en tire les lignes avant / après ; `exampleFor`
@@ -264,7 +272,10 @@ niveau      = A ≥ 9, B ≥ 7,5, C ≥ 6, D ≥ 4, E
 
 Le *corpus* `test/corpus/` réunit des copies figées de scripts de la suite
 AuditTools et des scripts typiques (installeur `curl | bash`, sauvegarde
-cron ancienne, script init POSIX avec bashismes, bibliothèque propre).
+cron ancienne, script init POSIX avec bashismes, bibliothèque propre), et
+12 scripts Python `py_*` écrits pour le calibrage (outil propre, client
+d'API négligent, installeur dangereux, style Python 2, fonctionnalités
+3.10+…). Semgrep est écarté du contrôle des niveaux (règles téléchargées).
 `labels.yaml` donne pour chacun, *établi a priori en lisant le script*, la
 plage de niveaux attendue (avec et sans contexte), les règles obligatoires
 et interdites.
@@ -277,6 +288,15 @@ dart run tool/calibrate.dart --details     # notes réelles vs plages attendues
 Deux ajustements en sont issus : bashismes cassant dash classés High, et
 plafond de la note globale ramené de « pire + 2,5 » à « pire + 1,5 ». Tout
 changement de poids doit laisser le corpus conforme.
+
+Le calibrage Python (0.7.0) a aligné les sévérités sur l'échelle shell sans
+toucher au modèle : secrets en dur Critical si la valeur est réaliste (comme
+SEC002), exécution de code ou de données High (comme SEC003), PYSEC001
+Medium (comme SEC022), shebang `python` High ; il a ajouté PYROB003 (cron
+sans verrou, comme ROB014) et PYROB004 (code de retour de `main()` perdu),
+et compte les docstrings comme de la documentation. Trois plages *a priori*
+jugées trop sévères au regard de l'échelle shell ont été révisées, avec leur
+justification dans `labels.yaml`.
 
 == Correction automatique
 
@@ -320,7 +340,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.6.0",
+  "tool": "check-script", "version": "0.7.0",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -410,6 +430,7 @@ dart analyze --fatal-infos
 |`engine_test.dart`, `scoring_test.dart`, `config_test.dart` |Moteur, notation, configuration
 |`reporters_test.dart`, `cli_test.dart` |Rapports, options et codes de sortie
 |`corpus_test.dart` |Instantanés, règles obligatoires / interdites, plages de niveaux
+|`improvements_test.dart` |Même règle entre outils, exclusions transmises, `--fix` et règles désactivées, doublons multi-lignes, `# noqa` / `# nosec`, analyses parallèles, cache Semgrep, export YAML (aller-retour), rapport HTML de dossier, calibrage Python
 |`python_test.dart` |Parseurs des outils Python (sorties réelles de `fixtures/outputs/python/`, capturées sur `fixtures/bad.py`), dédoublonnage, secrets, règles intégrées Python (lexer et `ast` réel), `--fix`, découverte, `pythonTarget`
 |`fix_suggestions_test.dart` |Corrections par problème, exemples, rapport HTML
 |`integration_test.dart` |Vrais outils (ignorés s'ils sont absents), dont Ruff, Bandit, mypy, Radon, Vermin sur `bad.py` / `good.py`

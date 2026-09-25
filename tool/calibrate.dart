@@ -32,7 +32,8 @@ Future<void> main(List<String> args) async {
       for (final c in (label['contexts'] as YamlList?) ?? const [])
         ExecContext.tryParse('$c')!
     };
-    var config = CheckConfig(contexts: ctx);
+    // Semgrep écarté : ses règles sont téléchargées (résultat non figé).
+    var config = CheckConfig(contexts: ctx).withToolsDisabled(['semgrep']);
     if (builtinOnly) {
       config = config.withToolsDisabled([
         'shellcheck',
@@ -41,7 +42,14 @@ Future<void> main(List<String> args) async {
         'checkbashisms',
         'gitleaks',
         'trufflehog',
-        'syntax'
+        'syntax',
+        'ruff',
+        'bandit',
+        'mypy',
+        'pyright',
+        'pylint',
+        'radon',
+        'vermin',
       ]);
     }
     final r = await Engine(config: config, lang: Lang.fr)
@@ -56,7 +64,9 @@ Future<void> main(List<String> args) async {
     // Plage attendue sans contexte déclaré, si précisée.
     if (label['defaultGrades'] != null) {
       final dr = [for (final g in label['defaultGrades'] as YamlList) '$g'];
-      final r0 = await Engine(config: const CheckConfig(), lang: Lang.fr)
+      final r0 = await Engine(
+              config: const CheckConfig().withToolsDisabled(['semgrep']),
+              lang: Lang.fr)
           .analyzeFile('test/corpus/scripts/$name');
       final ok0 = grades.indexOf(r0.grade) >= grades.indexOf(dr.first) &&
           grades.indexOf(r0.grade) <= grades.indexOf(dr.last);

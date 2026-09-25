@@ -3,7 +3,7 @@
 # Prérequis de build : SDK Dart dans le PATH (aucun paquet « dart » dans les
 # dépôts Fedora/RHEL) et asciidoctor pour la page de manuel. Orchestration :
 # scripts/build-rpm.sh.
-%{!?version: %global version 0.6.0}
+%{!?version: %global version 0.7.0}
 
 # Binaire AOT de `dart compile exe` : pas d'information DWARF exploitable
 # (sous-paquet debuginfo vide) et le strip automatique le corrompt (il ne
@@ -29,9 +29,14 @@ Recommends:     ShellCheck
 Recommends:     shfmt
 Recommends:     devscripts-checkbashisms
 Suggests:       python3-bashate
+# Scripts Python : paquets Fedora ; bandit, semgrep, radon, vermin et pyright
+# s'installent par pipx (voir la documentation).
+Recommends:     ruff
+Recommends:     python3-mypy
+Suggests:       pylint
 
 %description
-check-script note des scripts shell sur cinq categories (Securite,
+check-script note des scripts shell ou Python sur cinq categories (Securite,
 Robustesse, Maintenabilite, Portabilite, Performance) avec le nombre de
 problemes par severite, une note globale et un niveau A-E. Il exploite
 ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog et bash -n,

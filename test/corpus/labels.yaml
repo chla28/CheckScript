@@ -42,3 +42,65 @@ checkplatform_weekly-report.sh:
   grades: [A, C]
 cyberaudit_master_audit.sh:
   grades: [A, C]
+
+# ── Python ──────────────────────────────────────────────────────────────────
+# Scripts py_* : écrits pour le calibrage (typiques de l'outillage
+# d'exploitation) ; niveaux fixés à la lecture, avant tout calcul de note.
+# Semgrep est écarté du contrôle des niveaux (règles téléchargées : résultat
+# non figé).
+py_clean_cli.py:
+  grades: [A, A]
+  mustNot: [PYMNT001, PYMNT002, PYROB001, PYSEC001, PYPOR001]
+py_monitoring.py:
+  grades: [A, A]
+  mustNot: [PYROB001, PYMNT002, PYMNT001]
+py_log_parser.py:
+  grades: [A, B]
+  mustNot: [PYMNT001, PYMNT002]
+py_sysadmin_utils.py:
+  grades: [A, B]
+  must: [PYROB001]
+  mustNot: [PYMNT001, PYMNT002]
+py_modern_310.py:
+  # Code propre, mais match (3.10), tomllib (3.11) et unions X | Y
+  # évaluées à l'exécution : ne tourne pas sous Python 3.9.
+  grades: [B, C]
+  mustNot: [PYMNT001, PYMNT002]
+py_backup_cron.py:
+  # Révisé après le premier calibrage (C–D / B–C à l'origine) : le code de
+  # retour de rsync est contrôlé et journalisé ; restent l'absence de verrou
+  # et de délai (Medium en cron). À l'échelle du corpus shell (un défaut
+  # notable, le reste correct → A–B), C–D était trop sévère.
+  grades: [A, B]
+  contexts: [cron]
+  defaultGrades: [A, B]
+  must: [PYROB001]
+  mustNot: [PYMNT001]
+py_config_loader.py:
+  grades: [C, D]
+  mustNot: [PYMNT001, PYMNT002]
+py_legacy_style.py:
+  # Révisé (C–D à l'origine) : shebang python (High : absent de RHEL 8+ et
+  # Debian 11+), code de retour perdu, except nu, argument mutable ; le
+  # traitement reste simple et borné : « acceptable avec défauts », B–C.
+  grades: [B, C]
+  must: [PYPOR001, PYMNT002]
+  mustNot: [PYMNT001]
+py_quick_hack.py:
+  # Révisé (C–D à l'origine) : une seule injection de commande possible
+  # (os.system + concaténation, identifiants issus de docker), script court
+  # et lisible ; comme checkplatform_weekly-report.sh (un High de sécurité,
+  # B), l'échelle donne A–B.
+  grades: [A, B]
+  must: [PYMNT001, PYROB001]
+  mustNot: [PYMNT002]
+py_db_report.py:
+  grades: [D, E]
+  mustNot: [PYMNT002]
+py_api_client.py:
+  grades: [D, E]
+  must: [PYSEC001, PYMNT001, PYMNT002]
+py_installer.py:
+  grades: [E, E]
+  must: [PYMNT002]
+  mustNot: [PYMNT001]

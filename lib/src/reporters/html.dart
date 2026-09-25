@@ -25,7 +25,10 @@ const _css = r'''
 main{max-width:1100px;margin:0 auto;padding:24px 16px}h1{font-size:1.5rem;margin:.2em 0}
 h2{font-size:1.2rem;margin:1.6em 0 .6em}.muted{color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
-table{border-collapse:collapse;width:100%}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table{border-collapse:collapse;width:100%}table.sortable th{cursor:pointer;user-select:none}
+td pre.snip,td pre.diff{max-width:min(640px,55vw)}
+.wide{overflow-x:auto}.wide table{font-size:.9em}.wide td,.wide th{white-space:nowrap}
+.kpi{display:flex;flex-wrap:wrap;gap:24px}.kpi div{min-width:120px}.kpi strong{display:block;font-size:1.4rem}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .bar{display:inline-block;height:8px;border-radius:4px;background:var(--line);width:120px;vertical-align:middle;margin-left:8px}
 .bar>i{display:block;height:100%;border-radius:4px}
@@ -54,6 +57,13 @@ function applyFilters(){
   });
 }
 document.querySelectorAll('.filters input').forEach(i=>i.addEventListener('change',applyFilters));
+document.querySelectorAll('table.sortable th').forEach((th,col)=>th.addEventListener('click',()=>{
+  const tb=th.closest('table').tBodies[0];
+  const asc=th.dataset.dir!=='asc'; th.dataset.dir=asc?'asc':'desc';
+  const v=tr=>{const c=tr.cells[col];return c.dataset.v!==undefined?parseFloat(c.dataset.v):c.textContent.trim();};
+  [...tb.rows].sort((a,b)=>{const x=v(a),y=v(b);const r=typeof x==='number'?x-y:String(x).localeCompare(y);return asc?r:-r;})
+    .forEach(r=>tb.appendChild(r));
+}));
 ''';
 
 String _color(double v) =>
@@ -84,32 +94,16 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
   }
   b.writeln('</div>');
 
-  if (reports.length > 1) {
-    b.writeln('<div class="card"><table><tr><th>${t.script}</th>');
-    for (final c in Category.values) {
-      b.writeln('<th class="n">${_e(t.category(c))}</th>');
-    }
-    b.writeln('<th class="n">${t.globalScore}</th></tr>');
-    for (var i = 0; i < reports.length; i++) {
-      final r = reports[i];
-      b.writeln(
-          '<tr><td><a href="#s$i"><code>${_e(r.script.path)}</code></a></td>');
-      for (final s in r.scores) {
-        b.writeln(
-            '<td class="n" style="color:${_color(s.score)}">${fmtScore(s.score, o.lang)}</td>');
-      }
-      b.writeln('<td class="n"><strong style="color:${_color(r.global)}">'
-          '${fmtScore(r.global, o.lang)}</strong> (${r.grade})</td></tr>');
-    }
-    b.writeln('</table></div>');
-  }
+  if (reports.length > 1) _folderSummary(b, reports, t, o.lang);
 
   for (var i = 0; i < reports.length; i++) {
     final r = reports[i];
     final sid = 's$i';
     b.writeln('<section id="$sid">');
     if (reports.length > 1) {
-      b.writeln('<h2><code>${_e(r.script.path)}</code></h2>');
+      b.writeln('<h2><code>${_e(r.script.path)}</code> '
+          '<a class="muted" style="font-size:.7em" href="#summary">'
+          '${_e(t.backToSummary)}</a></h2>');
     }
     b.writeln(
         '<div class="card"><div class="global" style="color:${_color(r.global)}">'
@@ -232,4 +226,107 @@ String _fixHtml(Finding f, List<String> lines, Messages t, Lang lang) {
   return '<details class="ex"><summary>${_e(t.fixExample)}</summary>'
       '<div class="lbl">${_e(t.avoid)}</div><pre class="snip bad">${_e(ex.badOf(lang))}</pre>'
       '<div class="lbl">${_e(t.writeInstead)}</div><pre class="snip good">${_e(ex.goodOf(lang))}</pre></details>';
+}
+
+/// Synthèse d'un dossier : indicateurs, tableau triable des scripts, règles
+/// les plus fréquentes.
+void _folderSummary(
+    StringBuffer b, List<ScriptReport> reports, Messages t, Lang lang) {
+  final python = reports.where((r) => r.script.dialect.isPython).length;
+  final avg =
+      reports.map((r) => r.global).reduce((a, x) => a + x) / reports.length;
+  final grades = <String, int>{};
+  for (final r in reports) {
+    grades[r.grade] = (grades[r.grade] ?? 0) + 1;
+  }
+  final bySev = {for (final s in Severity.values) s: 0};
+  for (final r in reports) {
+    for (final f in r.findings) {
+      bySev[f.severity] = bySev[f.severity]! + 1;
+    }
+  }
+
+  b.writeln('<div class="card kpi" id="summary">'
+      '<div><span class="muted">${_e(t.scriptsAffected)}</span><strong>${reports.length}</strong>'
+      '<span class="muted">${_e(t.scriptsOverview(reports.length, reports.length - python, python))}</span></div>'
+      '<div><span class="muted">${_e(t.averageScore)}</span>'
+      '<strong style="color:${_color(avg)}">${fmtScore(avg, lang)}/10</strong></div>'
+      '<div><span class="muted">${_e(t.gradeDistribution)}</span><strong>'
+      '${[
+    for (final g in ['A', 'B', 'C', 'D', 'E'])
+      if (grades[g] != null) '$g ${grades[g]}'
+  ].join(' · ')}'
+      '</strong></div>'
+      '<div><span class="muted">${_e(t.issuesBySeverity)}</span><strong>'
+      '${[
+    for (final s in Severity.values)
+      '<span class="sev ${s.name}">${s.label} ${bySev[s]}</span>'
+  ].join(' · ')}'
+      '</strong></div></div>');
+
+  // Tableau des scripts (triable) : note, niveau et problèmes graves
+  // d'abord, notes par catégorie ensuite.
+  b.writeln('<div class="card"><p class="muted">${_e(t.sortHint)}</p>'
+      '<div class="wide"><table class="sortable"><thead><tr><th>${t.script}</th>'
+      '<th class="n">${t.globalScore}</th><th class="n">${t.grade}</th>'
+      '<th class="n">Critical</th><th class="n">High</th><th>${t.dialect}</th>');
+  for (final c in Category.values) {
+    b.writeln('<th class="n">${_e(t.category(c))}</th>');
+  }
+  b.writeln('</tr></thead><tbody>');
+  for (var i = 0; i < reports.length; i++) {
+    final r = reports[i];
+    int count(Severity s) => r.findings.where((f) => f.severity == s).length;
+    b.writeln(
+        '<tr><td><a href="#s$i"><code>${_e(r.script.path)}</code></a></td>'
+        '<td class="n" data-v="${r.global}"><strong style="color:${_color(r.global)}">'
+        '${fmtScore(r.global, lang)}</strong></td><td class="n">${r.grade}</td>'
+        '<td class="n" data-v="${count(Severity.critical)}">${count(Severity.critical)}</td>'
+        '<td class="n" data-v="${count(Severity.high)}">${count(Severity.high)}</td>'
+        '<td>${r.script.dialect.name}</td>');
+    for (final s in r.scores) {
+      b.writeln(
+          '<td class="n" data-v="${s.score}" style="color:${_color(s.score)}">'
+          '${fmtScore(s.score, lang)}</td>');
+    }
+    b.writeln('</tr>');
+  }
+  b.writeln('</tbody></table></div></div>');
+
+  // Règles les plus fréquentes.
+  final occ = <String, List<Finding>>{};
+  final scripts = <String, Set<int>>{};
+  for (var i = 0; i < reports.length; i++) {
+    for (final f in reports[i].findings) {
+      final k = '${f.tool}\u0000${f.ruleId}';
+      (occ[k] ??= []).add(f);
+      (scripts[k] ??= {}).add(i);
+    }
+  }
+  final top = occ.entries.toList()
+    ..sort((a, x) {
+      final c = x.value.length.compareTo(a.value.length);
+      return c != 0 ? c : a.key.compareTo(x.key);
+    });
+  if (top.isEmpty) return;
+  b.writeln('<h2>${_e(t.topRules)}</h2><div class="card">'
+      '<table class="sortable"><thead><tr><th>${t.rule}</th><th>${t.category_}</th>'
+      '<th>${t.severity}</th><th class="n">${t.occurrences}</th>'
+      '<th class="n">${t.scriptsAffected}</th><th>${t.message}</th></tr></thead><tbody>');
+  for (final e in top.take(20)) {
+    final fs = e.value;
+    final f = fs.first;
+    final worst =
+        fs.map((x) => x.severity).reduce((a, x) => x.index < a.index ? x : a);
+    final rule = f.url == null
+        ? '<code>${_e(f.ruleId)}</code>'
+        : '<a href="${_e(f.url!)}"><code>${_e(f.ruleId)}</code></a>';
+    b.writeln('<tr><td>$rule<br><span class="muted">${_e(f.tool)}</span></td>'
+        '<td>${_e(t.category(f.category))}</td>'
+        '<td class="sev ${worst.name}" data-v="${3 - worst.index}">${worst.label}</td>'
+        '<td class="n" data-v="${fs.length}">${fs.length}</td>'
+        '<td class="n" data-v="${scripts[e.key]!.length}">${scripts[e.key]!.length}</td>'
+        '<td>${_e(f.message)}</td></tr>');
+  }
+  b.writeln('</tbody></table></div>');
 }

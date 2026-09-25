@@ -380,6 +380,29 @@ fi'''),
 parser.add_argument("--force", action="store_true")
 args = parser.parse_args()''',
       badEn: r'''answer = input("Continue? ")'''),
+  'PYROB003': CodeExample(r'''def main():
+    sync()''', r'''import fcntl
+
+
+def main():
+    with open("/run/lock/sync.lock", "w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return 0  # exécution précédente encore en cours
+        sync()''', goodEn: r'''import fcntl
+
+
+def main():
+    with open("/run/lock/sync.lock", "w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return 0  # previous run still in progress
+        sync()'''),
+  'PYROB004': CodeExample(r'''if __name__ == "__main__":
+    main()''', r'''if __name__ == "__main__":
+    sys.exit(main())'''),
   'PYMNT001': CodeExample(
       r'''import sys''', r'''"""Sauvegarde quotidienne de /srv vers le NAS.
 

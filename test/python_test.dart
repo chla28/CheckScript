@@ -76,7 +76,8 @@ void main() {
       final fs = parseBandit(py('bandit_bad.json'));
       final secret = fs.firstWhere((f) => f.ruleId == 'B105');
       expect(secret.message, isNot(contains('S3cr3t')));
-      expect(secret.severity, Severity.high);
+      // Valeur réaliste : Critical, comme SEC002 en shell.
+      expect(secret.severity, Severity.critical);
       expect(fs.firstWhere((f) => f.ruleId == 'B602').equivalents,
           contains('S602'));
       expect(fs.firstWhere((f) => f.ruleId == 'B110').category,

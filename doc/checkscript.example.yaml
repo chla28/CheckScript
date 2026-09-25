@@ -31,7 +31,11 @@ tools:
     exclude: [PLR2004, S603]    # transmis à ruff --ignore
   bandit:
     exclude: [B404, B603]       # transmis à bandit -s
-  semgrep: true                 # règles p/python du registre (accès réseau)
+  semgrep:
+    enabled: true
+    # Règles : p/python par défaut (téléchargées, gardées en cache une
+    # semaine) ; sur un poste isolé, un fichier ou un dossier local.
+    # config: /opt/regles/python.yml
   mypy: true
   radon: true                   # complexité, indice de maintenabilité
   vermin: true                  # version minimale de Python requise

@@ -1,6 +1,8 @@
 /// Réglages : langue, thème, profil, contextes, outils, configuration YAML.
 library;
 
+import 'dart:io';
+
 import 'package:check_script/check_script.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -149,16 +151,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       section(s.configFile),
       Row(children: [
         Expanded(child: Text(g.configPath ?? s.none)),
-        TextButton(
-          onPressed: () async {
-            final r = await FilePicker.pickFiles(
-                type: FileType.custom, allowedExtensions: ['yaml', 'yml']);
-            final path = r?.files.single.path;
-            if (path != null) {
-              await state.updateSettings(g.copyWith(configPath: () => path));
-            }
-          },
-          child: Text(s.choose),
+        Tooltip(
+          message: s.importHint,
+          child: TextButton(
+            onPressed: () => _import(context),
+            child: Text(s.importConfig),
+          ),
+        ),
+        Tooltip(
+          message: s.exportHint,
+          child: TextButton(
+            onPressed: () => _export(context),
+            child: Text(s.exportConfig),
+          ),
         ),
         if (g.configPath != null)
           TextButton(
@@ -170,6 +175,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
       const SizedBox(height: 24),
       Text('check-script $appVersion', style: theme.textTheme.bodySmall),
     ]);
+  }
+
+  Future<void> _import(BuildContext context) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    final r = await FilePicker.pickFiles(
+        type: FileType.custom, allowedExtensions: ['yaml', 'yml']);
+    final path = r?.files.single.path;
+    if (path == null) return;
+    try {
+      await state.importConfig(path);
+      messenger.showSnackBar(SnackBar(content: Text(s.configImported(path))));
+    } on FormatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(s.error(e.message))));
+    } on FileSystemException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(s.error(e.message))));
+    }
+  }
+
+  Future<void> _export(BuildContext context) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    final path = await FilePicker.saveFile(
+      dialogTitle: s.exportConfig,
+      fileName: '.checkscript.yaml',
+      type: FileType.custom,
+      allowedExtensions: ['yaml', 'yml'],
+    );
+    if (path == null) return;
+    try {
+      await state.exportConfig(path);
+      messenger.showSnackBar(SnackBar(content: Text(s.configExported(path))));
+    } on FileSystemException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(s.error(e.message))));
+    }
   }
 
   String _version(S s, String tool) => state.toolVersions.containsKey(tool)

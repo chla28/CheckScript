@@ -82,6 +82,10 @@ class Finding {
 
   /// Ligne (1-based) ; 0 si le problème concerne le fichier entier.
   final int line;
+
+  /// Dernière ligne de l'instruction signalée, quand l'outil la donne
+  /// (appel réparti sur plusieurs lignes) : sert au dédoublonnage.
+  final int? endLine;
   final int column;
   final String message;
 
@@ -111,6 +115,7 @@ class Finding {
     required this.category,
     required this.severity,
     required this.line,
+    this.endLine,
     this.column = 0,
     required this.message,
     this.snippet,
@@ -135,6 +140,7 @@ class Finding {
         category: category ?? this.category,
         severity: severity ?? this.severity,
         line: line,
+        endLine: endLine,
         column: column,
         message: message,
         snippet: snippet == null ? this.snippet : snippet(),

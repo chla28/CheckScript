@@ -23,16 +23,30 @@ const _external = [
   'checkbashisms',
   'gitleaks',
   'trufflehog',
-  'syntax'
+  'syntax',
+  'ruff',
+  'bandit',
+  'semgrep',
+  'mypy',
+  'pyright',
+  'pylint',
+  'radon',
+  'vermin',
 ];
+
+/// Contrôle des niveaux : Semgrep écarté (règles téléchargées, non figées).
+CheckConfig _gradeConfig(Set<ExecContext> ctx) =>
+    CheckConfig(contexts: ctx).withToolsDisabled(['semgrep']);
 const _grades = ['A', 'B', 'C', 'D', 'E'];
 
 void main() {
   final labels =
       loadYaml(File('test/corpus/labels.yaml').readAsStringSync()) as YamlMap;
   final update = Platform.environment['UPDATE_GOLDEN'] != null;
-  final hasShellcheck =
-      Process.runSync('sh', ['-c', 'command -v shellcheck']).exitCode == 0;
+  bool has(String tool) =>
+      Process.runSync('sh', ['-c', 'command -v $tool']).exitCode == 0;
+  final hasShellcheck = has('shellcheck');
+  final hasPythonTools = has('ruff') && has('bandit');
 
   for (final e in labels.entries) {
     final name = '${e.key}';
@@ -42,6 +56,7 @@ void main() {
         ExecContext.tryParse('$c')!
     };
     final path = 'test/corpus/scripts/$name';
+    final python = name.endsWith('.py');
 
     group(name, () {
       late ScriptReport builtinOnly;
@@ -82,8 +97,7 @@ void main() {
       });
 
       test('niveau dans la plage attendue (outils installés)', () async {
-        final r =
-            await Engine(config: CheckConfig(contexts: ctx)).analyzeFile(path);
+        final r = await Engine(config: _gradeConfig(ctx)).analyzeFile(path);
         final range = [for (final g in label['grades'] as YamlList) '$g'];
         final i = _grades.indexOf(r.grade);
         expect(
@@ -92,11 +106,15 @@ void main() {
             isTrue,
             reason:
                 '$name : ${r.global} (${r.grade}), attendu ${range.join('–')}');
-      }, skip: hasShellcheck ? null : 'ShellCheck non installé');
+      },
+          skip: python
+              ? (hasPythonTools ? null : 'Ruff / Bandit non installés')
+              : (hasShellcheck ? null : 'ShellCheck non installé'));
 
       if (label['defaultGrades'] != null) {
         test('niveau sans contexte déclaré (outils installés)', () async {
-          final r = await Engine().analyzeFile(path);
+          final r =
+              await Engine(config: _gradeConfig(const {})).analyzeFile(path);
           final range = [
             for (final g in label['defaultGrades'] as YamlList) '$g'
           ];
@@ -107,7 +125,10 @@ void main() {
               isTrue,
               reason:
                   '$name : ${r.global} (${r.grade}), attendu ${range.join('–')}');
-        }, skip: hasShellcheck ? null : 'ShellCheck non installé');
+        },
+            skip: python
+                ? (hasPythonTools ? null : 'Ruff / Bandit non installés')
+                : (hasShellcheck ? null : 'ShellCheck non installé'));
       }
     });
   }

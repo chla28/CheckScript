@@ -92,6 +92,18 @@ class S {
       _t('Fichier de configuration YAML', 'YAML configuration file');
   String get none => _t('aucun', 'none');
   String get choose => _t('Choisir…', 'Choose…');
+  String get importConfig => _t('Importer…', 'Import…');
+  String get exportConfig => _t('Exporter…', 'Export…');
+  String get importHint => _t(
+      'Le fichier devient la configuration de référence ; les choix faits dans l\'interface (règles, outils) sont remis à zéro.',
+      'The file becomes the reference configuration; choices made in the interface (rules, tools) are reset.');
+  String get exportHint => _t(
+      'Enregistre la configuration effective (fichier et choix de l\'interface), utilisable par la CLI et la CI.',
+      'Saves the effective configuration (file and interface choices), usable by the CLI and CI.');
+  String configImported(String path) =>
+      _t('Configuration importée : $path', 'Configuration imported: $path');
+  String configExported(String path) =>
+      _t('Configuration exportée : $path', 'Configuration exported: $path');
   String get remove => _t('Retirer', 'Remove');
   String get detect => _t('Détecter', 'Detect');
   String get available => _t('disponible', 'available');
@@ -122,6 +134,11 @@ class S {
   String get hideResults => _t('Masquer les résultats', 'Hide the results');
   String get showBoth => _t('Réafficher les deux panneaux', 'Show both panels');
   String get copied => _t('Code copié.', 'Code copied.');
+  String applyRuleFixes(int n, String rule) => _t(
+      'Corriger les $n occurrences ($rule)', 'Fix all $n occurrences ($rule)');
+  String rulesFixed(int n, String rule) => _t(
+      '$n occurrences de $rule corrigées (original conservé en .orig).',
+      '$n occurrences of $rule fixed (original kept as .orig).');
   String get applyThisFix => _t('Appliquer cette correction', 'Apply this fix');
   String before(int line) => _t('Avant (ligne $line)', 'Before (line $line)');
   String get after => _t('Après', 'After');

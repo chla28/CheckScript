@@ -377,6 +377,98 @@ void main() {
     });
   });
 
+  group('corriger toutes les occurrences d\'une règle', () {
+    const src = '#!/bin/bash\nset -euo pipefail\n# en-tête\n'
+        'egrep a f\nwhich ls\negrep b g\negrep c h\n';
+
+    test('AppState : toutes les occurrences en une fois', () async {
+      final f = File('${tmp.path}/multi.sh')..writeAsStringSync(src);
+      final state = AppState(runner: NoTools());
+      await state.analyzeFile(f.path);
+      final first =
+          state.current!.findings.firstWhere((x) => x.ruleId == 'POR005');
+      expect(state.fixableOfRule(first), hasLength(3));
+      expect(await state.applyRuleFixes(first), isNull);
+      final text = f.readAsStringSync();
+      expect(text, isNot(contains('egrep')));
+      expect(text, contains('which ls')); // autre règle : inchangée
+      expect(File('${f.path}.orig').readAsStringSync(), src);
+      expect(state.current!.findings.map((x) => x.ruleId),
+          isNot(contains('POR005')));
+    });
+
+    testWidgets('bouton affiché seulement s\'il y a plusieurs occurrences',
+        (tester) async {
+      final report = await tester.runAsync(() => analyze(src));
+      final fixed = <String>[];
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: FindingsList(
+            findings: report!.findings,
+            lang: Lang.fr,
+            lines: report.script.lines,
+            onApplyFix: (_) {},
+            onApplyRule: (f) => fixed.add(f.ruleId),
+          ),
+        ),
+      ));
+      await tester.tap(find.textContaining('POR005').first);
+      await tester.pumpAndSettle();
+      final button = find.text('Corriger les 3 occurrences (POR005)');
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
+      expect(fixed, ['POR005']);
+      // Une seule occurrence (which) : pas de bouton groupé.
+      await tester.ensureVisible(find.textContaining('POR004').first);
+      await tester.tap(find.textContaining('POR004').first);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('occurrences (POR004)'), findsNothing);
+    });
+  });
+
+  group('export / import de la configuration', () {
+    test('export puis import : même configuration, choix remis à zéro',
+        () async {
+      final state = AppState(
+          runner: NoTools(),
+          settings: const GuiSettings(
+              profile: Profile.strict,
+              contexts: {ExecContext.cron},
+              enabledTools: {'pylint'},
+              disabledTools: {'bashate'},
+              pythonTarget: '3.11',
+              disabledRules: {'SEC001', 'B602'}));
+      final path = '${tmp.path}/.checkscript.yaml';
+      await state.exportConfig(path);
+      final text = File(path).readAsStringSync();
+      expect(text, contains('pythonTarget: "3.11"'));
+      expect(text, contains('check-script --config'));
+
+      final other = AppState(runner: NoTools());
+      await other.importConfig(path);
+      final a = await state.buildConfig(), b = await other.buildConfig();
+      expect(b.profile, Profile.strict);
+      expect(b.contexts, {ExecContext.cron});
+      expect(b.pythonTarget, '3.11');
+      expect(b.tool('pylint').enabled, isTrue);
+      expect(b.tool('bashate').enabled, isFalse);
+      expect(b.disabledRules, a.disabledRules);
+      // Le fichier fait foi : pas de choix propres à l'interface.
+      expect(other.settings.disabledRules, isEmpty);
+      expect(other.settings.enabledTools, isEmpty);
+      expect(other.settings.configPath, path);
+    });
+
+    test('fichier invalide : refusé, réglages inchangés', () async {
+      final path = '${tmp.path}/bad.yaml';
+      File(path).writeAsStringSync('profile: inconnu\n');
+      final state = AppState(runner: NoTools());
+      await expectLater(state.importConfig(path), throwsFormatException);
+      expect(state.settings.configPath, isNull);
+    });
+  });
+
   group('règles de détection', () {
     test('désactivation effective à l\'analyse suivante, mémorisation',
         () async {

@@ -37,6 +37,7 @@ export 'src/reporters/sarif.dart';
 export 'src/rules/catalog.dart';
 export 'src/rules/examples.dart';
 export 'src/rules/registry.dart';
+export 'src/rules/same_rules.dart';
 export 'src/scoring.dart';
 export 'src/script_info.dart';
 export 'src/suppressions.dart';

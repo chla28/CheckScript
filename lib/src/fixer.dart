@@ -159,8 +159,9 @@ const Map<String, String> _builtinFixAliases = {
 /// Applique à une ligne les corrections intégrées retenues par [only]
 /// (toutes si null) ; les occurrences sont comptées dans [count].
 String _fixLine(CodeLine l, String line, void Function(String, int) count,
-    {String? only}) {
-  bool wanted(String id) => only == null || only == id;
+    {String? only, bool Function(String id)? skip}) {
+  bool wanted(String id) =>
+      (only == null || only == id) && !(skip?.call(id) ?? false);
   if (wanted('MNT010')) {
     final trimmed = line.replaceFirst(RegExp(r'[ \t]+$'), '');
     if (trimmed != line) {
@@ -184,7 +185,9 @@ String _fixLine(CodeLine l, String line, void Function(String, int) count,
 
 /// Corrections intégrées, ligne par ligne, hors corps de heredoc et hors
 /// chaînes multi-lignes.
-(String, Map<String, int>) applyBuiltinFixes(String text) {
+/// Les règles pour lesquelles [skip] est vrai (désactivées) sont ignorées.
+(String, Map<String, int>) applyBuiltinFixes(String text,
+    {bool Function(String id)? skip}) {
   final counts = <String, int>{};
   void count(String id, int n) {
     if (n > 0) counts[id] = (counts[id] ?? 0) + n;
@@ -195,7 +198,7 @@ String _fixLine(CodeLine l, String line, void Function(String, int) count,
   for (var i = 0; i < lines.length && i < lexed.length; i++) {
     final l = lexed[i];
     if (l.inHeredoc || l.continuesString) continue;
-    lines[i] = _fixLine(l, lines[i], count);
+    lines[i] = _fixLine(l, lines[i], count, skip: skip);
   }
   return (lines.join('\n'), counts);
 }
@@ -327,7 +330,8 @@ Future<FixResult> fixScript(ScriptInfo script,
       final r = await runner.run(sc.executable, [
         '--format=json1',
         '--enable=${ShellcheckAnalyzer.optionalChecks.join(',')}',
-        if (sc.exclude.isNotEmpty) '--exclude=${sc.exclude.join(',')}',
+        if (config.excludedFor('shellcheck') case final ex when ex.isNotEmpty)
+          '--exclude=${ex.join(',')}',
         if (script.dialect.shellcheckName != null)
           '--shell=${script.dialect.shellcheckName}',
         f.path,
@@ -345,13 +349,15 @@ Future<FixResult> fixScript(ScriptInfo script,
   }
 
   // 2. Corrections intégrées.
-  final (t2, c2) = applyBuiltinFixes(text);
+  final (t2, c2) = applyBuiltinFixes(text, skip: config.isRuleDisabled);
   text = t2;
   merge(c2);
 
   // 3. Formatage shfmt.
   final sf = config.tool('shfmt');
-  if (sf.enabled && script.dialect != Dialect.zsh) {
+  if (sf.enabled &&
+      !config.isRuleDisabled('FORMAT') &&
+      script.dialect != Dialect.zsh) {
     final ln = script.dialect.shfmtName ?? 'auto';
     final r = await runner.run(
         sf.executable, ['-ln=$ln', '-i=${indentUnit(text.split('\n'))}'],
@@ -394,7 +400,7 @@ Future<FixResult> _fixPython(ScriptInfo script,
   if (listed != null && listed.exitCode <= 1) {
     try {
       for (final f in parseRuff(listed.stdout)) {
-        if (f.edits.isNotEmpty) {
+        if (f.edits.isNotEmpty && !config.isRuleDisabled(f.ruleId)) {
           applied[f.ruleId] = (applied[f.ruleId] ?? 0) + 1;
         }
       }
@@ -403,7 +409,16 @@ Future<FixResult> _fixPython(ScriptInfo script,
     }
     if (applied.isNotEmpty) {
       final r = await runner.run(
-          ruff.executable, [...check, '--fix', stdinName, '-'],
+          ruff.executable,
+          // Codes relevés par Ruff lui-même (donc valides), hors règles
+          // désactivées.
+          [
+            ...check,
+            '--fix',
+            '--fixable=${applied.keys.join(',')}',
+            stdinName,
+            '-'
+          ],
           stdin: text);
       if (r != null && r.exitCode <= 1 && r.stdout.isNotEmpty) {
         text = r.stdout;
@@ -413,9 +428,11 @@ Future<FixResult> _fixPython(ScriptInfo script,
     }
   }
 
-  final fmt = await runner.run(ruff.executable,
-      ['format', ...RuffAnalyzer.commonArgs(config), stdinName, '-'],
-      stdin: text);
+  final fmt = config.isRuleDisabled('FORMAT')
+      ? null
+      : await runner.run(ruff.executable,
+          ['format', ...RuffAnalyzer.commonArgs(config), stdinName, '-'],
+          stdin: text);
   if (fmt != null &&
       fmt.exitCode == 0 &&
       fmt.stdout.isNotEmpty &&

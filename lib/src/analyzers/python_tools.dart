@@ -7,12 +7,15 @@
 /// garde qu'un problème par ligne.
 library;
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import '../config.dart';
 import '../json_num.dart';
 import '../model/finding.dart';
 import 'analyzer.dart';
+import '../rules/same_rules.dart' show ruffToPylint;
 import 'external_tools.dart' show parseShfmtDiff, pythonSyntaxEquivalents;
 
 const _sec = Category.security;
@@ -116,7 +119,8 @@ const Map<String, (Category, Severity)> ruffMap = {
   'S110': (_rob, _l), // try/except/pass
   'S112': (_rob, _l), // try/except/continue
   'S113': (_rob, _m), // requête HTTP sans timeout
-  'S301': (_sec, _m), // pickle
+  'S102': (_sec, _h), // exec
+  'S301': (_sec, _h), // pickle
   'S307': (_sec, _h), // eval
   'S311': (_sec, _l), // random pour de la cryptographie
   'S324': (_sec, _m), // hachage faible
@@ -171,24 +175,6 @@ const List<(String, Category, Severity)> _ruffFamilies = [
   return (_mnt, _l);
 }
 
-/// Codes Ruff ↔ Pylint désignant le même défaut (hors famille PL, dont les
-/// numéros sont ceux de Pylint).
-const Map<String, String> _ruffToPylint = {
-  'E722': 'W0702',
-  'B006': 'W0102',
-  'F401': 'W0611',
-  'F841': 'W0612',
-  'E401': 'C0410',
-  'F821': 'E0602',
-  'F811': 'E0102',
-  'SIM115': 'R1732',
-  'S307': 'W0123',
-  'B904': 'W0707',
-  'E501': 'C0301',
-  'W291': 'C0303',
-  'C901': 'R1260',
-};
-
 /// Équivalents d'un code Ruff : Bandit (même numéro que `S`), Pylint,
 /// Radon, secrets, syntaxe.
 List<String> ruffEquivalents(String code) {
@@ -197,7 +183,7 @@ List<String> ruffEquivalents(String code) {
   if (s != null) out.add('B${s[1]}');
   final pl = RegExp(r'^PL([CERW]\d{4})$').firstMatch(code);
   if (pl != null) out.add(pl[1]!);
-  final p = _ruffToPylint[code];
+  final p = ruffToPylint[code];
   if (p != null) out.add(p);
   if (code == 'C901' || code == 'PLR0912') out.add('CC');
   if (const {'S105', 'S106', 'S107'}.contains(code)) {
@@ -286,6 +272,7 @@ List<Finding> parseRuff(String json) {
           category: cat,
           severity: sev,
           line: jsonInt(loc['row']) ?? 0,
+          endLine: jsonInt((d['end_location'] as Map?)?['row']),
           column: jsonInt(loc['column']) ?? 0,
           message: '${d['message']}',
           url: d['url'] as String?,
@@ -324,7 +311,10 @@ class BanditAnalyzer extends PythonAnalyzer {
       '-f',
       'json',
       '-q',
-      if (tc.exclude.isNotEmpty) ...['-s', tc.exclude.join(',')],
+      if (ctx.config.excludedFor(name) case final ex when ex.isNotEmpty) ...[
+        '-s',
+        ex.join(',')
+      ],
       ctx.filePath,
     ]);
     if (r == null) return missing();
@@ -336,12 +326,20 @@ class BanditAnalyzer extends PythonAnalyzer {
   }
 }
 
-/// Reclassements Bandit : secrets en dur relevés (Bandit les classe Low),
+/// Reclassements Bandit, alignés sur Ruff et sur les règles shell : secrets
+/// en dur relevés (Bandit les classe Low ; Critical si la valeur ressemble à
+/// un vrai secret, voir [parseBandit]), exécution de code ou de données
+/// (eval, exec, pickle, yaml.load, SQL concaténé) High comme SEC003,
 /// problèmes de robustesse sortis de la catégorie Sécurité.
 const Map<String, (Category, Severity)> banditMap = {
   'B105': (_sec, _h),
   'B106': (_sec, _h),
   'B107': (_sec, _h),
+  'B102': (_sec, _h), // exec
+  'B301': (_sec, _h), // pickle
+  'B307': (_sec, _h), // eval
+  'B506': (_sec, _h), // yaml.load non sûr
+  'B608': (_sec, _h), // SQL construit par concaténation
   'B101': (_rob, _l), // assert
   'B110': (_rob, _l), // try/except/pass
   'B112': (_rob, _l), // try/except/continue
@@ -372,12 +370,18 @@ List<Finding> parseBandit(String json) {
         final num = id.substring(1);
         final secret = const {'B105', 'B106', 'B107'}.contains(id);
         final text = '${r['issue_text']}';
+        // Valeur ressemblant à un vrai secret : Critical, comme SEC002.
+        if (secret && looksLikeRealSecret(_quoted(text))) sev = _c;
         return Finding(
           tool: 'bandit',
           ruleId: id,
           category: fixed?.$1 ?? _sec,
-          severity: fixed?.$2 ?? sev,
+          severity: secret ? (sev == _c ? _c : fixed!.$2) : (fixed?.$2 ?? sev),
           line: jsonInt(r['line_number']) ?? 0,
+          endLine: [
+            for (final l in (r['line_range'] as List? ?? const []))
+              if (jsonInt(l) case final n?) n
+          ].fold<int?>(null, (a, b) => a == null || b > a ? b : a),
           column: (jsonInt(r['col_offset']) ?? -1) + 1,
           // Bandit recopie la valeur du secret après « : » : jamais reproduite.
           message: secret ? text.split(':').first : text,
@@ -392,6 +396,24 @@ List<Finding> parseBandit(String json) {
   ];
 }
 
+/// Valeur entre apostrophes dans un message Bandit (`…: 'valeur'`).
+String _quoted(String text) =>
+    RegExp(r"'(.*)'\s*$").firstMatch(text)?.group(1) ?? '';
+
+/// Valeur de mot de passe qui ressemble à un vrai secret : au moins 8
+/// caractères, sans espace, et pas un exemple ou un gabarit (changeme,
+/// `${VAR}`, `<mot de passe>`, `xxxxxxxx`…).
+bool looksLikeRealSecret(String v) {
+  if (v.length < 8 || v.contains(' ')) return false;
+  if (RegExp(r'[{}<>$%]').hasMatch(v)) return false;
+  if (v.split('').toSet().length <= 2) return false;
+  return !RegExp(
+          r'^(?:change[_-]?me|password|passwd|secret|example|default|'
+          r'placeholder|dummy|test(?:ing)?|none|null|todo|your[_-]?\w*)\d*$',
+          caseSensitive: false)
+      .hasMatch(v);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Semgrep : règles du registre (p/python)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -404,16 +426,100 @@ const semgrepRuleset = 'p/python';
 final semgrepSecretRule =
     RegExp(r'secret|password|passwd|token|credential|api-?key|private-key');
 
+/// Téléchargement des règles d'un jeu du registre (null : échec).
+typedef RulesFetcher = Future<String?> Function(Uri url);
+
 class SemgrepAnalyzer extends PythonAnalyzer {
+  SemgrepAnalyzer({RulesFetcher? fetch, Directory? cacheDir})
+      : _fetch = fetch ?? _download,
+        _cacheDir = cacheDir;
+
+  final RulesFetcher _fetch;
+  final Directory? _cacheDir;
+
   @override
   String get name => 'semgrep';
+
+  /// Âge au-delà duquel le cache des règles est rafraîchi.
+  static const cacheMaxAge = Duration(days: 7);
+
+  /// Dossier du cache : `${XDG_CACHE_HOME:-~/.cache}/check-script`.
+  static Directory? defaultCacheDir() {
+    final env = Platform.environment;
+    final base = env['XDG_CACHE_HOME'] ??
+        (env['HOME'] == null ? null : '${env['HOME']}/.cache');
+    return base == null ? null : Directory('$base/check-script');
+  }
+
+  /// Résolution en cours ou faite (partagée par les analyses parallèles).
+  Future<(String, String)>? _resolved;
+
+  /// Règles à passer à `--config`, et libellé du rapport : la clé
+  /// `tools.semgrep.config` si elle est définie ; sinon une copie locale de
+  /// `p/python`, téléchargée au premier accès et rafraîchie chaque semaine,
+  /// qui sert aussi hors ligne ; à défaut, le registre.
+  Future<(String, String)> resolveRules(ToolConfig tc) =>
+      _resolved ??= _resolve(tc);
+
+  Future<(String, String)> _resolve(ToolConfig tc) async {
+    if (tc.config != null) return (tc.config!, tc.config!);
+    final dir = _cacheDir ?? defaultCacheDir();
+    if (dir == null) return (semgrepRuleset, semgrepRuleset);
+    final cache =
+        File('${dir.path}/semgrep-${semgrepRuleset.replaceAll('/', '-')}.yaml');
+    final age = cache.existsSync()
+        ? DateTime.now().difference(cache.lastModifiedSync())
+        : null;
+    if (age != null && age < cacheMaxAge) {
+      return (cache.path, '$semgrepRuleset (cache)');
+    }
+    final text =
+        await _fetch(Uri.parse('https://semgrep.dev/c/$semgrepRuleset'));
+    // Le registre répond en YAML ou en JSON selon la requête : les deux sont
+    // des fichiers de règles valides (le JSON est du YAML).
+    final head = text?.trimLeft() ?? '';
+    if (head.startsWith('rules:') ||
+        RegExp(r'^\{\s*"rules"\s*:').hasMatch(head)) {
+      try {
+        await dir.create(recursive: true);
+        final tmp = File('${cache.path}.tmp');
+        await tmp.writeAsString(text!);
+        await tmp.rename(cache.path);
+        return (cache.path, semgrepRuleset);
+      } on FileSystemException {
+        // Cache non inscriptible : le registre sert directement.
+      }
+    }
+    if (age != null) return (cache.path, '$semgrepRuleset (cache ancien)');
+    return (semgrepRuleset, semgrepRuleset);
+  }
+
+  static Future<String?> _download(Uri url) async {
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10)
+      ..findProxy = HttpClient.findProxyFromEnvironment;
+    try {
+      final req = await client.getUrl(url);
+      final res = await req.close().timeout(const Duration(seconds: 30));
+      if (res.statusCode != 200) return null;
+      return await res.transform(utf8.decoder).join();
+    } on Object {
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
 
   @override
   Future<AnalyzerResult> analyze(AnalysisContext ctx) async {
     final tc = ctx.config.tool(name);
+    // Le cache n'est géré que pour une exécution réelle des outils.
+    final (rules, label) = ctx.runner is ProcessCommandRunner
+        ? await resolveRules(tc)
+        : (tc.config ?? semgrepRuleset, tc.config ?? semgrepRuleset);
     final r = await ctx.run(tc.executable, [
       'scan',
-      '--config=$semgrepRuleset',
+      '--config=$rules',
       '--json',
       '--metrics=off',
       '--quiet',
@@ -432,7 +538,7 @@ class SemgrepAnalyzer extends PythonAnalyzer {
                 ? 'exit ${r.exitCode}'
                 : r.stderr.trim()));
       }
-      return ok(findings, detail: semgrepRuleset);
+      return ok(findings, detail: label);
     } on FormatException {
       return failed(r.stderr.trim().isEmpty
           ? 'exit ${r.exitCode}'
@@ -487,6 +593,7 @@ const _semgrepEquivalents = [
       category: cat,
       severity: sev,
       line: line,
+      endLine: jsonInt(end['line']),
       column: jsonInt(start['col']) ?? 0,
       message: secret
           ? 'Potential hard-coded secret (rule $id)'
@@ -558,6 +665,7 @@ List<Finding> parseMypy(String output) {
       category: _rob,
       severity: syntax ? _c : _m,
       line: jsonInt(d['line']) ?? 0,
+      endLine: jsonInt(d['end_line']),
       column: jsonInt(d['column']) ?? 0,
       message: hint is String && hint.isNotEmpty
           ? '${d['message']} ($hint)'
@@ -627,6 +735,11 @@ List<Finding> parsePyright(String json) {
       category: versionOnly ? _por : _rob,
       severity: versionOnly ? _h : sev,
       line: (jsonInt(start['line']) ?? -1) + 1,
+      endLine: switch (
+          jsonInt(((d['range'] as Map?)?['end'] as Map?)?['line'])) {
+        final n? => n + 1,
+        null => null,
+      },
       column: (jsonInt(start['character']) ?? -1) + 1,
       message: message,
       url: rule == null
@@ -686,7 +799,7 @@ const Map<String, (Category, Severity)> pylintMap = {
 List<Finding> parsePylint(String json) {
   final doc = _decode(json);
   if (doc is! Map) throw const FormatException('sortie JSON Pylint inattendue');
-  final ruffOf = {for (final e in _ruffToPylint.entries) e.value: e.key};
+  final ruffOf = {for (final e in ruffToPylint.entries) e.value: e.key};
   final out = <Finding>[];
   for (final m in (doc['messages'] as List? ?? const []).whereType<Map>()) {
     final type = '${m['type']}';
@@ -707,6 +820,7 @@ List<Finding> parsePylint(String json) {
       category: cat,
       severity: syntax ? _c : sev,
       line: jsonInt(m['line']) ?? 0,
+      endLine: jsonInt(m['endLine']),
       column: (jsonInt(m['column']) ?? -1) + 1,
       message: '${m['message']}'.split('\n').first,
       url: 'https://pylint.readthedocs.io/en/stable/user_guide/messages/'

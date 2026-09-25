@@ -35,6 +35,32 @@ void main() {
     return (code, await out.text(), await err.text());
   }
 
+  test('--jobs : dossier en parallèle, ordre conservé ; valeur invalide',
+      () async {
+    for (final n in ['b', 'a', 'c']) {
+      File('${tmp.path}/$n.sh').writeAsStringSync('#!/bin/sh\necho $n\n');
+    }
+    final (code, out, _) = await run(['-j', '2', '--summary', tmp.path]);
+    expect(code, 0);
+    final names = RegExp(r'/(\w)\.sh').allMatches(out).map((m) => m[1]);
+    expect(names.toSet().toList(), ['a', 'b', 'c']);
+    expect((await run(['--jobs', '0', tmp.path])).$1, 2);
+    expect((await run(['--jobs', 'x', tmp.path])).$1, 2);
+  });
+
+  test('--list-rules --all : règles intégrées et codes des outils', () async {
+    final (code, out, _) = await run(['--list-rules', '--all', '--lang', 'en']);
+    expect(code, 0);
+    final lines = out.trim().split('\n');
+    expect(lines.length, knownRules(Lang.en).length);
+    expect(out, contains('SC2086'));
+    expect(out, contains('B602'));
+    expect(RegExp(r'^PYSEC001 +builtin +python', multiLine: true).hasMatch(out),
+        isTrue);
+    final (_, short, _) = await run(['--list-rules']);
+    expect(short, isNot(contains('SC2086')));
+  });
+
   test('--version', () async {
     final (code, out, _) = await run(['--version']);
     expect(code, cli.exitOk);

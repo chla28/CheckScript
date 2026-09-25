@@ -20,6 +20,7 @@ class FindingsList extends StatefulWidget {
     this.onSelect,
     this.onApplyFix,
     this.onDisableRule,
+    this.onApplyRule,
   });
 
   final List<Finding> findings;
@@ -34,6 +35,10 @@ class FindingsList extends StatefulWidget {
 
   /// Désactive la règle d'un problème ; null : pas de bouton.
   final void Function(Finding f)? onDisableRule;
+
+  /// Corrige toutes les occurrences de la règle d'un problème ; null : pas
+  /// de bouton.
+  final void Function(Finding f)? onApplyRule;
 
   @override
   State<FindingsList> createState() => _FindingsListState();
@@ -144,6 +149,14 @@ class _FindingsListState extends State<FindingsList> {
                               onApply: widget.onApplyFix == null
                                   ? null
                                   : () => widget.onApplyFix!(f),
+                              ruleOccurrences: widget.findings
+                                  .where((x) =>
+                                      x.ruleId == f.ruleId &&
+                                      x.edits.isNotEmpty)
+                                  .length,
+                              onApplyRule: widget.onApplyRule == null
+                                  ? null
+                                  : () => widget.onApplyRule!(f),
                             ),
                           if (open && widget.onDisableRule != null)
                             Align(

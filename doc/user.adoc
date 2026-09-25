@@ -140,6 +140,7 @@ et SEC022 couvrent déjà les secrets.
 check-script mon_script.sh                          # rapport dans le terminal
 check-script --details mon_script.sh                # + tous les problèmes et leur correction
 check-script mon_script.sh -o rapport.html          # rapport HTML autonome
+check-script scripts/ -o dossier.html               # dossier : synthèse, règles fréquentes
 check-script -q deploy.sh -o r.md -o r.adoc         # fichiers seuls, rien à l'écran
 check-script scripts/                               # tous les scripts d'un dossier
 cat script.sh | check-script -                      # entrée standard
@@ -175,6 +176,7 @@ extension dont le shebang désigne un shell ou Python. Les dossiers cachés
 |`--with OUTIL` |Active un outil désactivé par défaut (`pylint`, `pyright`) ; répétable ou séparé par des virgules.
 |`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…) ; répétable ou séparé par des virgules.
 |`--no-external` |N'utilise que les règles intégrées.
+|`-j`, `--jobs N` |Nombre de scripts d'un dossier analysés simultanément (défaut : selon le nombre de processeurs, au plus 4 ; `1` : l'un après l'autre). Les outils d'un même script tournent toujours en parallèle.
 |`-b`, `--baseline RAPPORT.json` |Référence : seuls les nouveaux problèmes sont détaillés, l'évolution des notes est affichée (voir <<reference>>).
 |`--fail-on-new SÉVÉRITÉ` |Avec `--baseline` : code de sortie 1 si un nouveau problème atteint cette sévérité.
 |`--fix` |Corrige les défauts sûrs dans le fichier (voir <<fix>>).
@@ -187,6 +189,7 @@ extension dont le shebang désigne un shell ou Python. Les dossiers cachés
 |`-q`, `--quiet` |Aucun rapport sur la sortie standard.
 |`--fail-under NOTE` / `--fail-under CATÉGORIE=NOTE` |Code de sortie 1 si la note globale, ou celle d'une catégorie, est inférieure au seuil. Répétable ; plusieurs seuils séparés par des virgules (`security=8,robustness=6.5`) ; décimales avec un point.
 |`--list-tools` / `--list-rules` |Outils détectés / règles intégrées.
+|`--list-rules --all` |Toutes les règles connues : règles intégrées et codes des outils classés par check-script (identifiant, outil, langage, catégorie, sévérité, titre).
 |`-v`, `--version` / `-h`, `--help` |Version / aide.
 |===
 
@@ -287,6 +290,28 @@ gitleaks, trufflehog, checkbashisms, règles intégrées, shfmt, bashate. En
 Python : compilation, Bandit, Ruff, Semgrep, mypy, Pyright, Pylint, Vermin,
 Radon, puis gitleaks, trufflehog et règles intégrées.
 
+Une instruction répartie sur plusieurs lignes compte en entier : Bandit
+situe un appel sur sa première ligne, Ruff sur la ligne de l'argument
+fautif ; les deux signalements sont fusionnés (instructions de 6 lignes au
+plus, pour qu'une règle couvrant une fonction entière n'absorbe pas les
+problèmes qu'elle contient).
+
+Les analyses sont parallèles (outils d'un même script, scripts d'un dossier)
+; l'ordre de priorité ci-dessus est conservé, le résultat est identique à
+une analyse séquentielle.
+
+[[desactivation]]
+=== Règles désactivées
+
+Une règle désactivée (`rules.disabled`, onglet *Règles* de l'interface)
+l'est aussi sous le code de *la même règle dans un autre outil* : Ruff
+`S602` ↔ Bandit `B602`, Ruff `PLW0602` ↔ Pylint `W0602`, Ruff `E722` ↔
+Pylint `W0702`, ShellCheck `SC2164` ↔ `ROB005`… Elle est transmise aux
+outils qui l'acceptent sans erreur (ShellCheck, bashate, Bandit : ils ne la
+calculent plus), et `--fix` ne la corrige plus. Une *détection voisine*
+d'un autre outil (ex. la règle Semgrep `subprocess-shell-true` pour B602)
+reste signalée : la désactiver à son tour si besoin.
+
 [[profils]]
 == Profils
 
@@ -336,6 +361,17 @@ CLE_PUBLIQUE="AAAAC3NzaC1lZDI1NTE5AAAAI…"
 Les identifiants acceptent le joker final (`SC20*`) et `all`. Le nombre de
 problèmes neutralisés figure dans le rapport. Les directives
 `# shellcheck disable=…` restent traitées par ShellCheck.
+
+Dans un script Python, les directives natives valent pour *tous* les
+outils, et un code vise aussi la même règle dans les autres outils :
+
+[source,python]
+----
+import os  # noqa                          # toute la ligne
+x = eval(expr)  # noqa: S307               # S307 (Ruff), B307 (Bandit), W0123 (Pylint)
+subprocess.call(cmd, shell=True)  # nosec  # problèmes de sécurité de la ligne
+subprocess.call(cmd, shell=True)  # nosec B602
+----
 
 [[fix]]
 == Correction automatique
@@ -540,15 +576,22 @@ formatage. Seules les corrections qualifiées de *sûres* par Ruff sont
 proposées.
 
 Bandit::
-Sévérité de Bandit, abaissée d'un cran si sa confiance est faible ; secrets
-en dur (`B105`–`B107`) relevés en High, leur valeur n'étant jamais recopiée
-dans le rapport. `B404` et `B603` (tout import ou appel de subprocess) sont
-exclus par défaut.
+Sévérité de Bandit, abaissée d'un cran si sa confiance est faible, avec des
+reclassements alignés sur Ruff et sur les règles shell : secrets en dur
+(`B105`–`B107`) en High, et en *Critical* quand la valeur ressemble à un
+vrai secret (8 caractères au moins, pas un exemple ni un gabarit), comme
+SEC002 ; exécution de code ou de données (`eval`, `exec`, `pickle`,
+`yaml.load` non sûr, SQL construit par concaténation) en High, comme SEC003.
+La valeur d'un secret n'est jamais recopiée dans le rapport. `B404` et
+`B603` (tout import ou appel de subprocess) sont exclus par défaut.
 
 Semgrep::
-Règles du registre `p/python`, lancées avec `--metrics=off`. *Un accès
-réseau à semgrep.dev est nécessaire* : hors ligne, l'outil est marqué « échec »
-et l'analyse se poursuit sans lui (le désactiver sur un poste isolé).
+Règles `p/python`, lancées avec `--metrics=off`. Elles sont téléchargées au
+premier accès dans `${XDG_CACHE_HOME:-~/.cache}/check-script/`, rafraîchies
+chaque semaine, et la copie locale sert *hors ligne* (rapport : `p/python
+(cache)` ou `(cache ancien)`). Sans copie ni réseau, l'outil est marqué
+« échec » et l'analyse continue sans lui. Sur un poste isolé, fournir un
+fichier ou un dossier de règles : `tools.semgrep.config: /opt/regles/python.yml`.
 
 mypy::
 Lancé avec `--check-untyped-defs` (les fonctions non annotées sont aussi
@@ -587,30 +630,42 @@ entre guillemets : `3.10` sans guillemets serait lu comme le nombre 3.1.
 [cols="1,2,1,6",options="header"]
 |===
 |Règle |Catégorie |Sévérité |Description
-|PYSEC001 |Sécurité |High |Chaîne à forte entropie : secret potentiel (ligne jamais recopiée)
+|PYSEC001 |Sécurité |Medium |Chaîne à forte entropie : secret potentiel (ligne jamais recopiée), comme SEC022
 |PYROB001 |Robustesse |Low |Appel `subprocess.run/call/check_call/check_output` sans `timeout` (Medium en `cron` / `systemd`)
 |PYROB002 |Robustesse |Medium |`input()` dans un script sans terminal [cron, systemd]
+|PYROB003 |Robustesse |Medium |Tâche planifiée sans verrou (`fcntl.flock`…) : exécutions concurrentes possibles [cron]
+|PYROB004 |Robustesse |Medium |Code de retour de `main()` ignoré (appel sans `sys.exit(...)`) : le script sort toujours avec 0
 |PYMNT001 |Maintenabilité |Low |Ni docstring ni commentaire d'en-tête décrivant le script
 |PYMNT002 |Maintenabilité |Low |Code exécuté au chargement du module, sans garde `if __name__ == "__main__":`
-|PYPOR001 |Portabilité |Medium |Shebang `python` ambigu (Python 2 sur d'anciens systèmes) : utiliser `python3`
+|PYPOR001 |Portabilité |High |Shebang `python` / `python2` : absent de RHEL 8+ et Debian 11+ (le script ne démarre pas) ; utiliser `python3`
 |===
 
 Elles s'appuient sur le module `ast` de Python (appels répartis sur
 plusieurs lignes, imports `from subprocess import run` compris) ; sans
-`python3`, un découpage ligne à ligne prend le relais.
+`python3`, un découpage ligne à ligne prend le relais (PYROB004 n'est alors
+pas évaluée).
+
+Les docstrings comptent comme de la documentation, pas comme du code : un
+script bien documenté n'est pas traité comme un script plus long.
+
+La notation Python est calibrée sur un corpus de 12 scripts
+(`test/corpus/scripts/py_*`, voir le guide développeur).
 
 === Correction
 
 `--fix` (et *Corriger…* dans l'interface) applique les corrections sûres de
 `ruff check --fix` puis `ruff format` ; le résultat est contrôlé par la
-compilation Python. Les directives `# check-script disable=…` s'utilisent
-comme en shell ; les commentaires `# noqa` restent respectés par Ruff.
+compilation Python ; une règle désactivée n'est pas corrigée. Les directives
+`# check-script disable=…`, `# noqa` et `# nosec` s'utilisent comme décrit
+dans <<directives>>.
 
 == Configuration
 
 Fichier YAML lu, dans l'ordre : `--config FICHIER`, `./.checkscript.yaml`,
 `${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml`. Toutes les clés sont
 facultatives ; exemple commenté : `doc/checkscript.example.yaml`.
+L'interface graphique sait l'*exporter* avec ses propres choix (règles,
+outils, version de Python) : la CLI et la CI notent alors comme elle.
 
 [source,yaml]
 ----
@@ -665,7 +720,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.6.0
+    rev: v0.7.0
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----
@@ -698,7 +753,9 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
   ses flèches replient l'un ou l'autre panneau ; la répartition est
   mémorisée, séparément pour une fenêtre large (côte à côte) et étroite
   (l'un au-dessus de l'autre) ;
-* *Corriger…* : aperçu du diff puis application ;
+* *Corriger…* : aperçu du diff puis application ; depuis un problème
+  déplié, *Appliquer cette correction* (cette occurrence) ou *Corriger les
+  N occurrences* (toute la règle, s'il y en a plusieurs) ;
 * *Règles* : toutes les règles de détection — règles intégrées, codes des
   outils classés par l'outil (ShellCheck, Ruff, Bandit, Pylint…) et codes
   rencontrés lors des analyses —, chacune avec une case à cocher : une règle
@@ -712,11 +769,19 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
   comme `rules.disabled` de la configuration ; le choix est mémorisé ;
 * *Dossier* : tableau triable de tous les scripts d'un dossier ; avec une
   référence chargée, colonne *Tendance* (évolution de la note) ;
-* *Exporter…* : HTML, Markdown, AsciiDoc, JSON, SARIF ;
+* *Exporter…* : HTML, Markdown, AsciiDoc, JSON, SARIF ; le rapport HTML
+  d'un dossier commence par une synthèse (note moyenne, niveaux,
+  problèmes par sévérité), un tableau des scripts triable et les règles les
+  plus fréquentes ;
 * *Réglages* : langue, thème, profil, contextes, outils groupés par langage
   (avec détection des versions ; Pylint et Pyright activables), version
   minimale de Python, suivi des fichiers sourcés, fichier de configuration
-  YAML.
+  YAML : *Importer…* (le fichier devient la référence : son profil et ses
+  contextes sont repris, les choix de l'interface remis à zéro) et
+  *Exporter…* (écrit la configuration effective — fichier et choix de
+  l'interface — dans un `.checkscript.yaml` utilisable par la CLI et la CI).
+
+Les analyses de dossier traitent plusieurs scripts à la fois.
 
 La progression outil par outil s'affiche pendant l'analyse, qui peut être
 annulée. Un chemin passé en argument (`check-script-gui deploy.sh` ou un

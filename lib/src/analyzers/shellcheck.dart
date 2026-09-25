@@ -147,7 +147,8 @@ class ShellcheckAnalyzer extends Analyzer {
     final args = [
       '--format=json1',
       '--enable=${optionalChecks.join(',')}',
-      if (tc.exclude.isNotEmpty) '--exclude=${tc.exclude.join(',')}',
+      if (ctx.config.excludedFor(name) case final ex when ex.isNotEmpty)
+        '--exclude=${ex.join(',')}',
       // Fichiers sourcés suivis, résolus depuis le dossier du script.
       if (ctx.config.followSource) ...[
         '--external-sources',

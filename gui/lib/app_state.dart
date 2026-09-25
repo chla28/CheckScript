@@ -227,6 +227,36 @@ class AppState extends ChangeNotifier {
     return CheckConfig.forProfile(_settings.profile);
   }
 
+  /// Écrit la configuration effective (fichier YAML éventuel et choix de
+  /// l'interface) dans [path], relisible par la CLI (`--config`).
+  Future<void> exportConfig(String path) async {
+    final c = await buildConfig();
+    await File(path).writeAsString(c.toYaml(
+        header: 'Configuration check-script exportée par l\'interface '
+            '(check-script $appVersion).\n'
+            'CLI : check-script --config ${path.split('/').last} … '
+            '(ou nommer le fichier .checkscript.yaml).'));
+  }
+
+  /// Adopte [path] comme configuration : son profil, ses contextes, le suivi
+  /// des sources et sa version de Python passent dans les réglages, et les
+  /// choix propres à l'interface (règles, outils) sont remis à zéro, pour
+  /// que le fichier fasse foi. Lève [FormatException] si le fichier est
+  /// invalide.
+  Future<void> importConfig(String path) async {
+    final c = CheckConfig.parse(await File(path).readAsString());
+    await updateSettings(GuiSettings(
+      lang: _settings.lang,
+      theme: _settings.theme,
+      wideSplit: _settings.wideSplit,
+      narrowSplit: _settings.narrowSplit,
+      configPath: path,
+      profile: c.profile,
+      contexts: c.contexts,
+      followSource: c.followSource,
+    ));
+  }
+
   /// Active ou désactive une règle (clé en majuscules) à partir de la
   /// prochaine analyse.
   Future<void> setRuleEnabled(String id, bool enabled) {
@@ -335,20 +365,13 @@ class AppState extends ChangeNotifier {
     try {
       final files = await collectScripts(path) ?? const [];
       final engine = await _engine();
-      final out = <ScriptReport>[];
-      for (var i = 0; i < files.length; i++) {
-        token.check();
-        progress = ProgressInfo(
-            '${i + 1}/${files.length}  ${files[i]}', i / files.length);
+      // Plusieurs scripts à la fois ; fichiers illisibles ou non textuels
+      // ignorés.
+      final out = await engine.analyzeFiles(files, cancel: token,
+          onDone: (done, total, file) {
+        progress = ProgressInfo('$done/$total  $file', done / total);
         notifyListeners();
-        try {
-          out.add(await engine.analyzeFile(files[i], cancel: token));
-        } on FileSystemException {
-          // Fichier illisible : ignoré.
-        } on FormatException {
-          // Fichier non textuel : ignoré.
-        }
-      }
+      });
       folderReports = out;
       await _recordSeen(out);
       _finish(files.isEmpty ? 'noScripts' : null);
@@ -418,13 +441,29 @@ class AppState extends ChangeNotifier {
   /// puis relance l'analyse. Renvoie null en cas de succès, sinon la raison
   /// du refus : [staleFix] si le fichier a changé depuis l'analyse, ou le
   /// message de l'interpréteur si la syntaxe ne serait plus valide.
-  Future<String?> applyFindingFix(Finding f) async {
+  Future<String?> applyFindingFix(Finding f) => _applyFixes([f]);
+
+  /// Problèmes corrigeables de la même règle que [f] dans le script courant.
+  List<Finding> fixableOfRule(Finding f) => [
+        for (final x in current?.findings ?? const <Finding>[])
+          if (x.ruleId.toUpperCase() == f.ruleId.toUpperCase() &&
+              x.edits.isNotEmpty)
+            x
+      ];
+
+  /// Corrige toutes les occurrences de la règle de [f] en une fois (mêmes
+  /// garde-fous que [applyFindingFix]).
+  Future<String?> applyRuleFixes(Finding f) => _applyFixes(fixableOfRule(f));
+
+  Future<String?> _applyFixes(List<Finding> findings) async {
     final c = current;
-    if (c == null || busy || f.edits.isEmpty) return staleFix;
+    final edits = [for (final f in findings) ...f.edits];
+    if (c == null || busy || edits.isEmpty) return staleFix;
     final raw = await File(c.script.path).readAsString();
     final script = ScriptInfo.fromContent(c.script.path, raw);
     if (script.content != c.script.content) return staleFix;
-    final (fixed, _) = applyEdits(script.content, f.edits);
+    // Les éditions en conflit sont écartées par applyEdits.
+    final (fixed, _) = applyEdits(script.content, edits);
     if (fixed == script.content) return staleFix;
     final broken = await syntaxRegression(script, fixed,
         config: await buildConfig(), runner: runner);

@@ -108,13 +108,62 @@ class ScriptInfo {
 
   int get totalLines => lines.length;
 
-  /// Lignes de code : ni vides, ni commentaires, shebang exclu.
-  int get codeLines => lines.where((l) {
-        final t = l.trim();
-        return t.isNotEmpty && !t.startsWith('#');
-      }).length;
+  /// Lignes de code : ni vides, ni commentaires, shebang exclu ; en Python,
+  /// les docstrings (chaînes triples isolées) sont de la documentation.
+  int get codeLines => dialect.isPython
+      ? _pythonCounts().$1
+      : lines.where((l) {
+          final t = l.trim();
+          return t.isNotEmpty && !t.startsWith('#');
+        }).length;
 
-  int get commentLines => lines.skip(shebang == null ? 0 : 1).where((l) {
-        return l.trim().startsWith('#');
-      }).length;
+  /// Lignes de commentaire (et, en Python, de docstring), shebang exclu.
+  int get commentLines => dialect.isPython
+      ? _pythonCounts().$2
+      : lines.skip(shebang == null ? 0 : 1).where((l) {
+          return l.trim().startsWith('#');
+        }).length;
+
+  static final _docOpen = RegExp(r'''^[rRuUbB]?("\"\"|\'\'\')''');
+
+  /// (lignes de code, lignes de documentation) d'un script Python.
+  (int, int) _pythonCounts() {
+    var code = 0, doc = 0;
+    String? open; // délimiteur d'une docstring ouverte
+    String? data; // délimiteur d'une chaîne triple ouverte dans le code
+    for (var i = 0; i < lines.length; i++) {
+      final t = lines[i].trim();
+      if (i == 0 && shebang != null) continue;
+      if (open != null) {
+        doc++;
+        if (t.contains(open)) open = null;
+        continue;
+      }
+      if (data != null) {
+        code++;
+        if (t.contains(data)) data = null;
+        continue;
+      }
+      if (t.isEmpty) continue;
+      if (t.startsWith('#')) {
+        doc++;
+        continue;
+      }
+      final m = _docOpen.firstMatch(t);
+      if (m != null) {
+        doc++;
+        final q = m[1]!;
+        // Fermée sur la même ligne ?
+        if (!t.substring(m.end).contains(q)) open = q;
+        continue;
+      }
+      code++;
+      // Chaîne triple ouverte sur une ligne de code (x = """…) : les lignes
+      // suivantes jusqu'à sa fermeture sont des données, donc du code.
+      for (final q in const ['"""', "'''"]) {
+        if (q.allMatches(t).length.isOdd) data = q;
+      }
+    }
+    return (code, doc);
+  }
 }

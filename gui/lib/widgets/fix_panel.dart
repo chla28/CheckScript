@@ -16,6 +16,8 @@ class FixPanel extends StatelessWidget {
     required this.lines,
     required this.lang,
     this.onApply,
+    this.ruleOccurrences = 0,
+    this.onApplyRule,
   });
 
   final Finding finding;
@@ -26,6 +28,11 @@ class FixPanel extends StatelessWidget {
 
   /// Applique la correction concrète au fichier ; null : bouton absent.
   final VoidCallback? onApply;
+
+  /// Occurrences corrigeables de la même règle dans le script ; au-delà
+  /// d'une, [onApplyRule] les corrige toutes.
+  final int ruleOccurrences;
+  final VoidCallback? onApplyRule;
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +90,12 @@ class FixPanel extends StatelessWidget {
               icon: const Icon(Icons.auto_fix_high, size: 16),
               label: Text(s.applyThisFix),
               onPressed: onApply,
+            ),
+          if (preview != null && onApplyRule != null && ruleOccurrences > 1)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.done_all, size: 16),
+              label: Text(s.applyRuleFixes(ruleOccurrences, finding.ruleId)),
+              onPressed: onApplyRule,
             ),
         ]),
       ]),

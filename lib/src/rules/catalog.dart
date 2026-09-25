@@ -569,7 +569,7 @@ const List<RuleInfo> ruleCatalog = [
   RuleInfo(
       'PYSEC001',
       _sec,
-      _h,
+      _m,
       Tr('Chaîne à forte entropie : secret potentiel',
           'High-entropy string: potential secret'),
       Tr('Lire le secret depuis l\'environnement (os.environ) ou un fichier protégé (chmod 600), et le révoquer ; sinon, neutraliser la règle sur cette ligne (# check-script disable=PYSEC001).',
@@ -592,6 +592,23 @@ const List<RuleInfo> ruleCatalog = [
           'Replace the prompt with an option (argparse), an environment variable or a configuration file.'),
       contexts: {ExecContext.cron, ExecContext.systemd}),
   RuleInfo(
+      'PYROB003',
+      _rob,
+      _m,
+      Tr('Tâche planifiée sans verrou : exécutions concurrentes possibles',
+          'Scheduled job without a lock: concurrent runs possible'),
+      Tr('Prendre un verrou exclusif au démarrage : fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB) sur /run/lock/nom.lock, et sortir s\'il est déjà pris.',
+          'Take an exclusive lock at start-up: fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB) on /run/lock/name.lock, and exit if it is already held.'),
+      contexts: {ExecContext.cron}),
+  RuleInfo(
+      'PYROB004',
+      _rob,
+      _m,
+      Tr('Code de retour de main() ignoré : le script sort toujours avec 0',
+          'Return value of main() ignored: the script always exits with 0'),
+      Tr('Écrire sys.exit(main()) pour que les échecs soient visibles (cron, CI, systemd).',
+          'Write sys.exit(main()) so that failures are visible (cron, CI, systemd).')),
+  RuleInfo(
       'PYMNT001',
       _mnt,
       _l,
@@ -610,7 +627,7 @@ const List<RuleInfo> ruleCatalog = [
   RuleInfo(
       'PYPOR001',
       _por,
-      _m,
+      _h,
       Tr('Shebang « python » ambigu (Python 2 sur d\'anciens systèmes, absent ailleurs)',
           'Ambiguous "python" shebang (Python 2 on old systems, missing elsewhere)'),
       Tr('Utiliser #!/usr/bin/env python3 (ou #!/usr/bin/python3).',

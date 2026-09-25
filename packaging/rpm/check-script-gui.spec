@@ -2,7 +2,7 @@
 #
 # Prérequis de build : SDK Flutter dans le PATH et les paquets de
 # développement GTK ci-dessous. Orchestration : scripts/build-rpm.sh.
-%{!?version: %global version 0.6.0}
+%{!?version: %global version 0.7.0}
 
 %global debug_package %{nil}
 %global __strip /bin/true
@@ -33,6 +33,7 @@ Requires:       xdg-utils
 Recommends:     check-script
 Recommends:     ShellCheck
 Recommends:     shfmt
+Recommends:     ruff
 
 %description
 Interface graphique de check-script : source annote, notes par categorie

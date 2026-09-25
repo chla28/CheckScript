@@ -318,7 +318,7 @@ class BashateAnalyzer extends Analyzer {
     // E003 (indentation multiple de 4) est ignoré quand le script est indenté
     // autrement : shfmt contrôle déjà la cohérence de l'indentation.
     final ignore = [
-      ...tc.exclude,
+      ...ctx.config.excludedFor(name),
       if (indentUnit(ctx.script.lines) != 4) 'E003',
     ];
     final args = [

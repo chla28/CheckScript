@@ -13,7 +13,7 @@ _check_script() {
   prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   opts="--output -o --format -f --lang -l --shell -s --python-target --profile -p --context \
---follow-source --config -c --with --without --no-external --baseline -b --fail-on-new \
+--follow-source --config -c --with --without --no-external --jobs -j --all --baseline -b --fail-on-new \
 --fix --dry-run --backup --details --summary --source --no-source --color --no-color --quiet -q \
 --fail-under --list-tools --list-rules --version -v --help -h"
 

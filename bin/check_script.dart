@@ -108,6 +108,12 @@ ArgParser buildParser(Lang lang) {
         allowed: [...externalTools, 'builtin'],
         help: t('Désactive un outil ; répétable ou séparé par des virgules.',
             'Disable a tool; repeatable or comma-separated.'))
+    ..addOption('jobs',
+        abbr: 'j',
+        valueHelp: 'N',
+        help: t(
+            'Scripts analysés simultanément (défaut : selon les processeurs ; 1 : l\'un après l\'autre).',
+            'Scripts analysed simultaneously (default: from the CPU count; 1: one after another).'))
     ..addFlag('no-external',
         negatable: false,
         help: t(
@@ -175,6 +181,11 @@ ArgParser buildParser(Lang lang) {
     ..addFlag('list-rules',
         negatable: false,
         help: t('Affiche les règles intégrées.', 'Show built-in rules.'))
+    ..addFlag('all',
+        negatable: false,
+        help: t(
+            'Avec --list-rules : aussi les codes des outils classés par check-script.',
+            'With --list-rules: also the tool codes classified by check-script.'))
     ..addFlag('version',
         abbr: 'v', negatable: false, help: t('Version.', 'Version.'))
     ..addFlag('help', abbr: 'h', negatable: false, help: t('Aide.', 'Help.'));
@@ -335,6 +346,14 @@ Future<int> run(List<String> argv,
     return exitUsage;
   }
 
+  final jobsArg = a['jobs'] as String?;
+  final jobs = jobsArg == null ? null : int.tryParse(jobsArg);
+  if (jobsArg != null && (jobs == null || jobs < 1)) {
+    err.writeln(t('--jobs : nombre entier ≥ 1 attendu.',
+        '--jobs: integer ≥ 1 expected.'));
+    return exitUsage;
+  }
+
   final commandRunner = runner ?? const ProcessCommandRunner();
   final engine = Engine(
       config: config, lang: lang, runner: commandRunner, baseline: baseline);
@@ -344,7 +363,7 @@ Future<int> run(List<String> argv,
     return exitOk;
   }
   if (a['list-rules'] as bool) {
-    listRules(out, lang);
+    listRules(out, lang, all: a['all'] as bool);
     return exitOk;
   }
 
@@ -425,6 +444,18 @@ Future<int> run(List<String> argv,
     if (files.isEmpty) {
       err.writeln(t('Aucun script shell ou Python dans : $target',
           'No shell or Python script in: $target'));
+    }
+    // Sans correction ni dialecte forcé, les scripts d'un dossier sont
+    // analysés en parallèle (ordre des rapports conservé).
+    if (!fix && dialect == null && jobs != 1) {
+      reports
+          .addAll(await engine.analyzeFiles(files, jobs: jobs, onSkip: (f, e) {
+        errSink.writeln(e is FormatException
+            ? t('Fichier non textuel ignoré : $f', 'Non-text file skipped: $f')
+            : t('Lecture impossible : $f', 'Cannot read: $f'));
+        inputError = true;
+      }));
+      continue;
     }
     for (final f in files) {
       try {
@@ -603,8 +634,18 @@ String _installHint(String tool, Lang lang) {
       : '(${lang == Lang.fr ? 'installer' : 'install'} : $how)';
 }
 
-void listRules(IOSink out, Lang lang) {
+void listRules(IOSink out, Lang lang, {bool all = false}) {
   final t = Messages(lang);
+  if (all) {
+    // Registre complet : règles intégrées et codes externes classés.
+    for (final e in knownRules(lang)) {
+      out.writeln('${e.id.padRight(16)}${e.tool.padRight(15)}'
+          '${t.toolLanguage(e.language).padRight(8)}'
+          '${t.category(e.category).padRight(17)}'
+          '${(e.severity?.label ?? '—').padRight(10)}${e.title}');
+    }
+    return;
+  }
   for (final r in allBuiltinRules()) {
     final ctx = r.contexts.isEmpty
         ? ''

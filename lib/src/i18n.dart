@@ -101,6 +101,19 @@ class Messages {
         ToolLanguage.python => 'python',
         ToolLanguage.any => _t('tous', 'all'),
       };
+  String scriptsOverview(int n, int shell, int python) => _t(
+      '$n scripts ($shell shell, $python Python)',
+      '$n scripts ($shell shell, $python Python)');
+  String get averageScore => _t('Note moyenne', 'Average score');
+  String get gradeDistribution => _t('Niveaux', 'Grades');
+  String get issuesBySeverity => _t('Problèmes', 'Issues');
+  String get topRules =>
+      _t('Règles les plus fréquentes', 'Most frequent rules');
+  String get occurrences => _t('Occurrences', 'Occurrences');
+  String get scriptsAffected => _t('Scripts', 'Scripts');
+  String get backToSummary => _t('↑ Sommaire', '↑ Summary');
+  String get sortHint =>
+      _t('Cliquer sur un en-tête pour trier.', 'Click a header to sort.');
   String get suggestedFix => _t('Correction proposée', 'Suggested fix');
   String get fixExample => _t('Exemple de correction', 'Fix example');
   String get avoid => _t('À éviter', 'Avoid');
