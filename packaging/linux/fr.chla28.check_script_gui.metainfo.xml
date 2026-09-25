@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>fr.chla28.check_script_gui</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>LicenseRef-proprietary</project_license>
+  <project_license>LGPL-3.0-or-later</project_license>
   <name>CheckScript</name>
   <summary>Évalue la qualité et la sécurité de scripts shell et Python</summary>
   <summary xml:lang="en">Rates the quality and security of shell and Python scripts</summary>
@@ -29,6 +29,6 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.9.0" date="2026-09-25"/>
+    <release version="0.10.0" date="2026-09-25"/>
   </releases>
 </component>

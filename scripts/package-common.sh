@@ -20,27 +20,27 @@ VERSION="${VERSION%%+*}"
 ARCH="$(uname -m)"
 
 # Construit dans DEST : bundle/ (interface Flutter, --build-name=VERSION) et
-# check-script-cli (dart compile exe). SKIP_BUILD=1 réutilise le bundle
-# existant de gui/build.
+# check-script-cli (dart compile exe, toujours recompilée). SKIP_BUILD=1
+# réutilise le bundle Flutter existant de gui/build.
 build_binaries() {
   local dest="$1"
   mkdir -p "$dest"
+  command -v dart >/dev/null || {
+    echo "dart introuvable" >&2
+    exit 1
+  }
   if [[ "${SKIP_BUILD:-0}" != 1 ]]; then
     command -v flutter >/dev/null || {
       echo "flutter introuvable" >&2
       exit 1
     }
-    command -v dart >/dev/null || {
-      echo "dart introuvable" >&2
-      exit 1
-    }
     echo "→ interface : flutter build linux --release"
     (cd "$PROJECT_DIR/gui" && flutter build linux --release --build-name="$VERSION" >/dev/null)
-    echo "→ ligne de commande : dart compile exe"
-    (cd "$PROJECT_DIR" && dart compile exe bin/check_script.dart -o "$dest/check-script-cli" >/dev/null)
-  elif [[ ! -x "$dest/check-script-cli" ]]; then
-    (cd "$PROJECT_DIR" && dart compile exe bin/check_script.dart -o "$dest/check-script-cli" >/dev/null)
   fi
+  # La CLI est toujours recompilée (quelques secondes) : --skip-build ne
+  # réutilise que le bundle Flutter, long à construire.
+  echo "→ ligne de commande : dart compile exe"
+  (cd "$PROJECT_DIR" && dart compile exe bin/check_script.dart -o "$dest/check-script-cli" >/dev/null)
   local bundle="$PROJECT_DIR/gui/build/linux/x64/release/bundle"
   [[ -x "$bundle/check_script_gui" ]] || {
     echo "bundle Flutter absent : $bundle" >&2

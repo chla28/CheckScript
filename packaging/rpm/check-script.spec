@@ -3,7 +3,7 @@
 # Prérequis de build : SDK Dart dans le PATH (aucun paquet « dart » dans les
 # dépôts Fedora/RHEL) et asciidoctor pour la page de manuel. Orchestration :
 # scripts/build-rpm.sh.
-%{!?version: %global version 0.9.0}
+%{!?version: %global version 0.10.0}
 
 # Binaire AOT de `dart compile exe` : pas d'information DWARF exploitable
 # (sous-paquet debuginfo vide) et le strip automatique le corrompt (il ne
@@ -18,7 +18,7 @@ Release:        1%{?dist}
 Summary:        Evaluation de scripts shell (securite, robustesse, maintenabilite...)
 
 # À confirmer : aucune licence n'est encore choisie pour CheckScript.
-License:        LicenseRef-Unspecified
+License:        LGPL-3.0-or-later
 Source0:        check_script-%{version}.tar.gz
 
 ExclusiveArch:  x86_64
@@ -67,6 +67,7 @@ install -Dm644 doc/checkscript.example.yaml \
   %{buildroot}%{_docdir}/%{name}/checkscript.example.yaml
 
 %files
+%license LICENSE COPYING
 %doc README.md CHANGELOG.md doc/user.adoc doc/developer.adoc
 %{_docdir}/%{name}/checkscript.example.yaml
 %{_bindir}/check-script

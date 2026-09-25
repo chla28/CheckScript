@@ -345,7 +345,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.9.0",
+  "tool": "check-script", "version": "0.10.0",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -473,6 +473,17 @@ runtime et SDK installés depuis Flathub pour l'utilisateur →
 sur l'hôte) ; les lanceurs placent `TMPDIR` dans le cache de l'application,
 dont le chemin est identique dans le bac à sable et sur l'hôte.
 
+Dans le Flatpak, le PATH de l'utilisateur sur l'hôte est lu une fois par
+un shell de connexion (`bash -lc`, pour `~/.local/bin`, `~/bin`…) et chaque
+outil est lancé par son *chemin absolu* résolu sur l'hôte : le portail
+cherche l'exécutable avec son propre PATH minimal, pas celui de `--env`.
+
+*Publication* (`.github/workflows/release.yml`) : à chaque tag `v*`, tests
+(sans outils externes, pour des résultats indépendants des versions d'outils
+des distributions), puis archive, AppImage et Flatpak (Ubuntu 24.04), RPM
+(conteneur Fedora 44), et release GitHub avec les fichiers et l'extrait du
+CHANGELOG. Flutter est figé (`FLUTTER_VERSION`).
+
 Les deux scripts partagent `scripts/package-common.sh` et affichent la glibc
 minimale requise par les binaires (2.34 actuellement : Rocky 9, runtimes
 Flatpak) ; pour une AppImage largement compatible, construire sur la
@@ -480,7 +491,8 @@ distribution la plus ancienne visée.
 
 Les specs neutralisent le strip et le debuginfo (ils corrompent les binaires
 AOT Dart) ; le spec de l'interface désactive le scan automatique des
-dépendances (moteur Flutter embarqué). Le champ `License:` est provisoire.
+dépendances (moteur Flutter embarqué). Licence : LGPL-3.0-or-later
+(`LICENSE`), reprise par les specs et les métadonnées AppStream.
 
 La version figure dans `pubspec.yaml`, `gui/pubspec.yaml`,
 `lib/src/version.dart` et `CHANGELOG.md` ; `build-dist.sh` signale un

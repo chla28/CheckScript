@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Christophe Lafaille
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// Interface graphique de check-script.
 ///
 /// Réutilise directement la bibliothèque check_script (même moteur, mêmes

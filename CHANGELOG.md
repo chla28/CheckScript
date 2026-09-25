@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0 — 2026-09-25
+
+- **Licence** : GNU LGPL version 3 ou ultérieure (`LICENSE`), reprise par les
+  paquets RPM, le Flatpak, l'AppImage, l'archive et les métadonnées AppStream.
+- **Publication automatique** (GitHub Actions) : à chaque tag, tests puis
+  archive, RPM, AppImage et Flatpak attachés à une release GitHub.
+- **Flatpak testé de bout en bout**, avec deux correctifs : les outils
+  installés dans `~/.local/bin` ou `~/bin` (Ruff, Bandit, trufflehog…) sont
+  trouvés sur l'hôte (PATH de l'utilisateur), et lancés par leur chemin
+  absolu (le portail ignorait le PATH transmis : outils notés « exécutés »
+  sans résultat).
+- `--skip-build` des scripts AppImage / Flatpak recompile toujours la CLI
+  (seul le bundle Flutter est réutilisé).
+
 ## 0.9.0 — 2026-09-25
 
 - **AppImage** (`scripts/build-appimage.sh`) : interface et ligne de

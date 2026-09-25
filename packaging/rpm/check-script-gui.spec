@@ -2,7 +2,7 @@
 #
 # Prérequis de build : SDK Flutter dans le PATH et les paquets de
 # développement GTK ci-dessous. Orchestration : scripts/build-rpm.sh.
-%{!?version: %global version 0.9.0}
+%{!?version: %global version 0.10.0}
 
 %global debug_package %{nil}
 %global __strip /bin/true
@@ -13,7 +13,7 @@ Release:        1%{?dist}
 Summary:        Interface graphique de check-script (evaluation de scripts shell)
 
 # À confirmer : aucune licence n'est encore choisie pour CheckScript.
-License:        LicenseRef-Unspecified
+License:        LGPL-3.0-or-later
 Source0:        check_script-%{version}.tar.gz
 
 ExclusiveArch:  x86_64
@@ -80,6 +80,7 @@ Terminal=false
 DESKTOP
 
 %files
+%license LICENSE COPYING
 %{_prefix}/lib/check_script/
 %{_bindir}/check-script-gui
 %{_datadir}/icons/hicolor/scalable/apps/check_script.svg

@@ -90,22 +90,53 @@ class ProcessCommandRunner implements CommandRunner {
 
   final bool? onHost;
 
-  /// Présence des exécutables sur l'hôte (vérifiée une fois chacun).
-  static final _onHostPath = <String, Future<bool>>{};
+  /// Chemin absolu des exécutables sur l'hôte (null : absent), résolu une
+  /// fois chacun : le portail Flatpak cherche l'exécutable avec son propre
+  /// PATH minimal, pas celui passé par --env.
+  static final _onHostPath = <String, Future<String?>>{};
 
-  static Future<bool> _hostHas(String executable) async {
+  /// PATH de l'utilisateur sur l'hôte : flatpak-spawn ne donne qu'un PATH
+  /// minimal, sans ~/.local/bin ni ~/bin (où pip, pipx… installent Ruff,
+  /// Bandit…). Lu une fois par un shell de connexion.
+  static Future<String>? _hostPath;
+
+  static Future<String> _readHostPath() async {
+    final home = Platform.environment['HOME'] ?? '';
+    final fallback = [
+      '$home/.local/bin',
+      '$home/bin',
+      '/usr/local/bin',
+      '/usr/bin',
+      '/bin',
+      '/usr/local/sbin',
+      '/usr/sbin',
+      '/sbin',
+    ].join(':');
+    try {
+      final r = await Process.run(
+          'flatpak-spawn', ['--host', 'bash', '-lc', 'printf %s "\$PATH"']);
+      final path = '${r.stdout}'.trim();
+      return r.exitCode == 0 && path.isNotEmpty ? '$path:$fallback' : fallback;
+    } on ProcessException {
+      return fallback;
+    }
+  }
+
+  static Future<String?> _hostResolve(String executable, String path) async {
     try {
       final r = await Process.run('flatpak-spawn', [
         '--host',
+        '--env=PATH=$path',
         'sh',
         '-c',
-        'command -v "\$1" >/dev/null 2>&1',
+        'command -v "\$1"',
         'sh',
         executable,
       ]);
-      return r.exitCode == 0;
+      final found = '${r.stdout}'.trim().split('\n').first;
+      return r.exitCode == 0 && found.startsWith('/') ? found : null;
     } on ProcessException {
-      return false;
+      return null;
     }
   }
 
@@ -117,11 +148,12 @@ class ProcessCommandRunner implements CommandRunner {
     var exe = executable;
     var argv = args;
     if (onHost ?? inFlatpak) {
+      final path = await (_hostPath ??= _readHostPath());
       // Un outil absent de l'hôte reste « absent » (flatpak-spawn existe).
-      if (!await (_onHostPath[executable] ??= _hostHas(executable))) {
-        return null;
-      }
-      (exe, argv) = hostInvocation(executable, args, env: env);
+      final resolved =
+          await (_onHostPath[executable] ??= _hostResolve(executable, path));
+      if (resolved == null) return null;
+      (exe, argv) = hostInvocation(resolved, args, env: {...env, 'PATH': path});
     }
     final Process p;
     try {

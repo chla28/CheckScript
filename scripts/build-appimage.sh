@@ -61,6 +61,7 @@ install -m644 "$PROJECT_DIR/assets/check_script.svg" "$APPDIR/$APP_ID.svg"
 install -m644 "$PROJECT_DIR/assets/check_script.svg" \
   "$APPDIR/usr/share/icons/hicolor/scalable/apps/$APP_ID.svg"
 ln -sf "$APP_ID.svg" "$APPDIR/.DirIcon"
+install -Dm644 "$PROJECT_DIR/LICENSE" "$APPDIR/usr/share/licenses/$APP_ID/LICENSE"
 glibc_report "$APPDIR"
 
 echo "→ appimagetool"

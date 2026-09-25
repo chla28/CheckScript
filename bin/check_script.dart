@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Christophe Lafaille
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// check-script : évalue un ou plusieurs scripts shell ou Python et produit un
 /// classement (Sécurité, Robustesse, Maintenabilité, Portabilité,
 /// Performance), dans le terminal et/ou dans des fichiers .md / .adoc /

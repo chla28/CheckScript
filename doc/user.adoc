@@ -72,6 +72,9 @@ sudo dnf install ./check-script-gui-VERSION-1.fc44.x86_64.rpm   # interface
 Le paquet CLI recommande ShellCheck, shfmt et checkbashisms, installés
 automatiquement si les dépendances faibles sont activées.
 
+Chaque version publiée sur GitHub (*Releases*) fournit l'archive, les RPM,
+l'AppImage et le Flatpak.
+
 === AppImage
 
 Un seul fichier, sans installation, pour toute distribution récente (GTK 3
@@ -779,7 +782,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.9.0
+    rev: v0.10.0
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----
