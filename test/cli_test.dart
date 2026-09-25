@@ -28,10 +28,17 @@ void main() {
   setUp(() async => tmp = await Directory.systemTemp.createTemp('cs_cli_'));
   tearDown(() async => tmp.delete(recursive: true));
 
+  // Langue fixée (les messages attendus sont en français) : sinon elle
+  // dépend de LANG, en anglais sur les serveurs de CI.
+  List<String> fr(List<String> args) =>
+      args.any((a) => a == '--lang' || a == '-l' || a.startsWith('--lang='))
+          ? args
+          : ['--lang', 'fr', ...args];
+
   Future<(int, String, String)> run(List<String> args) async {
     final out = Capture(), err = Capture();
-    final code =
-        await cli.run(args, out: out.sink, err: err.sink, runner: noTools());
+    final code = await cli.run(fr(args),
+        out: out.sink, err: err.sink, runner: noTools());
     return (code, await out.text(), await err.text());
   }
 

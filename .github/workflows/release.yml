@@ -28,18 +28,33 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      # Les tests ne doivent pas dépendre de la langue du système : ils sont
+      # joués en anglais (C.UTF-8, défaut du runner) puis en français.
       - name: Bibliothèque et CLI
+        env:
+          LANG: C.UTF-8
         run: |
           dart pub get
           dart format --output=none --set-exit-if-changed lib test bin tool
           dart analyze --fatal-infos
           dart test
+      - name: Bibliothèque et CLI (locale française)
+        env:
+          LANG: fr_FR.UTF-8
+        run: dart test
       - name: Interface
         working-directory: gui
+        env:
+          LANG: C.UTF-8
         run: |
           flutter pub get
           flutter analyze
           flutter test
+      - name: Interface (locale française)
+        working-directory: gui
+        env:
+          LANG: fr_FR.UTF-8
+        run: flutter test
 
   linux:
     needs: tests

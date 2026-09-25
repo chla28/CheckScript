@@ -235,8 +235,9 @@ void main() {
       Future<(int, String)> run(List<String> args) async {
         final out = StringBuffer();
         final sink = IOSink(_BufferConsumer(out));
-        final code =
-            await cli.run(args, out: sink, err: sink, runner: GitOnly());
+        // Langue fixée : sinon elle dépend de LANG (anglais en CI).
+        final code = await cli.run(['--lang', 'fr', ...args],
+            out: sink, err: sink, runner: GitOnly());
         await sink.flush();
         return (code, out.toString());
       }

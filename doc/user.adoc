@@ -787,7 +787,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.11.0
+    rev: v0.11.1
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.1 — 2026-09-25
+
+- Correctif CI : les tests qui vérifient des messages français fixent la
+  langue (`--lang fr`) au lieu de dépendre de `LANG` (anglais sur les
+  serveurs GitHub) ; la CI joue les tests dans les deux locales.
+
 ## 0.11.0 — 2026-09-25
 
 - **Tableau de bord d'équipe** (`--dashboard FICHIER.html`) : un dépôt par

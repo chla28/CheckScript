@@ -362,7 +362,9 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final f = File('${tmp.path}/split.sh')..writeAsStringSync(badScript);
-      final state = AppState(runner: NoTools());
+      // Langue fixée : sinon elle dépend de LANG (anglais en CI).
+      final state = AppState(
+          runner: NoTools(), settings: const GuiSettings(lang: Lang.fr));
       await tester.runAsync(() => state.analyzeFile(f.path));
       await tester.pumpWidget(CheckScriptApp(state: state));
       await tester.pumpAndSettle();
@@ -449,7 +451,10 @@ void main() {
       addTearDown(tester.view.reset);
       File('${tmp.path}/a.sh').writeAsStringSync(badScript);
       final hist = FolderHistory(Directory('${tmp.path}/.hist'));
-      final state = AppState(runner: NoTools(), history: hist);
+      final state = AppState(
+          runner: NoTools(),
+          history: hist,
+          settings: const GuiSettings(lang: Lang.fr));
       await tester.runAsync(() async {
         await state.analyzeFolder(tmp.path);
         await state.analyzeFolder(tmp.path);
