@@ -1,5 +1,6 @@
-# Exemple de workflow GitHub Actions : les résultats SARIF apparaissent dans
-# l'onglet « Security → Code scanning » du dépôt.
+# Exemple de workflow GitHub Actions avec l'action CheckScript : annotations
+# sur les lignes des pull requests, résumé du job, SARIF dans l'onglet
+# « Security → Code scanning » (gratuit pour les dépôts publics).
 name: check-script
 on: [push, pull_request]
 permissions:
@@ -10,16 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Outils d'analyse
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck shfmt devscripts
-          pip install bashate
-      - name: check-script
-        run: |
-          curl -fsSL "${{ vars.CHECK_SCRIPT_URL }}" | tar xz
-          ./check_script-*/install.sh --prefix="$HOME/.local"
-          check-script --no-color --summary -o check-script.sarif --fail-under 6 .
+      - id: cs
+        uses: chla28/CheckScript@v0.14.0
+        with:
+          paths: .
+          fail-under: '6'
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:

@@ -1,0 +1,137 @@
+# Action GitHub réutilisable :
+#
+#   - uses: chla28/CheckScript@v0.14.0
+#     with:
+#       paths: scripts .github
+#       fail-under: '7'
+#
+# check-script est compilé depuis les sources de l'action (Dart), ShellCheck
+# et shfmt installés sur le runner ; les problèmes deviennent des annotations
+# (visibles sur les lignes des pull requests), un résumé Markdown est ajouté
+# au job et un fichier SARIF est produit pour GitHub Code Scanning.
+name: CheckScript
+description: >-
+  Note sur 10 les scripts shell et Python (et le shell des workflows,
+  Dockerfile, Makefile) : sécurité, robustesse, maintenabilité, portabilité,
+  performance ; annotations, résumé et SARIF.
+author: Christophe Lafaille
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  paths:
+    description: Scripts ou dossiers à analyser, séparés par des espaces.
+    default: '.'
+  fail-under:
+    description: >-
+      Seuil d'échec (ex. 7, ou security=8,global=6) ; vide : jamais d'échec
+      sur la note.
+    default: ''
+  changed-since:
+    description: >-
+      Référence git : n'analyser que les scripts modifiés depuis (ex.
+      origin/main ; checkout avec fetch-depth: 0) ; vide : tout analyser.
+    default: ''
+  args:
+    description: Options supplémentaires de check-script (ex. --profile strict).
+    default: ''
+  lang:
+    description: Langue des messages (fr ou en).
+    default: 'fr'
+  annotations:
+    description: Annoter les lignes concernées (true / false).
+    default: 'true'
+  summary:
+    description: Ajouter le rapport Markdown au résumé du job (true / false).
+    default: 'true'
+  sarif:
+    description: >-
+      Fichier SARIF à produire (vide : aucun), à envoyer avec
+      github/codeql-action/upload-sarif.
+    default: 'check-script.sarif'
+  install-tools:
+    description: Installer ShellCheck et shfmt avec apt (true / false).
+    default: 'true'
+
+outputs:
+  score:
+    description: Note moyenne des scripts analysés (sur 10).
+    value: ${{ steps.run.outputs.score }}
+  grade:
+    description: Niveau de la note la plus basse (A à E).
+    value: ${{ steps.run.outputs.grade }}
+  scripts:
+    description: Nombre de scripts analysés.
+    value: ${{ steps.run.outputs.scripts }}
+  sarif:
+    description: Chemin du fichier SARIF (vide si aucun).
+    value: ${{ steps.run.outputs.sarif }}
+
+runs:
+  using: composite
+  steps:
+    - uses: dart-lang/setup-dart@v1
+    - name: Construction de check-script
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        dart pub get
+        dart compile exe bin/check_script.dart -o "$RUNNER_TEMP/check-script"
+    - name: Outils d'analyse
+      if: inputs.install-tools == 'true'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq shellcheck shfmt >/dev/null ||
+          echo "::warning::ShellCheck / shfmt non installés : règles intégrées seules."
+    - id: run
+      name: Analyse
+      shell: bash
+      # Les paramètres passent par l'environnement, jamais interpolés dans le
+      # script (injection).
+      env:
+        CS_PATHS: ${{ inputs.paths }}
+        CS_FAIL_UNDER: ${{ inputs.fail-under }}
+        CS_SINCE: ${{ inputs.changed-since }}
+        CS_ARGS: ${{ inputs.args }}
+        CS_LANG: ${{ inputs.lang }}
+        CS_ANNOTATIONS: ${{ inputs.annotations }}
+        CS_SUMMARY: ${{ inputs.summary }}
+        CS_SARIF: ${{ inputs.sarif }}
+      run: |
+        set -uo pipefail
+        exe="$RUNNER_TEMP/check-script"
+        json="$RUNNER_TEMP/check-script.json"
+        md="$RUNNER_TEMP/check-script.md"
+        read -r -a paths <<<"$CS_PATHS"
+        read -r -a extra <<<"$CS_ARGS"
+        args=(--lang "$CS_LANG" --no-cache -o "$json" -o "$md")
+        [ -n "$CS_SARIF" ] && args+=(-o "$CS_SARIF")
+        [ -n "$CS_FAIL_UNDER" ] && args+=(--fail-under "$CS_FAIL_UNDER")
+        [ -n "$CS_SINCE" ] && args+=(--changed-since "$CS_SINCE")
+        if [ "$CS_ANNOTATIONS" = true ]; then
+          args+=(--format github)
+        else
+          args+=(--quiet)
+        fi
+        "$exe" "${args[@]}" "${extra[@]}" "${paths[@]}"
+        code=$?
+        if [ -s "$json" ]; then
+          jq -r '"scripts=\(.reports | length)",
+                 "score=\(if (.reports | length) > 0
+                          then ([.reports[].global.score] | add / length * 10 | round / 10)
+                          else "" end)",
+                 "grade=\([.reports[].global.grade] | max // "")"' \
+            "$json" >>"$GITHUB_OUTPUT"
+          jq -r '.reports[] | "\(.global.grade)  \(.global.score)  \(.file)"' "$json"
+        else
+          echo "scripts=0" >>"$GITHUB_OUTPUT"
+        fi
+        if [ -n "$CS_SARIF" ] && [ -s "$CS_SARIF" ]; then
+          echo "sarif=$CS_SARIF" >>"$GITHUB_OUTPUT"
+        fi
+        if [ "$CS_SUMMARY" = true ] && [ -s "$md" ]; then
+          cat "$md" >>"$GITHUB_STEP_SUMMARY"
+        fi
+        exit "$code"

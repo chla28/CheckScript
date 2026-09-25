@@ -35,7 +35,16 @@ Map<String, String Function(String, String, String)> versionFiles = {
       s.replaceFirst(RegExp(r"appVersion = '[^']*'"), "appVersion = '$v'"),
   '.pre-commit-hooks.yaml': (s, old, v) =>
       s.replaceAll('rev: v$old', 'rev: v$v'),
-  'doc/user.adoc': (s, old, v) => s.replaceAll('rev: v$old', 'rev: v$v'),
+  'doc/user.adoc': (s, old, v) => s
+      .replaceAll('rev: v$old', 'rev: v$v')
+      .replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
+  // Exemples d'utilisation de l'action GitHub.
+  'README.md': (s, old, v) =>
+      s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
+  'action.yml': (s, old, v) =>
+      s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
+  'doc/ci/github-actions.yml': (s, old, v) =>
+      s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
   // Seule la version de check-script (l'exemple contient aussi celle de
   // ShellCheck).
   'doc/developer.adoc': (s, old, v) => s.replaceAll(
