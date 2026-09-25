@@ -53,7 +53,7 @@ Note globale : 1,5/10 (E)
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: chla28/CheckScript@v0.14.0
+- uses: chla28/CheckScript@v0.14.1
   with:
     paths: scripts .github
     fail-under: '6'
