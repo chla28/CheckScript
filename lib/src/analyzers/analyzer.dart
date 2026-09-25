@@ -64,16 +64,68 @@ abstract class CommandRunner {
       {String? stdin, CancelToken? cancel});
 }
 
+/// L'outil s'exécute dans un Flatpak (variable `FLATPAK_ID`).
+bool get inFlatpak => Platform.environment.containsKey('FLATPAK_ID');
+
+/// Commande qui lance [executable] sur l'hôte depuis un Flatpak : les
+/// outils d'analyse (ShellCheck, Ruff, bash…) sont ceux du système, pas ceux
+/// du bac à sable. [env] est transmis explicitement (flatpak-spawn ne
+/// propage pas l'environnement).
+(String, List<String>) hostInvocation(String executable, List<String> args,
+        {Map<String, String> env = const {}}) =>
+    (
+      'flatpak-spawn',
+      [
+        '--host',
+        for (final e in env.entries) '--env=${e.key}=${e.value}',
+        executable,
+        ...args,
+      ]
+    );
+
 class ProcessCommandRunner implements CommandRunner {
-  const ProcessCommandRunner();
+  /// [onHost] : lancer les outils sur l'hôte (flatpak-spawn) ; null :
+  /// automatiquement dans un Flatpak.
+  const ProcessCommandRunner({this.onHost});
+
+  final bool? onHost;
+
+  /// Présence des exécutables sur l'hôte (vérifiée une fois chacun).
+  static final _onHostPath = <String, Future<bool>>{};
+
+  static Future<bool> _hostHas(String executable) async {
+    try {
+      final r = await Process.run('flatpak-spawn', [
+        '--host',
+        'sh',
+        '-c',
+        'command -v "\$1" >/dev/null 2>&1',
+        'sh',
+        executable,
+      ]);
+      return r.exitCode == 0;
+    } on ProcessException {
+      return false;
+    }
+  }
 
   @override
   Future<CommandResult?> run(String executable, List<String> args,
       {String? stdin, CancelToken? cancel}) async {
+    // LC_ALL=C : messages des outils (bash -n…) en anglais, donc analysables.
+    const env = {'LC_ALL': 'C'};
+    var exe = executable;
+    var argv = args;
+    if (onHost ?? inFlatpak) {
+      // Un outil absent de l'hôte reste « absent » (flatpak-spawn existe).
+      if (!await (_onHostPath[executable] ??= _hostHas(executable))) {
+        return null;
+      }
+      (exe, argv) = hostInvocation(executable, args, env: env);
+    }
     final Process p;
     try {
-      // LC_ALL=C : messages des outils (bash -n…) en anglais, donc analysables.
-      p = await Process.start(executable, args, environment: {'LC_ALL': 'C'});
+      p = await Process.start(exe, argv, environment: env);
     } on ProcessException {
       return null;
     }

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>fr.chla28.check_script_gui</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <name>CheckScript</name>
+  <summary>Évalue la qualité et la sécurité de scripts shell et Python</summary>
+  <summary xml:lang="en">Rates the quality and security of shell and Python scripts</summary>
+  <description>
+    <p>
+      CheckScript note des scripts shell et Python sur cinq catégories
+      (sécurité, robustesse, maintenabilité, portabilité, performance) en
+      s'appuyant sur ShellCheck, shfmt, Ruff, Bandit, mypy et d'autres
+      analyseurs, complétés par des règles intégrées.
+    </p>
+    <p>
+      Il explique la note, propose le code à écrire pour chaque problème,
+      applique les corrections sûres et suit l'évolution d'un dossier.
+    </p>
+  </description>
+  <launchable type="desktop-id">fr.chla28.check_script_gui.desktop</launchable>
+  <url type="homepage">https://github.com/chla28/CheckScript</url>
+  <developer id="fr.chla28">
+    <name>Christophe Lafaille</name>
+  </developer>
+  <provides>
+    <binary>check-script</binary>
+    <binary>check-script-gui</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.9.0" date="2026-09-25"/>
+  </releases>
+</component>

@@ -2,7 +2,7 @@
 #
 # Prérequis de build : SDK Flutter dans le PATH et les paquets de
 # développement GTK ci-dessous. Orchestration : scripts/build-rpm.sh.
-%{!?version: %global version 0.8.0}
+%{!?version: %global version 0.9.0}
 
 %global debug_package %{nil}
 %global __strip /bin/true
@@ -70,12 +70,12 @@ cat > %{buildroot}%{_datadir}/applications/check_script.desktop <<'DESKTOP'
 [Desktop Entry]
 Type=Application
 Name=CheckScript
-GenericName=Évaluation de scripts shell
-Comment=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell
+GenericName=Évaluation de scripts shell et Python
+Comment=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell et Python
 Exec=check-script-gui %F
 Icon=check_script
 Categories=Development;Security;Utility;
-MimeType=application/x-shellscript;text/x-shellscript;
+MimeType=application/x-shellscript;text/x-shellscript;text/x-python;text/x-python3;
 Terminal=false
 DESKTOP
 

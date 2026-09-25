@@ -28,6 +28,8 @@ check-script outil.py                          # script Python (cible : 3.9)
 check-script --python-target 3.11 --with pylint scripts/
 check-script --list-tools                      # outils détectés
 check-script-gui                               # interface graphique
+./CheckScript-VERSION-x86_64.AppImage          # interface (AppImage, sans installation)
+flatpak run fr.chla28.check_script_gui         # interface (Flatpak)
 ```
 
 ```

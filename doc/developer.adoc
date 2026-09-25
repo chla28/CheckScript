@@ -345,7 +345,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.8.0",
+  "tool": "check-script", "version": "0.9.0",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -456,6 +456,27 @@ injectée par `--build-name`), page de manuel (asciidoctor), complétions,
 documentation et exemples CI, `.desktop` et icône, SBOM et rapport CVE si
 `sbom-generator` est présent, archive, RPM (`scripts/build-rpm.sh`, depuis
 `git archive HEAD` : seul le contenu commité est empaqueté).
+
+`scripts/build-appimage.sh [--skip-build]` : bundle Flutter et CLI
+compilée dans un AppDir (`AppRun` : interface par défaut, CLI avec `--cli`
+ou via un lien nommé `check-script`), `.desktop`, icône et métadonnées
+AppStream communs (`packaging/linux/`), puis `appimagetool` (PATH,
+`APPIMAGETOOL`, ou téléchargé dans `build/appimage/`) → `dist/CheckScript-VERSION-ARCH.AppImage`.
+
+`scripts/build-flatpak.sh [--install] [--skip-build]` : mêmes binaires,
+manifeste `packaging/flatpak/fr.chla28.check_script_gui.yml` (runtime
+GNOME 50, qui fournit GTK 3), `flatpak-builder` (ou `org.flatpak.Builder`),
+runtime et SDK installés depuis Flathub pour l'utilisateur →
+`dist/CheckScript-VERSION-ARCH.flatpak`. Dans le Flatpak,
+`ProcessCommandRunner` lance les outils sur l'hôte (`hostInvocation` :
+`flatpak-spawn --host --env=LC_ALL=C …`, présence vérifiée par `command -v`
+sur l'hôte) ; les lanceurs placent `TMPDIR` dans le cache de l'application,
+dont le chemin est identique dans le bac à sable et sur l'hôte.
+
+Les deux scripts partagent `scripts/package-common.sh` et affichent la glibc
+minimale requise par les binaires (2.34 actuellement : Rocky 9, runtimes
+Flatpak) ; pour une AppImage largement compatible, construire sur la
+distribution la plus ancienne visée.
 
 Les specs neutralisent le strip et le debuginfo (ils corrompent les binaires
 AOT Dart) ; le spec de l'interface désactive le scan automatique des

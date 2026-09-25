@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0 — 2026-09-25
+
+- **AppImage** (`scripts/build-appimage.sh`) : interface et ligne de
+  commande (`--cli`, ou lien nommé `check-script`) dans un seul fichier,
+  sans installation.
+- **Flatpak** (`scripts/build-flatpak.sh`, manifeste
+  `packaging/flatpak/`) : runtime GNOME 50 ; les outils d'analyse et
+  l'éditeur sont ceux de l'hôte (`flatpak-spawn --host`), fichiers
+  temporaires dans le cache de l'application.
+- Fichier `.desktop` et métadonnées AppStream communs
+  (`packaging/linux/`) ; le `.desktop` mentionne Python.
+
 ## 0.8.0 — 2026-09-25
 
 - **`--changed-since REF`** : n'analyse que les scripts modifiés depuis une

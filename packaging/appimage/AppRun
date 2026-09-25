@@ -1,0 +1,15 @@
+#!/bin/sh
+# Point d'entrée de l'AppImage CheckScript.
+#   CheckScript-*.AppImage [FICHIER|DOSSIER]    interface graphique
+#   CheckScript-*.AppImage --cli [OPTIONS] …    ligne de commande
+# Un lien symbolique nommé « check-script » vers l'AppImage lance aussi la
+# ligne de commande.
+HERE="$(dirname "$(readlink -f "$0")")"
+case "$(basename "${ARGV0:-$0}")" in
+check-script | check-script.*) exec "$HERE/usr/bin/check-script" "$@" ;;
+esac
+if [ "$1" = "--cli" ]; then
+  shift
+  exec "$HERE/usr/bin/check-script" "$@"
+fi
+exec "$HERE/usr/lib/check_script/check_script_gui" "$@"

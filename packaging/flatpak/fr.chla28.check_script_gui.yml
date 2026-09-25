@@ -1,0 +1,44 @@
+# Flatpak de CheckScript (interface graphique + ligne de commande).
+#
+# Construit à partir des binaires préparés par scripts/build-flatpak.sh
+# (bundle Flutter, CLI compilée) : ./scripts/build-flatpak.sh [--install]
+#
+# Les outils d'analyse (ShellCheck, shfmt, Ruff, Bandit, bash, python3…)
+# sont ceux de l'hôte : check-script les lance avec « flatpak-spawn --host »
+# (permission org.freedesktop.Flatpak). Les fichiers temporaires vont dans le
+# cache de l'application, dont le chemin est le même dans le bac à sable et
+# sur l'hôte.
+app-id: fr.chla28.check_script_gui
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: check-script-gui
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  # Règles Semgrep (registre), liens de documentation.
+  - --share=network
+  # Scripts à analyser et à corriger, où qu'ils soient.
+  - --filesystem=host
+  # Outils d'analyse de l'hôte (flatpak-spawn --host).
+  - --talk-name=org.freedesktop.Flatpak
+modules:
+  - name: check-script
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/lib/check_script /app/bin
+      - cp -r bundle/. /app/lib/check_script/
+      - install -Dm755 check-script-cli /app/lib/check_script/check-script-cli
+      - install -Dm755 check-script-gui.sh /app/bin/check-script-gui
+      - install -Dm755 check-script.sh /app/bin/check-script
+      - install -Dm644 fr.chla28.check_script_gui.desktop
+          /app/share/applications/fr.chla28.check_script_gui.desktop
+      - install -Dm644 fr.chla28.check_script_gui.metainfo.xml
+          /app/share/metainfo/fr.chla28.check_script_gui.metainfo.xml
+      - install -Dm644 check_script.svg
+          /app/share/icons/hicolor/scalable/apps/fr.chla28.check_script_gui.svg
+    sources:
+      - type: dir
+        path: ../../build/flatpak/staging

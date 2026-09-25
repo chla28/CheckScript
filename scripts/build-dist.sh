@@ -196,13 +196,13 @@ if [[ "$BUILD_GUI" == true ]]; then
 [Desktop Entry]
 Type=Application
 Name=CheckScript
-GenericName=Évaluation de scripts shell
-Comment=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell
+GenericName=Évaluation de scripts shell et Python
+Comment=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell et Python
 Exec=check-script-gui %F
 Icon=check_script
 Categories=Development;Security;Utility;
 Keywords=shell;bash;script;shellcheck;lint;security;
-MimeType=application/x-shellscript;text/x-shellscript;
+MimeType=application/x-shellscript;text/x-shellscript;text/x-python;text/x-python3;
 Terminal=false
 StartupNotify=true
 DESKTOP

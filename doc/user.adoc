@@ -72,6 +72,38 @@ sudo dnf install ./check-script-gui-VERSION-1.fc44.x86_64.rpm   # interface
 Le paquet CLI recommande ShellCheck, shfmt et checkbashisms, installés
 automatiquement si les dépendances faibles sont activées.
 
+=== AppImage
+
+Un seul fichier, sans installation, pour toute distribution récente (GTK 3
+requis, présent sur tout bureau) :
+
+[source,bash]
+----
+chmod +x CheckScript-VERSION-x86_64.AppImage
+./CheckScript-VERSION-x86_64.AppImage [script.sh|dossier]    # interface
+./CheckScript-VERSION-x86_64.AppImage --cli script.sh         # ligne de commande
+ln -s "$PWD/CheckScript-VERSION-x86_64.AppImage" ~/.local/bin/check-script  # CLI directe
+----
+
+Sans FUSE (conteneur…), ajouter `APPIMAGE_EXTRACT_AND_RUN=1`. Les outils
+d'analyse sont ceux du système.
+
+=== Flatpak
+
+[source,bash]
+----
+flatpak install --user ./CheckScript-VERSION-x86_64.flatpak
+flatpak run fr.chla28.check_script_gui                                # interface
+flatpak run --command=check-script fr.chla28.check_script_gui s.sh    # CLI
+----
+
+Le Flatpak lance les outils d'analyse *de l'hôte* (`flatpak-spawn --host`,
+permission `org.freedesktop.Flatpak`) : installer ShellCheck, shfmt, Ruff…
+sur le système comme pour la version native. Il accède à tout le système de
+fichiers (`--filesystem=host`) pour analyser et corriger les scripts où
+qu'ils soient ; ses réglages, cache et historique sont dans
+`~/.var/app/fr.chla28.check_script_gui/`.
+
 === Outils d'analyse (facultatifs mais recommandés)
 
 Sans eux, seules les règles intégrées s'appliquent et le rapport le signale.
@@ -747,7 +779,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.8.0
+    rev: v0.9.0
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----

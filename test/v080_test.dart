@@ -313,6 +313,26 @@ void main() {
       expect(code, 2);
     });
   });
+
+  group('Flatpak : outils de l\'hôte', () {
+    test('invocation par flatpak-spawn --host, environnement transmis', () {
+      final (exe, args) = hostInvocation('shellcheck', ['-f', 'json1', 'x.sh'],
+          env: {'LC_ALL': 'C'});
+      expect(exe, 'flatpak-spawn');
+      expect(args,
+          ['--host', '--env=LC_ALL=C', 'shellcheck', '-f', 'json1', 'x.sh']);
+    });
+
+    test('outil introuvable sur l\'hôte : signalé absent', () async {
+      // Hors Flatpak, flatpak-spawn n'existe pas : l'outil est « absent ».
+      final r = await const ProcessCommandRunner(onHost: true)
+          .run('sh', ['-c', 'echo ok']);
+      expect(r, isNull);
+      final local = await const ProcessCommandRunner(onHost: false)
+          .run('sh', ['-c', 'echo ok']);
+      expect(local!.stdout.trim(), 'ok');
+    });
+  });
 }
 
 class _BufferConsumer implements StreamConsumer<List<int>> {
