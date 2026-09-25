@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.13.0 — 2026-09-25
 
 - **Scripts intégrés** : le shell des workflows GitHub Actions (`run:`), de
   GitLab CI (`script:`…), des Dockerfile (`RUN`), des Makefile (recettes)
@@ -19,6 +19,10 @@
   déclaré), PYPOR002 (paquet non déclaré) d'après requirements,
   pyproject.toml, setup.cfg, Pipfile ou l'en-tête PEP 723 ; `pip-audit`
   (facultatif) signale les vulnérabilités des paquets importés.
+
+### Fonctionnalités
+
+- scripts intégrés, règles personnalisées et dépendances Python (ab401d8)
 
 ## 0.12.0 — 2026-09-25
 
