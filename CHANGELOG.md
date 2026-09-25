@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.14.0 — 2026-09-25
 
 - **`--watch`** : réanalyse chaque script à son enregistrement (ou toutes
   les cibles quand des rapports `-o` sont écrits) ; la vue Dossier de
@@ -17,6 +17,16 @@
 - Interface : **correction de la sélection** (cases à cocher sur les
   problèmes corrigeables, diff global avant application) ; menu **Récents**
   (10 derniers scripts et dossiers).
+
+### Fonctionnalités
+
+- **cli** : --watch, formats JUnit XML et annotations GitHub (a63e3f8)
+- **ci** : action GitHub réutilisable (85100ff)
+- **gui** : correction de la sélection, récents, surveillance du dossier (30cc1ea)
+
+### Documentation
+
+- watch, action GitHub, JUnit, correction de la sélection (aecb705)
 
 ## 0.13.0 — 2026-09-25
 
