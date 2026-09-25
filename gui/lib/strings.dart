@@ -17,6 +17,33 @@ class S {
   String get analysis => _t('Analyse', 'Analysis');
   String get folder => _t('Dossier', 'Folder');
   String get settings => _t('Réglages', 'Settings');
+  String get rules => _t('Règles', 'Rules');
+  String get searchRules =>
+      _t('Rechercher (code, texte, outil)', 'Search (code, text, tool)');
+  String get allLanguages => _t('Tous les langages', 'All languages');
+  String get allTools => _t('Tous les outils', 'All tools');
+  String get allCategories => _t('Toutes les catégories', 'All categories');
+  String rulesCount(int shown, int total, int disabled) => _t(
+      '$shown / $total règles · $disabled désactivée${disabled > 1 ? 's' : ''}',
+      '$shown / $total rules · $disabled disabled');
+  String enableAll(int n) => _t('Tout réactiver ($n)', 'Enable all ($n)');
+  String get nextScanHint => _t(
+      'Les changements s\'appliquent à la prochaine analyse.',
+      'Changes apply from the next analysis.');
+  String get disableOtherHint => _t('Autre code à désactiver (ex. SC2317)',
+      'Other code to disable (e.g. SC2317)');
+  String get disableOther => _t('Désactiver', 'Disable');
+  String get typedCode => _t('code saisi', 'typed code');
+  String get lockedByConfig => _t(
+      'désactivée par le profil ou la configuration',
+      'disabled by the profile or configuration');
+  String get seenInScan => _t('rencontrée', 'seen');
+  String get severityVaries => _t('sévérité variable', 'varying severity');
+  String doNotReport(String id) =>
+      _t('Ne plus signaler $id', 'Stop reporting $id');
+  String ruleDisabled(String id) => _t(
+      'Règle $id désactivée à partir de la prochaine analyse.',
+      'Rule $id disabled from the next analysis.');
   String get openScript => _t('Ouvrir un script', 'Open a script');
   String get openFolder => _t('Ouvrir un dossier', 'Open a folder');
   String get reanalyze => _t('Relancer l\'analyse', 'Re-run analysis');

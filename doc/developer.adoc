@@ -58,6 +58,8 @@ lib/src/
   rules/catalog.dart               Catalogue des règles intégrées (titre, conseil, contexte),
                                    ExecContext, escalades de sévérité par contexte
   rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
+  rules/registry.dart              RuleEntry, knownRules : règles intégrées et codes externes
+                                   classés, titres bilingues (onglet Règles de l'interface)
   analyzers/
     analyzer.dart                  Analyzer, AnalysisContext, CommandRunner, CancelToken
     shellcheck.dart                ShellCheck (JSON) et table de classement SCxxxx
@@ -318,7 +320,7 @@ Format JSON (extrait) :
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.5.1",
+  "tool": "check-script", "version": "0.6.0",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
@@ -358,8 +360,13 @@ gui/lib/strings.dart               Libellés propres à l'interface (fr/en)
 gui/lib/screens/analysis_screen.dart   Source + onglets Synthèse / Problèmes, correction, export
 gui/lib/screens/folder_screen.dart     Tableau triable, tendance (sortReports)
 gui/lib/screens/settings_screen.dart   Langue, thème, profil, contextes, outils, YAML
+gui/lib/screens/rules_screen.dart      Règles : cases à cocher (GuiSettings.disabledRules, fusionné
+                                       à rules.disabled par buildConfig ; celles de baseConfig
+                                       sont verrouillées), recherche, filtres, règles rencontrées
+                                       (AppState.seenRules, mémorisées)
 gui/lib/widgets/                   radar_chart (RadarPainter), score_panel, source_view,
-                                   findings_list, common (couleurs, badges, DeltaChip)
+                                   findings_list, fix_panel (code de correction), split_view
+                                   (séparateur déplaçable), common (couleurs, badges, DeltaChip)
 ----
 
 `AppState` construit la configuration (`buildConfig` : YAML éventuel,

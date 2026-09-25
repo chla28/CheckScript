@@ -665,7 +665,7 @@ Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.5.1
+    rev: v0.6.0
     hooks:
       - id: check-script        # ou check-script-fix pour corriger
 ----
@@ -699,6 +699,17 @@ AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
   mémorisée, séparément pour une fenêtre large (côte à côte) et étroite
   (l'un au-dessus de l'autre) ;
 * *Corriger…* : aperçu du diff puis application ;
+* *Règles* : toutes les règles de détection — règles intégrées, codes des
+  outils classés par l'outil (ShellCheck, Ruff, Bandit, Pylint…) et codes
+  rencontrés lors des analyses —, chacune avec une case à cocher : une règle
+  décochée n'est plus signalée *à partir de l'analyse suivante* (bouton
+  *Relancer l'analyse*). Recherche par code, texte ou outil ; filtres par
+  langage, outil et catégorie ; champ pour désactiver n'importe quel autre
+  code (ex. `SC2317`) ; *Tout réactiver*. Les règles désactivées par le
+  profil ou le fichier YAML apparaissent décochées et grisées. Dans la liste
+  des problèmes, un problème déplié propose aussi *Ne plus signaler* sa
+  règle. Une règle est désactivée par son identifiant, tout outil confondu,
+  comme `rules.disabled` de la configuration ; le choix est mémorisé ;
 * *Dossier* : tableau triable de tous les scripts d'un dossier ; avec une
   référence chargée, colonne *Tendance* (évolution de la note) ;
 * *Exporter…* : HTML, Markdown, AsciiDoc, JSON, SARIF ;

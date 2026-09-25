@@ -4,6 +4,7 @@ import 'package:check_script/check_script.dart';
 import 'package:check_script_gui/app_state.dart';
 import 'package:check_script_gui/main.dart';
 import 'package:check_script_gui/screens/folder_screen.dart';
+import 'package:check_script_gui/screens/rules_screen.dart';
 import 'package:check_script_gui/widgets/findings_list.dart';
 import 'package:check_script_gui/widgets/radar_chart.dart';
 import 'package:check_script_gui/widgets/score_panel.dart';
@@ -185,6 +186,8 @@ void main() {
     expect(find.text('Analyse'), findsWidgets);
     expect(find.text('Dossier'), findsOneWidget);
     expect(find.textContaining('Déposez un script'), findsOneWidget);
+    // Fenêtre basse : la barre de navigation défile jusqu'à l'entrée.
+    await tester.ensureVisible(find.text('Réglages'));
     await tester.tap(find.text('Réglages'));
     await tester.pumpAndSettle();
     expect(find.text('Profil de notation'), findsOneWidget);
@@ -373,6 +376,134 @@ void main() {
       expect(state.settings.wideSplit.collapsed, SplitCollapse.first);
     });
   });
+
+  group('règles de détection', () {
+    test('désactivation effective à l\'analyse suivante, mémorisation',
+        () async {
+      final f = File('${tmp.path}/r.sh')..writeAsStringSync(badScript);
+      final state = AppState(runner: NoTools());
+      await state.analyzeFile(f.path);
+      expect(state.current!.findings.map((x) => x.ruleId), contains('SEC001'));
+      // Règles rencontrées mémorisées.
+      expect(state.seenRules.keys, contains('SEC001'));
+      expect((await AppState.loadSeenRules()).keys, contains('SEC001'));
+      await state.setRuleEnabled('sec001', false);
+      expect(state.settings.disabledRules, {'SEC001'});
+      // Le rapport courant n'est pas modifié avant la prochaine analyse.
+      expect(state.current!.findings.map((x) => x.ruleId), contains('SEC001'));
+      expect((await state.buildConfig()).disabledRules, contains('SEC001'));
+      await state.reanalyze();
+      expect(state.current!.findings.map((x) => x.ruleId),
+          isNot(contains('SEC001')));
+      expect((await GuiSettings.load()).disabledRules, {'SEC001'});
+      await state.enableAllRules();
+      expect(state.settings.disabledRules, isEmpty);
+    });
+
+    test('règles du profil : conservées, non réactivables ici', () async {
+      final state = AppState(
+          runner: NoTools(),
+          settings: const GuiSettings(
+              profile: Profile.legacy, disabledRules: {'SC2086'}));
+      final c = await state.buildConfig();
+      expect(c.disabledRules, containsAll(['MNT001', 'SC2086']));
+      expect(
+          (await state.baseConfig()).disabledRules, isNot(contains('SC2086')));
+    });
+
+    testWidgets('onglet Règles : recherche, case à cocher, saisie, verrou',
+        (tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final state = AppState(
+          runner: NoTools(),
+          settings: const GuiSettings(lang: Lang.fr, profile: Profile.legacy),
+          seenRules: {
+            'ARG-TYPE': const RuleEntry(
+                id: 'arg-type',
+                tool: 'mypy',
+                language: ToolLanguage.python,
+                category: Category.robustness,
+                severity: Severity.medium,
+                title: 'Argument has incompatible type'),
+          });
+      // Comme dans l'application : reconstruit à chaque changement d'état.
+      await tester.pumpWidget(MaterialApp(
+          home: Scaffold(
+              body: ListenableBuilder(
+                  listenable: state,
+                  builder: (_, __) => RulesScreen(state: state)))));
+      await tester.pumpAndSettle();
+      final total = RulesScreenTestAccess.count(state);
+      expect(find.textContaining('/ $total règles'), findsOneWidget);
+
+      // La recherche porte sur des sous-chaînes : SEC001 et PYSEC001.
+      await tester.enterText(find.byType(TextField).first, 'SEC001');
+      await tester.pumpAndSettle();
+      expect(find.byType(CheckboxListTile), findsNWidgets(2));
+      await tester.tap(find.descendant(
+          of: find.byKey(const ValueKey('SEC001')),
+          matching: find.byType(Checkbox)));
+      await tester.pumpAndSettle();
+      expect(state.settings.disabledRules, {'SEC001'});
+      expect(find.text('Tout réactiver (1)'), findsOneWidget);
+
+      // Règle rencontrée lors d'une analyse.
+      await tester.enterText(find.byType(TextField).first, 'arg-type');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('rencontrée'), findsOneWidget);
+
+      // Règle désactivée par le profil legacy : case grisée.
+      await tester.enterText(find.byType(TextField).first, 'MNT001');
+      await tester.pumpAndSettle();
+      final box =
+          tester.widget<CheckboxListTile>(find.byKey(const ValueKey('MNT001')));
+      expect(box.value, isFalse);
+      expect(box.onChanged, isNull);
+
+      // Code saisi librement.
+      await tester.enterText(find.byType(TextField).at(1), 'sc9999');
+      await tester.tap(find.text('Désactiver'));
+      await tester.pumpAndSettle();
+      expect(state.settings.disabledRules, containsAll(['SEC001', 'SC9999']));
+      await tester.enterText(find.byType(TextField).first, 'SC9999');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('code saisi'), findsOneWidget);
+    });
+
+    testWidgets('problème : « Ne plus signaler »', (tester) async {
+      final report = await tester.runAsync(() => analyze(badScript));
+      final disabled = <String>[];
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: FindingsList(
+            findings: report!.findings,
+            lang: Lang.fr,
+            lines: report.script.lines,
+            onDisableRule: (f) => disabled.add(f.ruleId),
+          ),
+        ),
+      ));
+      expect(find.textContaining('Ne plus signaler'), findsNothing);
+      await tester.tap(find.textContaining('SEC003'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Ne plus signaler SEC003'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ne plus signaler SEC003'));
+      expect(disabled, ['SEC003']);
+    });
+  });
+}
+
+/// Nombre total de règles affichées par l'onglet (connues + rencontrées +
+/// saisies), pour vérifier le compteur.
+class RulesScreenTestAccess {
+  static int count(AppState state) =>
+      knownRules(state.lang).length +
+      state.seenRules.keys
+          .where((k) => !knownRules(state.lang).any((e) => e.key == k))
+          .length;
 }
 
 /// Compteur à état local : vérifie qu'un panneau replié n'est pas recréé.

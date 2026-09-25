@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 — 2026-09-25
+
+- Interface : onglet **Règles** listant toutes les règles de détection
+  (intégrées, codes classés des outils, codes rencontrés lors des analyses),
+  chacune avec une case à cocher ; une règle décochée n'est plus signalée à
+  partir de l'analyse suivante. Recherche, filtres (langage, outil,
+  catégorie), saisie libre d'un code, *Tout réactiver*, *Relancer
+  l'analyse* ; règles désactivées par le profil ou le YAML verrouillées.
+  Bouton *Ne plus signaler* sur un problème déplié.
+- Interface : barre de navigation défilante sur une fenêtre basse ; badge de
+  sévérité réduit plutôt que de déborder (« fichier entier »).
+
 ## 0.5.1 — 2026-09-24
 
 - Interface : barre déplaçable entre le code et les résultats (fenêtre

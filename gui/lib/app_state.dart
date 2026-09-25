@@ -2,6 +2,7 @@
 /// analyse d'un dossier, référence (baseline), progression et annulation.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:check_script/check_script.dart';
@@ -31,6 +32,10 @@ class GuiSettings {
   final SplitState wideSplit;
   final SplitState narrowSplit;
 
+  /// Règles désactivées depuis l'interface (clés en majuscules), ajoutées
+  /// à `rules.disabled` de la configuration.
+  final Set<String> disabledRules;
+
   static const defaultWideSplit = SplitState(0.66);
   static const defaultNarrowSplit = SplitState(0.35);
 
@@ -46,6 +51,7 @@ class GuiSettings {
     this.pythonTarget,
     this.wideSplit = defaultWideSplit,
     this.narrowSplit = defaultNarrowSplit,
+    this.disabledRules = const {},
   });
 
   /// Outil actif selon ces réglages (sa valeur par défaut, sauf choix
@@ -76,6 +82,7 @@ class GuiSettings {
     String? Function()? pythonTarget,
     SplitState? wideSplit,
     SplitState? narrowSplit,
+    Set<String>? disabledRules,
   }) =>
       GuiSettings(
         lang: lang == null ? this.lang : lang(),
@@ -89,6 +96,7 @@ class GuiSettings {
         pythonTarget: pythonTarget == null ? this.pythonTarget : pythonTarget(),
         wideSplit: wideSplit ?? this.wideSplit,
         narrowSplit: narrowSplit ?? this.narrowSplit,
+        disabledRules: disabledRules ?? this.disabledRules,
       );
 
   static Future<GuiSettings> load() async {
@@ -113,6 +121,8 @@ class GuiSettings {
       wideSplit: SplitState.decode(p.getString('wideSplit'), defaultWideSplit),
       narrowSplit:
           SplitState.decode(p.getString('narrowSplit'), defaultNarrowSplit),
+      disabledRules:
+          (p.getStringList('disabledRules') ?? const <String>[]).toSet(),
     );
   }
 
@@ -141,6 +151,7 @@ class GuiSettings {
     }
     await p.setString('wideSplit', wideSplit.encode());
     await p.setString('narrowSplit', narrowSplit.encode());
+    await p.setStringList('disabledRules', disabledRules.toList()..sort());
   }
 }
 
@@ -152,9 +163,17 @@ class ProgressInfo {
 }
 
 class AppState extends ChangeNotifier {
-  AppState({CommandRunner? runner, GuiSettings? settings})
+  AppState(
+      {CommandRunner? runner,
+      GuiSettings? settings,
+      Map<String, RuleEntry>? seenRules})
       : runner = runner ?? const ProcessCommandRunner(),
-        _settings = settings ?? const GuiSettings();
+        _settings = settings ?? const GuiSettings(),
+        seenRules = seenRules ?? {};
+
+  /// Règles rencontrées lors des analyses (clé → règle), pour l'onglet
+  /// Règles : elles complètent le registre des règles connues.
+  final Map<String, RuleEntry> seenRules;
 
   final CommandRunner runner;
   GuiSettings _settings;
@@ -185,20 +204,83 @@ class AppState extends ChangeNotifier {
   /// Configuration effective : fichier YAML éventuel, profil, contextes,
   /// outils désactivés.
   Future<CheckConfig> buildConfig() async {
-    var c = CheckConfig.forProfile(_settings.profile);
-    final path = _settings.configPath;
-    if (path != null && await File(path).exists()) {
-      c = CheckConfig.parse(await File(path).readAsString(),
-          profile: _settings.profile);
-    }
+    final c = await baseConfig();
     return c
         .withToolsEnabled(_settings.enabledTools)
         .withToolsDisabled(_settings.disabledTools)
         .copyWith(
-          contexts: _settings.contexts,
-          followSource: _settings.followSource,
-          pythonTarget: _settings.pythonTarget,
-        );
+      contexts: _settings.contexts,
+      followSource: _settings.followSource,
+      pythonTarget: _settings.pythonTarget,
+      disabledRules: {...c.disabledRules, ..._settings.disabledRules},
+    );
+  }
+
+  /// Configuration du profil et du fichier YAML, sans les choix faits dans
+  /// l'interface : ses règles désactivées ne se réactivent pas ici.
+  Future<CheckConfig> baseConfig() async {
+    final path = _settings.configPath;
+    if (path != null && await File(path).exists()) {
+      return CheckConfig.parse(await File(path).readAsString(),
+          profile: _settings.profile);
+    }
+    return CheckConfig.forProfile(_settings.profile);
+  }
+
+  /// Active ou désactive une règle (clé en majuscules) à partir de la
+  /// prochaine analyse.
+  Future<void> setRuleEnabled(String id, bool enabled) {
+    final key = id.trim().toUpperCase();
+    return updateSettings(_settings.copyWith(
+        disabledRules: enabled
+            ? ({..._settings.disabledRules}..remove(key))
+            : {..._settings.disabledRules, key}));
+  }
+
+  /// Réactive toutes les règles désactivées depuis l'interface.
+  Future<void> enableAllRules() =>
+      updateSettings(_settings.copyWith(disabledRules: const {}));
+
+  /// Nombre maximal de règles rencontrées mémorisées.
+  static const maxSeenRules = 2000;
+
+  /// Mémorise les règles des problèmes de [reports] non encore vues.
+  Future<void> _recordSeen(Iterable<ScriptReport> reports) async {
+    var changed = false;
+    for (final r in reports) {
+      for (final f in r.findings) {
+        final key = f.ruleId.toUpperCase();
+        if (seenRules.containsKey(key) || seenRules.length >= maxSeenRules) {
+          continue;
+        }
+        seenRules[key] =
+            RuleEntry.fromFinding(f, python: r.script.dialect.isPython);
+        changed = true;
+      }
+    }
+    if (changed) await saveSeenRules(seenRules);
+  }
+
+  static const _seenKey = 'seenRules';
+
+  /// Règles rencontrées, mémorisées d'une session à l'autre.
+  static Future<Map<String, RuleEntry>> loadSeenRules() async {
+    final p = await SharedPreferences.getInstance();
+    try {
+      final list = jsonDecode(p.getString(_seenKey) ?? '[]');
+      return {
+        for (final j in list is List ? list : const [])
+          if (RuleEntry.fromJson(j) case final e?) e.key: e
+      };
+    } on FormatException {
+      return {};
+    }
+  }
+
+  static Future<void> saveSeenRules(Map<String, RuleEntry> rules) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(
+        _seenKey, jsonEncode([for (final e in rules.values) e.toJson()]));
   }
 
   Future<Engine> _engine() async => Engine(
@@ -235,6 +317,7 @@ class AppState extends ChangeNotifier {
         progress = ProgressInfo(p.tool ?? '', p.fraction);
         notifyListeners();
       });
+      await _recordSeen([current!]);
       _finish();
     } on AnalysisCancelled {
       _finish('cancelled');
@@ -267,6 +350,7 @@ class AppState extends ChangeNotifier {
         }
       }
       folderReports = out;
+      await _recordSeen(out);
       _finish(files.isEmpty ? 'noScripts' : null);
     } on AnalysisCancelled {
       _finish('cancelled');

@@ -12,12 +12,15 @@ import 'package:flutter/material.dart';
 import 'app_state.dart';
 import 'screens/analysis_screen.dart';
 import 'screens/folder_screen.dart';
+import 'screens/rules_screen.dart';
 import 'screens/settings_screen.dart';
 import 'strings.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  final state = AppState(settings: await GuiSettings.load());
+  final state = AppState(
+      settings: await GuiSettings.load(),
+      seenRules: await AppState.loadSeenRules());
   runApp(CheckScriptApp(state: state));
   // Un chemin passé en argument est analysé au démarrage.
   if (args.isNotEmpty) {
@@ -126,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() => _index = 0);
             state.analyzeFile(path);
           }),
+      RulesScreen(state: state),
       SettingsScreen(state: state),
     ];
     return Scaffold(
@@ -137,29 +141,44 @@ class _HomeScreenState extends State<HomeScreen> {
           _drop(d);
         },
         child: Row(children: [
-          NavigationRail(
-            selectedIndex: _index,
-            onDestinationSelected: (i) => setState(() => _index = i),
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Icon(Icons.fact_check,
-                  size: 32, color: Theme.of(context).colorScheme.primary),
+          // Barre défilante quand la fenêtre est trop basse pour ses entrées.
+          LayoutBuilder(
+            builder: (context, c) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: c.maxHeight),
+                child: IntrinsicHeight(
+                  child: NavigationRail(
+                    selectedIndex: _index,
+                    onDestinationSelected: (i) => setState(() => _index = i),
+                    labelType: NavigationRailLabelType.all,
+                    leading: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Icon(Icons.fact_check,
+                          size: 32,
+                          color: Theme.of(context).colorScheme.primary),
+                    ),
+                    destinations: [
+                      NavigationRailDestination(
+                          icon: const Icon(Icons.description_outlined),
+                          selectedIcon: const Icon(Icons.description),
+                          label: Text(s.analysis)),
+                      NavigationRailDestination(
+                          icon: const Icon(Icons.folder_outlined),
+                          selectedIcon: const Icon(Icons.folder),
+                          label: Text(s.folder)),
+                      NavigationRailDestination(
+                          icon: const Icon(Icons.rule_outlined),
+                          selectedIcon: const Icon(Icons.rule),
+                          label: Text(s.rules)),
+                      NavigationRailDestination(
+                          icon: const Icon(Icons.settings_outlined),
+                          selectedIcon: const Icon(Icons.settings),
+                          label: Text(s.settings)),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            destinations: [
-              NavigationRailDestination(
-                  icon: const Icon(Icons.description_outlined),
-                  selectedIcon: const Icon(Icons.description),
-                  label: Text(s.analysis)),
-              NavigationRailDestination(
-                  icon: const Icon(Icons.folder_outlined),
-                  selectedIcon: const Icon(Icons.folder),
-                  label: Text(s.folder)),
-              NavigationRailDestination(
-                  icon: const Icon(Icons.settings_outlined),
-                  selectedIcon: const Icon(Icons.settings),
-                  label: Text(s.settings)),
-            ],
           ),
           const VerticalDivider(width: 1),
           Expanded(

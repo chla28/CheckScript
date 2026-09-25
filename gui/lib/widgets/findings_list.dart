@@ -19,6 +19,7 @@ class FindingsList extends StatefulWidget {
     this.lines = const [],
     this.onSelect,
     this.onApplyFix,
+    this.onDisableRule,
   });
 
   final List<Finding> findings;
@@ -30,6 +31,9 @@ class FindingsList extends StatefulWidget {
 
   /// Applique la correction concrète d'un problème ; null : pas de bouton.
   final void Function(Finding f)? onApplyFix;
+
+  /// Désactive la règle d'un problème ; null : pas de bouton.
+  final void Function(Finding f)? onDisableRule;
 
   @override
   State<FindingsList> createState() => _FindingsListState();
@@ -107,16 +111,22 @@ class _FindingsListState extends State<FindingsList> {
                       setState(() => _open = open ? null : f);
                       widget.onSelect?.call(f);
                     },
+                    // ListTile limite la hauteur de leading (48 px) : badge
+                    // et ligne sont réduits plutôt que de déborder (libellé
+                    // « fichier entier » sur deux lignes).
                     leading: SizedBox(
                       width: 64,
-                      child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SeverityBadge(f.severity),
-                            const SizedBox(height: 2),
-                            Text(f.line == 0 ? s.wholeFile : 'L${f.line}',
-                                style: Theme.of(context).textTheme.labelSmall),
-                          ]),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child:
+                            Column(mainAxisSize: MainAxisSize.min, children: [
+                          SeverityBadge(f.severity),
+                          const SizedBox(height: 2),
+                          Text(f.line == 0 ? s.wholeFile : 'L${f.line}',
+                              maxLines: 1,
+                              style: Theme.of(context).textTheme.labelSmall),
+                        ]),
+                      ),
                     ),
                     title: Text(f.message),
                     subtitle: Column(
@@ -134,6 +144,16 @@ class _FindingsListState extends State<FindingsList> {
                               onApply: widget.onApplyFix == null
                                   ? null
                                   : () => widget.onApplyFix!(f),
+                            ),
+                          if (open && widget.onDisableRule != null)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                icon:
+                                    const Icon(Icons.visibility_off, size: 16),
+                                label: Text(s.doNotReport(f.ruleId)),
+                                onPressed: () => widget.onDisableRule!(f),
+                              ),
                             ),
                         ]),
                     trailing: f.url == null

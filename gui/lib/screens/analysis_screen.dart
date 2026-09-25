@@ -102,6 +102,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             onApplyFix: state.busy
                                 ? null
                                 : (f) => _applyOne(context, f),
+                            onDisableRule: (f) => _disableRule(context, f),
                           ),
                         ),
                       ]),
@@ -139,6 +140,21 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               }),
       ),
     ]);
+  }
+
+  /// Désactive la règle d'un problème (effet à la prochaine analyse).
+  Future<void> _disableRule(BuildContext context, Finding f) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    await state.setRuleEnabled(f.ruleId, false);
+    messenger.showSnackBar(SnackBar(
+      content: Text(s.ruleDisabled(f.ruleId)),
+      action: SnackBarAction(
+          label: s.reanalyze,
+          onPressed: () {
+            if (!state.busy) state.reanalyze();
+          }),
+    ));
   }
 
   /// Applique la correction d'un seul problème, depuis la liste.
