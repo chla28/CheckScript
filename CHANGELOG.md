@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.15.0 — 2026-09-28
 
 - Interface : **coloration syntaxique** du code (shell, Python, et YAML,
   Dockerfile, Makefile pour les scripts intégrés ; heredocs et chaînes sur
@@ -9,6 +9,15 @@
   Police du code). **Taille réglable** : A− / A+ au-dessus du code,
   Ctrl+plus / Ctrl+moins / Ctrl+0, Ctrl+molette, curseur des réglages ;
   appliquée aussi aux diffs et aux exemples de correction, mémorisée.
+
+### Fonctionnalités
+
+- **engine** : coloration syntaxique du shell, de Python et des fichiers hôtes (33bae01)
+- **gui** : code coloré en police à chasse fixe de taille réglable (c926f0e)
+
+### Documentation
+
+- coloration, police et taille du code (dc22b1b)
 
 ## 0.14.2 — 2026-09-25
 
