@@ -37,6 +37,7 @@ export 'src/feedback.dart';
 export 'src/git.dart';
 export 'src/history.dart';
 export 'src/fixer.dart';
+export 'src/highlight.dart';
 export 'src/i18n.dart';
 export 'src/model/finding.dart';
 export 'src/model/report.dart';
