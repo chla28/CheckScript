@@ -100,4 +100,6 @@ déduits des commits). Voir le guide développeur.
 ## Licence
 
 CheckScript est un logiciel libre, distribué sous licence **GNU LGPL version 3
-ou ultérieure** (LGPL-3.0-or-later) : voir [LICENSE](LICENSE).
+ou ultérieure** (LGPL-3.0-or-later) : voir [LICENSE](LICENSE). L'interface
+embarque la police JetBrains Mono (SIL Open Font License 1.1 :
+[gui/fonts/JetBrainsMono/OFL.txt](gui/fonts/JetBrainsMono/OFL.txt)).

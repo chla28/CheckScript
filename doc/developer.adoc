@@ -63,6 +63,8 @@ lib/src/
                                    ExecContext, escalades de sévérité par contexte
   rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
   rules/custom_rules.dart          CustomRule (rules.custom), CustomRulesAnalyzer
+  highlight.dart                   Coloration : jetons par ligne (shell, Python, YAML,
+                                   Dockerfile, Makefile), états multilignes (heredoc…)
   explain.dart                     ScoreExplanation, explainScore (coût et gain par règle, plan
                                    vers le niveau supérieur), sortByQuickWin
   result_cache.dart                ResultCache (rapports JSON par clé), fastHash (FNV-1a 64 bits)
@@ -401,6 +403,9 @@ gui/lib/screens/analysis_screen.dart   Source + onglets Synthèse / Problèmes, 
 gui/lib/screens/folder_screen.dart     Tableau triable, tendance (sortReports)
 gui/lib/screens/settings_screen.dart   Langue, thème, profil, contextes, outils, YAML
 gui/lib/editor.dart                detectEditor, editorCommandLine, openInEditor
+gui/lib/code_style.dart            Police du code (JetBrains Mono embarquée, gui/fonts/, OFL),
+                                   CodeFont (InheritedWidget), couleurs des jetons,
+                                   polices mono installées (fc-list)
 gui/lib/screens/rules_screen.dart      Règles : cases à cocher (GuiSettings.disabledRules, fusionné
                                        à rules.disabled par buildConfig ; celles de baseConfig
                                        sont verrouillées), recherche, filtres, règles rencontrées

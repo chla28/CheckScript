@@ -1,5 +1,15 @@
 # Changelog
 
+## Non publié
+
+- Interface : **coloration syntaxique** du code (shell, Python, et YAML,
+  Dockerfile, Makefile pour les scripts intégrés ; heredocs et chaînes sur
+  plusieurs lignes suivis), en **police à chasse fixe** : JetBrains Mono
+  embarquée (licence OFL) ou toute police mono installée (Réglages →
+  Police du code). **Taille réglable** : A− / A+ au-dessus du code,
+  Ctrl+plus / Ctrl+moins / Ctrl+0, Ctrl+molette, curseur des réglages ;
+  appliquée aussi aux diffs et aux exemples de correction, mémorisée.
+
 ## 0.14.2 — 2026-09-25
 
 - CI : actions GitHub passées sur Node.js 24 (`checkout@v7`,

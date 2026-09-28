@@ -991,7 +991,15 @@ comparaison avec la référence.
 AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
 
 * *Analyse* : ouvrir ou déposer un script ; source annoté (marque de
-  sévérité en marge, info-bulle des problèmes), onglet *Synthèse* (note
+  sévérité en marge, info-bulle des problèmes, coloration syntaxique du
+  shell, de Python et des fichiers hôtes — YAML, Dockerfile, Makefile), en
+  police à chasse fixe : JetBrains Mono, embarquée, ou toute police à
+  chasse fixe installée (*Réglages → Police du code*, liste de fontconfig
+  ou nom saisi) ; taille du texte par les boutons A− / A+ au-dessus du
+  code (clic sur la taille : 13 pt), Ctrl+plus / Ctrl+moins / Ctrl+0,
+  Ctrl+molette sur le code ou le curseur des réglages ; police et taille
+  valent aussi pour les diffs et les exemples de correction, et sont
+  mémorisées ; onglet *Synthèse* (note
   globale, radar des cinq catégories, compteurs par sévérité) et onglet
   *Problèmes* (filtres par catégorie et sévérité, conseil, lien vers la
   documentation ; un clic place le source sur la ligne et déplie le code à
