@@ -55,6 +55,15 @@ class S {
   String get apply => _t('Appliquer', 'Apply');
   String get close => _t('Fermer', 'Close');
   String get recent => _t('Récents', 'Recent');
+  String get smallerText => _t('Réduire le texte', 'Smaller text');
+  String get largerText => _t('Agrandir le texte', 'Larger text');
+  String get defaultTextSize => _t('Taille par défaut', 'Default size');
+  String get codeFont => _t('Police du code', 'Code font');
+  String get codeFontSize => _t('Taille du code', 'Code size');
+  String get embeddedFont =>
+      _t('JetBrains Mono (intégrée)', 'JetBrains Mono (built in)');
+  String get otherFont =>
+      _t('Autre police installée (nom)…', 'Other installed font (name)…');
   String get selectForFix =>
       _t('Sélectionner pour corriger', 'Select for fixing');
   String selectFixable(int n) =>

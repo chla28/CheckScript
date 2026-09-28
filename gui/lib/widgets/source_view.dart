@@ -1,10 +1,14 @@
 /// Source annotée : numéros de ligne, marque de sévérité en marge, ligne
-/// sélectionnée mise en évidence ; défilement jusqu'à une ligne donnée.
+/// sélectionnée mise en évidence, coloration syntaxique ; défilement
+/// jusqu'à une ligne donnée ; Ctrl+molette change la taille du texte.
 library;
 
 import 'package:check_script/check_script.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../code_style.dart';
 import 'common.dart';
 
 class SourceView extends StatefulWidget {
@@ -14,6 +18,11 @@ class SourceView extends StatefulWidget {
     required this.findings,
     this.selectedLine,
     this.onLineTap,
+    this.language,
+    this.fontFamily,
+    this.fontSize = defaultCodeFontSize,
+    this.onZoom,
+    this.header,
   });
 
   final List<String> lines;
@@ -21,7 +30,18 @@ class SourceView extends StatefulWidget {
   final int? selectedLine;
   final void Function(int line)? onLineTap;
 
-  static const lineHeight = 20.0;
+  /// Langage de la coloration (null : pas de coloration).
+  final HighlightLanguage? language;
+
+  /// Police (null : police embarquée) et taille du code.
+  final String? fontFamily;
+  final double fontSize;
+
+  /// Ctrl+molette : +1 ou -1 point.
+  final void Function(double delta)? onZoom;
+
+  /// Barre affichée au-dessus du code (taille du texte…).
+  final Widget? header;
 
   @override
   State<SourceView> createState() => _SourceViewState();
@@ -31,15 +51,40 @@ class _SourceViewState extends State<SourceView> {
   final _vertical = ScrollController();
   final _horizontal = ScrollController();
 
+  /// Jetons calculés pour ces lignes et ce langage.
+  List<List<Token>>? _tokens;
+  (List<String>, HighlightLanguage?)? _tokensFor;
+
+  double get _lineHeight => codeLineHeight(widget.fontSize);
+
+  List<List<Token>>? _highlight() {
+    final lang = widget.language;
+    if (lang == null) return null;
+    final key = _tokensFor;
+    if (key == null || !identical(key.$1, widget.lines) || key.$2 != lang) {
+      _tokens = highlightLines(widget.lines, lang);
+      _tokensFor = (widget.lines, lang);
+    }
+    return _tokens;
+  }
+
   @override
   void didUpdateWidget(SourceView old) {
     super.didUpdateWidget(old);
     final l = widget.selectedLine;
     if (l != null && l != old.selectedLine && l > 0 && _vertical.hasClients) {
-      final target = ((l - 5) * SourceView.lineHeight)
+      final target = ((l - 5) * _lineHeight)
           .clamp(0.0, _vertical.position.maxScrollExtent);
       _vertical.animateTo(target,
           duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+  }
+
+  /// Ctrl+molette : taille du texte (la molette seule fait défiler).
+  void _zoomSignal(PointerSignalEvent e) {
+    if (e is PointerScrollEvent && HardwareKeyboard.instance.isControlPressed) {
+      GestureBinding.instance.pointerSignalResolver.register(
+          e, (_) => widget.onZoom?.call(e.scrollDelta.dy < 0 ? 1 : -1));
     }
   }
 
@@ -62,21 +107,24 @@ class _SourceViewState extends State<SourceView> {
       if (w == null || f.severity.index < w.index) worst[f.line] = f.severity;
       (tips[f.line] ??= []).add('${f.ruleId} — ${f.message}');
     }
-    final mono = TextStyle(
-        fontFamily: 'monospace',
-        fontFamilyFallback: const ['DejaVu Sans Mono', 'Liberation Mono'],
-        fontSize: 13,
-        height: SourceView.lineHeight / 13,
+    final mono = codeTextStyle(widget.fontFamily, widget.fontSize,
         color: theme.colorScheme.onSurface);
     final digits = '${widget.lines.length}'.length;
+    final tokens = _highlight();
+    // Largeur d'un chiffre, pour la colonne des numéros de ligne.
+    final digitWidth = (TextPainter(
+            text: TextSpan(text: '0', style: mono),
+            textDirection: TextDirection.ltr)
+          ..layout())
+        .width;
 
-    return Container(
+    final list = Container(
       color: theme.colorScheme.surfaceContainerLowest,
       child: Scrollbar(
         controller: _vertical,
         child: ListView.builder(
           controller: _vertical,
-          itemExtent: SourceView.lineHeight,
+          itemExtent: _lineHeight,
           itemCount: widget.lines.length,
           itemBuilder: (context, i) {
             final n = i + 1;
@@ -96,30 +144,52 @@ class _SourceViewState extends State<SourceView> {
                           ? Colors.transparent
                           : severityColor(sev, b)),
                   SizedBox(
-                    width: 12.0 + digits * 9,
+                    width: 12.0 + digits * digitWidth,
                     child: Text('$n',
                         textAlign: TextAlign.right,
                         style: mono.copyWith(color: theme.disabledColor)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(widget.lines[i],
-                        style: mono,
-                        softWrap: false,
-                        overflow: TextOverflow.fade),
+                    child: tokens == null
+                        ? Text(widget.lines[i],
+                            style: mono,
+                            softWrap: false,
+                            overflow: TextOverflow.fade)
+                        : Text.rich(
+                            highlightedLine(
+                                widget.lines[i], tokens[i], mono, b),
+                            softWrap: false,
+                            overflow: TextOverflow.fade),
                   ),
                 ]),
               ),
             );
-            return sev == null
+            final shown = sev == null
                 ? row
                 : Tooltip(
                     message: tips[n]!.join('\n'),
                     waitDuration: const Duration(milliseconds: 400),
                     child: row);
+            // Sur chaque ligne : l'écouteur passe avant la liste défilante,
+            // qui prendrait sinon la molette pour elle.
+            return widget.onZoom == null
+                ? shown
+                : Listener(onPointerSignal: _zoomSignal, child: shown);
           },
         ),
       ),
     );
+    // Sous la dernière ligne (script court) aussi.
+    final zoomable = widget.onZoom == null
+        ? list
+        : Listener(onPointerSignal: _zoomSignal, child: list);
+    final header = widget.header;
+    return header == null
+        ? zoomable
+        : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            header,
+            Expanded(child: zoomable),
+          ]);
   }
 }

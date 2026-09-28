@@ -24,3 +24,18 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Police du code (variante sans ligatures), licence OFL 1.1 : sa licence
+  # accompagne la police dans chaque paquet (flutter_assets).
+  assets:
+    - fonts/JetBrainsMono/OFL.txt
+  fonts:
+    - family: JetBrains Mono
+      fonts:
+        - asset: fonts/JetBrainsMono/JetBrainsMonoNL-Regular.ttf
+        - asset: fonts/JetBrainsMono/JetBrainsMonoNL-Bold.ttf
+          weight: 700
+        - asset: fonts/JetBrainsMono/JetBrainsMonoNL-Italic.ttf
+          style: italic
+        - asset: fonts/JetBrainsMono/JetBrainsMonoNL-BoldItalic.ttf
+          weight: 700
+          style: italic

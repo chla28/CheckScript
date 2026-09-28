@@ -13,7 +13,7 @@ Release:        1%{?dist}
 Summary:        Interface graphique de check-script (evaluation de scripts shell)
 
 # À confirmer : aucune licence n'est encore choisie pour CheckScript.
-License:        LGPL-3.0-or-later
+License:        LGPL-3.0-or-later AND OFL-1.1
 Source0:        check_script-%{version}.tar.gz
 
 ExclusiveArch:  x86_64

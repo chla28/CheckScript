@@ -48,6 +48,10 @@ void main() {
         ['/usr/share/fonts/adwaita-sans-fonts/AdwaitaSans-Regular.ttf']);
     await _font('monospace',
         ['/usr/share/fonts/adwaita-mono-fonts/AdwaitaMono-Regular.ttf']);
+    await _font('JetBrains Mono', [
+      for (final v in ['Regular', 'Bold', 'Italic', 'BoldItalic'])
+        'fonts/JetBrainsMono/JetBrainsMonoNL-$v.ttf'
+    ]);
     await _font('MaterialIcons', [
       '$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf'
     ]);

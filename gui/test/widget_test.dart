@@ -192,6 +192,13 @@ void main() {
     await tester.ensureVisible(find.text('Réglages'));
     await tester.tap(find.text('Réglages'));
     await tester.pumpAndSettle();
+    expect(find.text('Police du code'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Profil de notation'), 200,
+        scrollable: find
+            .descendant(
+                of: find.byType(IndexedStack),
+                matching: find.byType(Scrollable))
+            .last);
     expect(find.text('Profil de notation'), findsOneWidget);
   });
 

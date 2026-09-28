@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../code_style.dart';
 import '../editor.dart';
 import '../strings.dart';
 import '../widgets/findings_list.dart';
@@ -35,10 +36,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     if (path != null) await state.analyzeFile(path);
   }
 
+  /// Taille du code : +/- [delta] points, null : taille par défaut.
+  void _zoom(double? delta) =>
+      state.updateSettings(state.settings.zoomCode(delta));
+
   @override
   Widget build(BuildContext context) {
     final s = S(state.lang);
     final report = state.current;
+    return _body(context, s, report);
+  }
+
+  Widget _body(BuildContext context, S s, ScriptReport? report) {
     return LayoutBuilder(
         builder: (context, outer) => Column(children: [
               // Barre d'outils : au plus 40 % de la hauteur, défilante au-delà
@@ -147,11 +156,17 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             ),
                           ]),
                         );
+                        final g0 = state.settings;
                         final source = SourceView(
                           lines: report.script.displayLines,
                           findings: report.findings,
                           selectedLine: _selectedLine,
                           onLineTap: (l) => setState(() => _selectedLine = l),
+                          language: HighlightLanguage.of(report.script),
+                          fontFamily: g0.codeFont,
+                          fontSize: g0.codeFontSize,
+                          onZoom: _zoom,
+                          header: _ZoomBar(state: state, onZoom: _zoom),
                         );
                         // Code et résultats séparés par une barre déplaçable ;
                         // répartition mémorisée par disposition.
@@ -207,8 +222,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       '${i == preview.focus ? '▶' : ' '} '
                           '${preview.context[i] ?? '…'}'
                   ].join('\n'),
-                  style:
-                      const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+                  style: CodeFont.styleOf(ctx)),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -386,6 +400,56 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 }
 
+/// Taille du texte du code : A− / taille / A+ ; clic sur la taille :
+/// taille par défaut.
+class _ZoomBar extends StatelessWidget {
+  const _ZoomBar({required this.state, required this.onZoom});
+  final AppState state;
+  final void Function(double? delta) onZoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S(state.lang);
+    final g = state.settings;
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainer,
+      child: Row(children: [
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(g.codeFont ?? defaultCodeFont,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall),
+        ),
+        const Spacer(),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: '${s.smallerText} (Ctrl+−)',
+          onPressed:
+              g.codeFontSize <= minCodeFontSize ? null : () => onZoom(-1),
+          icon: const Icon(Icons.text_decrease, size: 18),
+        ),
+        Tooltip(
+          message: '${s.defaultTextSize} (Ctrl+0)',
+          child: TextButton(
+            style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                minimumSize: const Size(48, 32)),
+            onPressed: () => onZoom(null),
+            child: Text('${g.codeFontSize.round()} pt'),
+          ),
+        ),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: '${s.largerText} (Ctrl+plus)',
+          onPressed: g.codeFontSize >= maxCodeFontSize ? null : () => onZoom(1),
+          icon: const Icon(Icons.text_increase, size: 18),
+        ),
+      ]),
+    );
+  }
+}
+
 /// Affichage coloré d'un diff unifié.
 class DiffView extends StatelessWidget {
   const DiffView({super.key, required this.diff});
@@ -412,9 +476,7 @@ class DiffView extends StatelessWidget {
           return Container(
             color: bg,
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(l,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5),
-                softWrap: false),
+            child: Text(l, style: CodeFont.styleOf(context), softWrap: false),
           );
         },
       ),

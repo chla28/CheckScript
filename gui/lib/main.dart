@@ -11,8 +11,10 @@ import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_state.dart';
+import 'code_style.dart';
 import 'screens/analysis_screen.dart';
 import 'screens/folder_screen.dart';
 import 'screens/rules_screen.dart';
@@ -51,13 +53,18 @@ class CheckScriptApp extends StatelessWidget {
                   seedColor: const Color(0xFF3C6E71), brightness: b),
               useMaterial3: true,
             );
-        return MaterialApp(
-          title: 'CheckScript',
-          debugShowCheckedModeBanner: false,
-          theme: theme(Brightness.light),
-          darkTheme: theme(Brightness.dark),
-          themeMode: state.settings.theme,
-          home: HomeScreen(state: state),
+        // Au-dessus du navigateur : les dialogues (diff…) en profitent.
+        return CodeFont(
+          family: state.settings.codeFont,
+          size: state.settings.codeFontSize,
+          child: MaterialApp(
+            title: 'CheckScript',
+            debugShowCheckedModeBanner: false,
+            theme: theme(Brightness.light),
+            darkTheme: theme(Brightness.dark),
+            themeMode: state.settings.theme,
+            home: HomeScreen(state: state),
+          ),
         );
       },
     );
@@ -147,6 +154,31 @@ class _HomeScreenState extends State<HomeScreen> {
       RulesScreen(state: state),
       SettingsScreen(state: state),
     ];
+    // Ctrl+plus / Ctrl+moins / Ctrl+0 : taille du code, depuis tout l'écran.
+    void zoom(double? d) => state.updateSettings(state.settings.zoomCode(d));
+    return CallbackShortcuts(
+      bindings: {
+        for (final k in [
+          LogicalKeyboardKey.equal,
+          LogicalKeyboardKey.add,
+          LogicalKeyboardKey.numpadAdd,
+        ])
+          SingleActivator(k, control: true): () => zoom(1),
+        for (final k in [
+          LogicalKeyboardKey.minus,
+          LogicalKeyboardKey.numpadSubtract,
+        ])
+          SingleActivator(k, control: true): () => zoom(-1),
+        for (final k in [LogicalKeyboardKey.digit0, LogicalKeyboardKey.numpad0])
+          SingleActivator(k, control: true): () => zoom(null),
+      },
+      child: Focus(
+          autofocus: true, child: _scaffold(context, s, screens, progress)),
+    );
+  }
+
+  Widget _scaffold(
+      BuildContext context, S s, List<Widget> screens, ProgressInfo? progress) {
     return Scaffold(
       body: DropTarget(
         onDragEntered: (_) => setState(() => _dragging = true),

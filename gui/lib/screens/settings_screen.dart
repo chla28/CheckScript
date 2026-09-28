@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../code_style.dart';
 import '../editor.dart';
 import '../strings.dart';
 
@@ -17,6 +18,80 @@ class SettingsScreen extends StatefulWidget {
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+/// Aperçu de la police du code : caractères faciles à confondre.
+const _preview = r'for f in "$@"; do [ -e "$f" ] || exit 1; done  # 0O 1lI {}';
+
+/// Choix de la police du code : police intégrée, ou une police à chasse
+/// fixe installée (liste de fontconfig, ou nom saisi puis Entrée).
+class _CodeFontField extends StatefulWidget {
+  const _CodeFontField({required this.state});
+  final AppState state;
+
+  @override
+  State<_CodeFontField> createState() => _CodeFontFieldState();
+}
+
+class _CodeFontFieldState extends State<_CodeFontField> {
+  List<String> _installed = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    installedMonospaceFonts().then((f) {
+      if (mounted) setState(() => _installed = f);
+    });
+  }
+
+  void _set(String? family) {
+    final st = widget.state;
+    final f = family?.trim();
+    st.updateSettings(st.settings.copyWith(
+        codeFont: () =>
+            f == null || f.isEmpty || f == defaultCodeFont ? null : f));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S(widget.state.lang);
+    final current = widget.state.settings.codeFont;
+    return Row(children: [
+      Expanded(
+        child: Autocomplete<String>(
+          key: ValueKey(current),
+          initialValue: TextEditingValue(text: current ?? ''),
+          optionsBuilder: (v) {
+            final q = v.text.trim().toLowerCase();
+            return [
+              for (final f in _installed)
+                if (q.isEmpty || f.toLowerCase().contains(q)) f
+            ];
+          },
+          onSelected: _set,
+          fieldViewBuilder: (context, controller, focus, submit) => TextField(
+            controller: controller,
+            focusNode: focus,
+            decoration: InputDecoration(
+              isDense: true,
+              border: const OutlineInputBorder(),
+              hintText: s.embeddedFont,
+              helperText: s.otherFont,
+            ),
+            // Nom saisi tel quel (une police de la liste se choisit en
+            // cliquant dessus).
+            onSubmitted: _set,
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      IconButton(
+        tooltip: s.embeddedFont,
+        onPressed: current == null ? null : () => _set(null),
+        icon: const Icon(Icons.restart_alt),
+      ),
+    ]);
+  }
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
@@ -60,6 +135,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
         selected: {g.theme},
         onSelectionChanged: (v) =>
             state.updateSettings(g.copyWith(theme: v.first)),
+      ),
+      section(s.codeFont),
+      _CodeFontField(state: state),
+      const SizedBox(height: 8),
+      Row(children: [
+        Text(s.codeFontSize),
+        Expanded(
+          child: Slider(
+            value: g.codeFontSize,
+            min: minCodeFontSize,
+            max: maxCodeFontSize,
+            divisions: (maxCodeFontSize - minCodeFontSize).round(),
+            label: '${g.codeFontSize.round()} pt',
+            onChanged: (v) => state.updateSettings(g.copyWith(codeFontSize: v)),
+          ),
+        ),
+        Text('${g.codeFontSize.round()} pt'),
+      ]),
+      Container(
+        padding: const EdgeInsets.all(8),
+        color: theme.colorScheme.surfaceContainerLowest,
+        child: Text.rich(
+          highlightedLine(
+              _preview,
+              highlightLines([_preview], HighlightLanguage.shell).first,
+              codeTextStyle(g.codeFont, g.codeFontSize,
+                  color: theme.colorScheme.onSurface),
+              theme.brightness),
+          softWrap: false,
+          overflow: TextOverflow.fade,
+        ),
       ),
       section(s.profile),
       SegmentedButton<Profile>(

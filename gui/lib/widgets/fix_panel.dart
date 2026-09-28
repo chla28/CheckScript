@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../strings.dart';
+import '../code_style.dart';
 
 class FixPanel extends StatelessWidget {
   const FixPanel({
@@ -136,8 +137,7 @@ class CodeBlock extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: SelectableText(code,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+        child: SelectableText(code, style: CodeFont.styleOf(context)),
       ),
     );
   }

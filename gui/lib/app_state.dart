@@ -10,6 +10,7 @@ import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart' hide Baseline;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'code_style.dart';
 import 'widgets/split_view.dart';
 
 /// Réglages de l'interface (persistés dans shared_preferences).
@@ -54,6 +55,12 @@ class GuiSettings {
   /// Scripts et dossiers analysés récemment, du plus récent au plus ancien.
   final List<String> recent;
 
+  /// Police du code (null : JetBrains Mono, embarquée).
+  final String? codeFont;
+
+  /// Taille de la police du code, en points.
+  final double codeFontSize;
+
   /// Nombre d'entrées conservées dans [recent].
   static const maxRecent = 10;
 
@@ -78,7 +85,16 @@ class GuiSettings {
     this.editorCommand,
     this.ruffProjectConfig = false,
     this.recent = const [],
+    this.codeFont,
+    this.codeFontSize = defaultCodeFontSize,
   });
+
+  /// Réglages avec la taille du code changée de [delta] points (bornée) ;
+  /// null : taille par défaut.
+  GuiSettings zoomCode(double? delta) => copyWith(
+      codeFontSize: delta == null
+          ? defaultCodeFontSize
+          : (codeFontSize + delta).clamp(minCodeFontSize, maxCodeFontSize));
 
   /// Réglages avec [path] en tête des récents (sans doublon).
   GuiSettings withRecent(String path) => copyWith(
@@ -122,6 +138,8 @@ class GuiSettings {
     String? Function()? editorCommand,
     bool? ruffProjectConfig,
     List<String>? recent,
+    String? Function()? codeFont,
+    double? codeFontSize,
   }) =>
       GuiSettings(
         lang: lang == null ? this.lang : lang(),
@@ -142,6 +160,8 @@ class GuiSettings {
             editorCommand == null ? this.editorCommand : editorCommand(),
         ruffProjectConfig: ruffProjectConfig ?? this.ruffProjectConfig,
         recent: recent ?? this.recent,
+        codeFont: codeFont == null ? this.codeFont : codeFont(),
+        codeFontSize: codeFontSize ?? this.codeFontSize,
       );
 
   static Future<GuiSettings> load() async {
@@ -173,6 +193,9 @@ class GuiSettings {
       editorCommand: p.getString('editorCommand'),
       ruffProjectConfig: p.getBool('ruffProjectConfig') ?? false,
       recent: p.getStringList('recent') ?? const [],
+      codeFont: p.getString('codeFont'),
+      codeFontSize: (p.getDouble('codeFontSize') ?? defaultCodeFontSize)
+          .clamp(minCodeFontSize, maxCodeFontSize),
     );
   }
 
@@ -206,6 +229,12 @@ class GuiSettings {
     await p.setBool('watchFile', watchFile);
     await p.setBool('ruffProjectConfig', ruffProjectConfig);
     await p.setStringList('recent', recent);
+    if (codeFont == null) {
+      await p.remove('codeFont');
+    } else {
+      await p.setString('codeFont', codeFont!);
+    }
+    await p.setDouble('codeFontSize', codeFontSize);
     if (editorCommand == null) {
       await p.remove('editorCommand');
     } else {
