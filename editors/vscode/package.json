@@ -1,0 +1,127 @@
+{
+  "name": "check-script",
+  "displayName": "CheckScript",
+  "description": "Évalue les scripts shell et Python (et le shell des workflows, Dockerfile, Makefile) : problèmes soulignés, corrections rapides, survol, note, formatage.",
+  "version": "0.15.0",
+  "publisher": "chla28",
+  "license": "LGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chla28/CheckScript"
+  },
+  "icon": "images/check_script.png",
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Linters",
+    "Formatters"
+  ],
+  "keywords": [
+    "shell",
+    "bash",
+    "python",
+    "shellcheck",
+    "ruff",
+    "security"
+  ],
+  "activationEvents": [
+    "onLanguage:shellscript",
+    "onLanguage:python",
+    "onLanguage:dockerfile",
+    "onLanguage:makefile",
+    "onLanguage:yaml",
+    "onLanguage:ansible",
+    "onLanguage:github-actions-workflow"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "checkScript.analyze",
+        "title": "Analyser le fichier",
+        "category": "CheckScript"
+      },
+      {
+        "command": "checkScript.restart",
+        "title": "Redémarrer le serveur",
+        "category": "CheckScript"
+      }
+    ],
+    "configuration": {
+      "title": "CheckScript",
+      "properties": {
+        "checkScript.path": {
+          "type": "string",
+          "default": "check-script",
+          "description": "Exécutable check-script (nom dans le PATH ou chemin absolu)."
+        },
+        "checkScript.lang": {
+          "type": "string",
+          "enum": [
+            "",
+            "fr",
+            "en"
+          ],
+          "enumDescriptions": [
+            "Langue de l'environnement",
+            "Français",
+            "English"
+          ],
+          "default": "",
+          "description": "Langue des messages."
+        },
+        "checkScript.profile": {
+          "type": "string",
+          "enum": [
+            "",
+            "strict",
+            "default",
+            "legacy"
+          ],
+          "default": "",
+          "description": "Profil de notation (vide : celui de .checkscript.yaml, sinon default)."
+        },
+        "checkScript.analyzeOnType": {
+          "type": "boolean",
+          "default": true,
+          "description": "Pendant la frappe, appliquer les règles intégrées (l'analyse complète a lieu à l'ouverture et à l'enregistrement)."
+        },
+        "checkScript.typingDelay": {
+          "type": "number",
+          "default": 600,
+          "minimum": 100,
+          "description": "Pause de frappe (ms) avant l'analyse rapide."
+        },
+        "checkScript.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace des échanges avec le serveur (panneau Sortie)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --target=node20 --minify",
+    "check": "tsc --noEmit",
+    "package": "cp ../../LICENSE LICENSE && npm run check && npm run build && vsce package --no-dependencies --out check-script.vsix",
+    "build-tests": "esbuild test/runTest.ts test/suite.ts --bundle --outdir=out/test --external:vscode --external:@vscode/test-electron --format=cjs --platform=node --target=node20",
+    "test": "npm run build && npm run build-tests && node out/test/runTest.js"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "~1.91.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.0",
+    "@vscode/test-electron": "^3.1.0"
+  }
+}
