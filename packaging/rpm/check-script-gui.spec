@@ -2,7 +2,7 @@
 #
 # Prérequis de build : SDK Flutter dans le PATH et les paquets de
 # développement GTK ci-dessous. Orchestration : scripts/build-rpm.sh.
-%{!?version: %global version 0.15.0}
+%{!?version: %global version 0.16.0}
 
 %global debug_package %{nil}
 %global __strip /bin/true

@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.16.0 — 2026-09-29
 
 - **Éditeurs** : serveur LSP `check-script lsp` (diagnostics à l'ouverture
   et à l'enregistrement, règles intégrées pendant la frappe, corrections
@@ -8,6 +8,20 @@
   script) ; **extension VS Code** (`.vsix`, testée de bout en bout dans
   VS Code) et **plugin Eclipse** (LSP4E, site de mise à jour `.zip`)
   attachés à la release ; configuration pour le greffon LSP de **Geany**.
+
+### Fonctionnalités
+
+- **lsp** : serveur LSP check-script lsp (b7bdac5)
+- **vscode** : extension VS Code (client de check-script lsp) (1e7e047)
+- **eclipse** : plugin Eclipse (LSP4E) et configuration Geany (d14fc61)
+
+### Documentation
+
+- serveur LSP et extensions d'éditeurs (3563a50)
+
+### Intégration continue
+
+- extensions d'éditeurs dans la publication (8bfeaa3)
 
 ## 0.15.0 — 2026-09-28
 

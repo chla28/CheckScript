@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<feature id="fr.chla28.checkscript.feature" label="CheckScript" version="0.15.0"
+<feature id="fr.chla28.checkscript.feature" label="CheckScript" version="0.16.0"
       provider-name="Christophe Lafaille">
    <description url="https://github.com/chla28/CheckScript">
 Analyse des scripts shell et Python (et du shell des Dockerfile, Makefile, GitLab CI) par
@@ -14,5 +14,5 @@ GNU Lesser General Public License, version 3 ou ultérieure (LGPL-3.0-or-later).
       <import plugin="org.eclipse.lsp4e"/>
       <import plugin="org.eclipse.ui.genericeditor"/>
    </requires>
-   <plugin id="fr.chla28.checkscript" version="0.15.0"/>
+   <plugin id="fr.chla28.checkscript" version="0.16.0"/>
 </feature>
