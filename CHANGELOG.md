@@ -1,5 +1,24 @@
 # Changelog
 
+## Non publié
+
+- **Dockerfile** : règles DKR001 à DKR007 (image non épinglée, conteneur en
+  root, `ADD` d'une URL sans somme de contrôle, `ADD` au lieu de `COPY`,
+  secret dans `ENV`/`ARG`, `--no-install-recommends`, cache de paquets) ;
+  intégration de **hadolint**.
+- **Workflows CI** : règles CI001 à CI005 (action non épinglée par SHA,
+  permissions absentes ou `write-all`, `pull_request_target` qui extrait la
+  pull request, secret en clair, image non épinglée ; GitHub et GitLab) ;
+  intégration d'**actionlint** et de **zizmor**.
+- **Chaîne d'approvisionnement** : SEC024 (paquet sans version épinglée :
+  pip, pipx, npm -g, go, gem, cargo), SEC025 (dépôt sans vérification de
+  signature), SEC026 (`git clone` sans révision).
+- **Référentiels** : références CWE, OWASP Top 10 2021 / Top 10 CI/CD et
+  ANSSI (BP-028, FT-082, OpenSSH) sur chaque problème, reprises de Bandit et
+  Semgrep ; dans tous les rapports, étiquettes CWE du SARIF, vue de
+  conformité du rapport HTML, filtre `--ref`, `--list-rules`, onglet Règles
+  et survol LSP.
+
 ## 0.16.0 — 2026-09-29
 
 - **Éditeurs** : serveur LSP `check-script lsp` (diagnostics à l'ouverture

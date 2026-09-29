@@ -32,7 +32,7 @@ L'outil exploite les analyseurs de référence lorsqu'ils sont installés
 (ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n`
 pour le shell ; Ruff, Bandit, Semgrep, mypy, Radon, Vermin — et en option
 Pylint, Pyright — pour Python, voir <<python>>) et les complète par des
-*règles intégrées* qui fonctionnent toujours (66 pour le shell, 10 pour
+*règles intégrées* qui fonctionnent toujours (81 pour le shell, 10 pour
 Python), et par les *règles personnalisées* du projet. Il analyse aussi le
 shell *intégré* aux workflows GitHub Actions, à GitLab CI, aux Dockerfile,
 aux Makefile et aux tâches Ansible.
@@ -123,6 +123,9 @@ Sans eux, seules les règles intégrées s'appliquent et le rapport le signale.
 |`gitleaks` |Détection de secrets (optionnel) |https://github.com/gitleaks/gitleaks/releases
 |`trufflehog` |Détection de secrets (optionnel, lancé sans vérification réseau) |https://github.com/trufflesecurity/trufflehog/releases
 |`bash` / `sh` |Contrôle syntaxique (`bash -n`) |présent sur toute distribution
+|`hadolint` |Dockerfile : bonnes pratiques et sécurité (versions épinglées, `USER`, caches…) ; les résultats ShellCheck qu'il relaie sont écartés |https://github.com/hadolint/hadolint/releases
+|`actionlint` |Workflows GitHub Actions : syntaxe, expressions, injections |https://github.com/rhysd/actionlint/releases
+|`zizmor` |Workflows GitHub Actions : audit de sécurité (actions non épinglées, déclencheurs dangereux, injections, persistance des identifiants…), sans accès réseau (`--offline`) |`pipx install zizmor`
 |===
 
 Pour les scripts Python :
@@ -164,7 +167,7 @@ checkbashisms   shell     disponible          2.26.5
 pydeps          python    disponible          3.14.7
 pip-audit       python    absent              (installer : pipx install pip-audit)
 custom          tous      intégré             0 règle(s) personnalisée(s)
-builtin         tous      intégré             66 + 10 règles
+builtin         tous      intégré             81 + 10 règles
 shfmt           shell     disponible          ?
 bashate         shell     disponible          2.1.1
 ----
@@ -223,6 +226,7 @@ intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 |`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…) ; répétable ou séparé par des virgules.
 |`--no-external` |N'utilise que les règles intégrées.
 |`--no-embedded` |Dans un dossier, ignore les scripts intégrés (voir <<integres>>).
+|`--ref RÉFÉRENCE` |N'affiche que les problèmes rattachés à cette référence normative, par début de nom et sans casse : `CWE-78`, `CWE-7` (toutes les CWE-7xx), `A08` (OWASP A08:2021), `CICD-SEC`, `ANSSI`, `ANSSI-BP-028 R59` (voir <<references>>). Répétable ; les notes restent celles de l'analyse complète.
 |`-w`, `--watch` |Après l'analyse, surveille les cibles : chaque script enregistré (ou créé) est réanalysé et son rapport affiché ; avec des fichiers `-o`, toutes les cibles sont réanalysées et les rapports réécrits (le cache rend l'opération rapide). Ctrl+C pour arrêter ; incompatible avec `--fix` et l'entrée standard.
 |`--dashboard FICHIER.html` |Tableau de bord d'équipe : chaque cible (dossier) est un dépôt ; note moyenne, évolution (courbe de l'historique), problèmes graves, niveaux, règles les plus fréquentes, scripts les plus faibles. L'historique est enregistré à chaque exécution.
 |`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
@@ -574,6 +578,9 @@ crochets : règle active seulement dans ce contexte.
 |SEC021 |Sécurité |Low |Secret exporté dans l'environnement
 |SEC022 |Sécurité |Medium |Chaîne à forte entropie (secret potentiel ; sommes de contrôle exclues)
 |SEC023 |Sécurité |Critical |Workflow GitHub : expression non fiable (`${{ github.event.issue.title }}`, `github.head_ref`…) insérée dans un `run:` — injection de commande
+|SEC024 |Sécurité |Medium |Paquet installé sans version épinglée : `pip`/`pipx install paquet`, `npm install -g`, `go install …@latest`, `gem install` sans `-v`, `cargo install` sans `--version` (pas une installation depuis un fichier de dépendances, un chemin ou une URL)
+|SEC025 |Sécurité |High |Dépôt ou paquet sans vérification de signature : `[trusted=yes]`, `--allow-unauthenticated`, `gpgcheck=0`, `--nogpgcheck`, `rpm --nosignature`, `apk --allow-untrusted`
+|SEC026 |Sécurité |Low |`git clone` sans révision épinglée (ni `--branch v1.2`, ni `git checkout <sha>` ensuite)
 |ROB001 |Robustesse |Medium |Pas d'arrêt sur erreur (`set -e`)
 |ROB002 |Robustesse |Low |Pipelines sans `set -o pipefail`
 |ROB003 |Robustesse |Low |Pas de `set -u`
@@ -895,9 +902,85 @@ ROB011, POR006, formatage (shfmt, Bashate), et SC2148, SC2154, SC2317 (les
 blocs sont indépendants et l'hôte définit des variables : `ENV`, `env:`,
 `variables:`). Les détecteurs de secrets parcourent tout le fichier.
 
+Règles propres aux fichiers hôtes (en plus du shell qu'ils contiennent) :
+
+[cols="1,2,1,6",options="header"]
+|===
+|Règle |Catégorie |Sévérité |Description
+|DKR001 |Sécurité |Medium |Dockerfile : image de base `latest` ou sans version (les étapes nommées et `scratch` sont exclues)
+|DKR002 |Sécurité |High |Dockerfile : pas d'instruction `USER` non privilégiée dans l'étape finale (ou `USER root`)
+|DKR003 |Sécurité |Medium |Dockerfile : `ADD` d'une URL sans `--checksum`
+|DKR004 |Maintenabilité |Low |Dockerfile : `ADD` d'un fichier local (hors archive tar) : préférer `COPY`
+|DKR005 |Sécurité |Critical |Dockerfile : secret dans `ENV` ou `ARG` (Medium pour un `ARG` sans valeur, qui reste dans l'historique)
+|DKR006 |Sécurité |Low |Dockerfile : `apt-get install` sans `--no-install-recommends`
+|DKR007 |Performance |Low |Dockerfile : cache apt, dnf/yum ou apk laissé dans l'image
+|CI001 |Sécurité |Medium |GitHub Actions : action non épinglée par son SHA (Low pour `actions/*` et `github/*`)
+|CI002 |Sécurité |Low/High |GitHub Actions : pas de `permissions:` (Low) ; `permissions: write-all` (High)
+|CI003 |Sécurité |Critical |GitHub Actions : `pull_request_target` ou `workflow_run` qui extrait le code de la pull request (Poisoned Pipeline Execution)
+|CI004 |Sécurité |Critical |Secret en clair dans `env:` (GitHub) ou `variables:` (GitLab)
+|CI005 |Sécurité |Medium |Image de conteneur de CI non épinglée (`container:`, `services:`, `docker://` ; `image:` et `services:` de GitLab)
+|===
+
+hadolint, actionlint et zizmor, s'ils sont installés, complètent ces règles ;
+un problème qu'ils partagent avec une règle intégrée n'est compté qu'une
+fois (la règle intégrée est conservée, avec son conseil et ses références).
+
 Une directive `# check-script disable=…` s'écrit dans le shell ou en
 commentaire du fichier hôte, sur la ligne précédente. Il n'y a pas de
 correction automatique dans un fichier hôte : `--fix` le laisse intact.
+
+[[references]]
+== Référentiels : CWE, OWASP, ANSSI
+
+Chaque problème porte ses références normatives, quand la correspondance
+est directe :
+
+* *CWE* (MITRE), ex. `CWE-494` Download of Code Without Integrity Check ;
+* *OWASP Top 10 2021*, ex. `OWASP A08:2021` Software and Data Integrity
+  Failures, et *OWASP Top 10 CI/CD* pour les workflows, ex. `OWASP
+  CICD-SEC-4` Poisoned Pipeline Execution ;
+* *ANSSI* : `ANSSI-BP-028 Rnn` (Recommandations de configuration d'un
+  système GNU/Linux, v2.0), `ANSSI-FT-082 Rnn` (déploiement de conteneurs
+  Docker), `ANSSI OpenSSH Rnn` (usage sécurisé d'OpenSSH).
+
+Les règles intégrées ont leurs références ; celles de Bandit (CWE) et de
+Semgrep (CWE, OWASP 2021) viennent de l'outil ; une règle d'un autre outil
+reçoit celles de la règle intégrée équivalente (ShellCheck SC2164 ↔
+ROB005, hadolint DL3007 ↔ DKR001, zizmor unpinned-uses ↔ CI001…). Les règles
+de style ou de performance n'ont en général pas de référence.
+
+[cols="1,4",options="header"]
+|===
+|Règle |Références
+|SEC001, SEC019 |CWE-494, OWASP A08:2021, ANSSI-BP-028 R59 (dépôts de confiance)
+|SEC002, SEC022, PYSEC001 |CWE-798, OWASP A07:2021
+|SEC003 |CWE-95, CWE-78, OWASP A03:2021
+|SEC004 |CWE-732, OWASP A01:2021, ANSSI-BP-028 R50 et R54
+|SEC005 |CWE-295, OWASP A07:2021, ANSSI OpenSSH R6 (légitimité du serveur)
+|SEC009 |CWE-377, CWE-59, ANSSI-BP-028 R55 (répertoires temporaires)
+|SEC012 |CWE-532, OWASP A09:2021
+|SEC013 |CWE-250, ANSSI-BP-028 R56 (setuid / setgid)
+|SEC015, SEC016 |CWE-426 / CWE-427, ANSSI-BP-028 R39 (directives sudo)
+|SEC020 |CWE-668, ANSSI OpenSSH R20 (relais de confiance)
+|SEC023 |CWE-78, CWE-94, OWASP A03:2021, OWASP CICD-SEC-4
+|SEC024, SEC026, DKR001, CI001, CI005 |CWE-1357 ou CWE-829, OWASP A08:2021, OWASP CICD-SEC-3
+|SEC025 |CWE-347, CWE-494, OWASP A08:2021, OWASP CICD-SEC-3, ANSSI-BP-028 R59
+|DKR002 |CWE-250, OWASP A05:2021, ANSSI-FT-082 R7
+|DKR005, CI004 |CWE-798, OWASP A07:2021, OWASP CICD-SEC-6
+|DKR006 |ANSSI-BP-028 R58 (paquets strictement nécessaires)
+|CI002 |CWE-250, CWE-272, OWASP A01:2021, OWASP CICD-SEC-5
+|CI003 |CWE-829, CWE-94, OWASP A08:2021, OWASP CICD-SEC-4
+|===
+
+La liste complète est donnée par `check-script --list-rules`. Les références
+apparaissent dans tous les rapports : terminal (`--details`), Markdown,
+AsciiDoc, JSON (`refs`), JUnit, SARIF (étiquettes `external/cwe/cwe-NNN`,
+reconnues par GitHub Code Scanning) et HTML, qui ajoute une vue *Référentiels*
+: chaque référence avec son intitulé, le nombre de problèmes, la sévérité la
+plus haute et le nombre de scripts concernés — la base d'un rapport d'audit
+de conformité. `--ref` restreint l'affichage à une référence ou une famille ;
+l'onglet *Règles* de l'interface cherche aussi dans les références, et le
+survol dans un éditeur (LSP) les affiche en liens.
 
 [[editeurs]]
 == Éditeurs (VS Code, Eclipse, Geany…)

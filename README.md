@@ -9,7 +9,7 @@ AsciiDoc ou JSON, en français ou en anglais.
 `check-script` exploite **ShellCheck, shfmt, bashate, checkbashisms**,
 gitleaks, trufflehog et `bash -n` pour le shell, **Ruff, Bandit, Semgrep,
 mypy, Radon, Vermin** (et sur demande Pylint, Pyright) pour Python,
-lorsqu'ils sont installés, et les complète par des règles intégrées (66 pour
+lorsqu'ils sont installés, et les complète par des règles intégrées (81 pour
 le shell, 10 pour Python : secrets, `curl | sh`, permissions, PATH,
 `subprocess` sans timeout, dépendances non déclarées, structure…) avec un
 conseil de correction pour chacune, et par les règles personnalisées du
@@ -48,6 +48,16 @@ Performance        9,0 █████████░            0        0     
 
 Note globale : 1,5/10 (E)
 ```
+
+## Référentiels
+
+Chaque problème porte ses références **CWE**, **OWASP** (Top 10 2021, Top 10
+CI/CD) et **ANSSI** (configuration GNU/Linux, conteneurs Docker, OpenSSH) ;
+le rapport HTML en fait une vue de conformité et `--ref CWE-78` (ou `A08`,
+`ANSSI`…) filtre l'affichage. Les Dockerfile et les workflows ont leurs
+propres règles (image non épinglée, conteneur en root, action non épinglée,
+`pull_request_target`, secrets en clair…), complétées par hadolint,
+actionlint et zizmor s'ils sont installés.
 
 ## Éditeurs
 

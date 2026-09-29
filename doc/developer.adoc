@@ -63,6 +63,8 @@ lib/src/
                                    ExecContext, escalades de sévérité par contexte
   rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
   rules/custom_rules.dart          CustomRule (rules.custom), CustomRulesAnalyzer
+  rules/references.dart            Références CWE / OWASP / ANSSI des règles (ruleReferences),
+                                   intitulés, liens, findingReferences, matchesReference (--ref)
   lsp/server.dart                  Serveur LSP (check-script lsp) : trames JSON-RPC,
                                    diagnostics (complets / pendant la frappe), survol,
                                    corrections rapides, formatage, checkScript/score
@@ -92,6 +94,8 @@ lib/src/
                                    repli ligne à ligne)
     python_deps.dart               Imports (pydeps : PYROB005, PYPOR002), dépendances déclarées
                                    (requirements, pyproject, PEP 723…), pip-audit
+    ci_tools.dart                  hadolint (Dockerfile), actionlint et zizmor (workflows) :
+                                   fichier hôte sur l'entrée standard, appliesTo, parseurs
     secrets.dart                   gitleaks, trufflehog
     ast.dart                       AstFacts : faits extraits de `shfmt --to-json`
     shell_lexer.dart               Lexer heuristique (repli sans shfmt)
