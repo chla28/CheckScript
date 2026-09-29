@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.17.1 — 2026-09-29
 
 - CI du dépôt conforme à ses propres règles : actions épinglées par SHA,
   `permissions: contents: read` (écriture réservée au job de release),
@@ -9,6 +9,14 @@
 - SEC026 ne signale plus `git clone -b "$VAR"` (révision fixée par une
   variable) ; actionlint n'est plus lancé sur les métadonnées d'action
   (`action.yml`), qui ne sont pas un workflow.
+
+### Correctifs
+
+- SEC026 avec une révision en variable, actionlint hors action.yml (721bf2a)
+
+### Intégration continue
+
+- workflows conformes aux règles CI001, CI002 et zizmor (f26dc2b)
 
 ## 0.17.0 — 2026-09-29
 
