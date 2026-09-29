@@ -49,6 +49,14 @@ Performance        9,0 █████████░            0        0     
 Note globale : 1,5/10 (E)
 ```
 
+## Éditeurs
+
+`check-script lsp` est un serveur LSP : problèmes soulignés, corrections
+rapides, survol avec exemple, formatage, note du script. Extension
+**VS Code** (`.vsix`) et plugin **Eclipse** (site de mise à jour `.zip`)
+attachés à chaque release ; configuration **Geany** dans
+`editors/geany/lsp.conf`.
+
 ## Action GitHub
 
 ```yaml

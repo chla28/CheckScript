@@ -1,5 +1,14 @@
 # Changelog
 
+## Non publié
+
+- **Éditeurs** : serveur LSP `check-script lsp` (diagnostics à l'ouverture
+  et à l'enregistrement, règles intégrées pendant la frappe, corrections
+  rapides, survol avec exemple, formatage shfmt / ruff format, note du
+  script) ; **extension VS Code** (`.vsix`, testée de bout en bout dans
+  VS Code) et **plugin Eclipse** (LSP4E, site de mise à jour `.zip`)
+  attachés à la release ; configuration pour le greffon LSP de **Geany**.
+
 ## 0.15.0 — 2026-09-28
 
 - Interface : **coloration syntaxique** du code (shell, Python, et YAML,

@@ -899,6 +899,68 @@ Une directive `# check-script disable=…` s'écrit dans le shell ou en
 commentaire du fichier hôte, sur la ligne précédente. Il n'y a pas de
 correction automatique dans un fichier hôte : `--fix` le laisse intact.
 
+[[editeurs]]
+== Éditeurs (VS Code, Eclipse, Geany…)
+
+`check-script lsp` est un serveur LSP : l'analyse apparaît directement dans
+l'éditeur, avec la configuration du projet (`.checkscript.yaml` le plus
+proche), comme en ligne de commande.
+
+* *Diagnostics* : problèmes soulignés et listés (sévérité, règle, conseil,
+  lien vers la documentation). Analyse complète (ShellCheck, Ruff…) à
+  l'ouverture et à l'enregistrement ; pendant la frappe, après une pause,
+  les règles intégrées, la syntaxe et les règles personnalisées sur le texte
+  en cours (les résultats des outils restent affichés tant que leur ligne
+  n'a pas changé).
+* *Corrections rapides* : corriger le problème ou toutes les occurrences de
+  la règle, ignorer la règle sur la ligne (`# check-script disable=…` au-dessus)
+  ou dans tout le fichier (`disable-file`).
+* *Survol* : message, conseil, exemple « à éviter / à écrire », lien.
+* *Formater le document* : shfmt (shell) ou `ruff format` (Python).
+* *Note* du script dans la barre d'état (VS Code) ou la ligne d'état
+  (Eclipse).
+
+Scripts shell et Python, et scripts intégrés (Dockerfile, Makefile, CI,
+Ansible, voir <<integres>>). Les extensions utilisent le `check-script`
+installé (PATH, ou chemin réglable) : la version 0.16 ou plus récente.
+
+VS Code::
+Fichier `check-script-VERSION.vsix` de la release :
++
+[source,bash]
+----
+code --install-extension check-script-VERSION.vsix
+----
++
+Réglages (`checkScript.*`) : `path` (exécutable), `lang`, `profile`,
+`analyzeOnType`, `typingDelay`, `trace.server`. Commandes : *CheckScript :
+Analyser le fichier* (aussi en cliquant sur la note), *CheckScript :
+Redémarrer le serveur*.
+
+Eclipse (version récente, lancée avec Java 21 ou plus)::
+Fichier `check-script-eclipse-VERSION.zip` de la release : *Help → Install
+New Software… → Add… → Archive…*, puis cocher *CheckScript* (LSP4E et
+l'éditeur générique, présents dans les paquets Eclipse IDE, sont installés
+si besoin). Les scripts (`.sh`, `.bash`, `.ksh`, `.zsh`, `.py`),
+`Dockerfile`, `Makefile`/`*.mk` et `.gitlab-ci.yml` s'ouvrent dans
+l'éditeur générique ; pour un fichier sans extension, *Open With → Generic
+Text Editor*. Réglages : *Window → Preferences → CheckScript* (exécutable,
+langue, profil, analyse pendant la frappe). Si un autre plugin (PyDev…)
+déclare déjà les fichiers `.py`, Eclipse peut lui donner la priorité.
+
+Geany (2.1 ou plus récent)::
+Avec le greffon *LSP Client* (geany-plugins) : *Outils → LSP Client →
+Configuration utilisateur*, puis coller les sections de
+`editors/geany/lsp.conf` (Sh, Python, Dockerfile, Make, YAML). Geany n'a
+qu'un serveur par type de fichier : pour Python, CheckScript remplace alors
+pyright ou pylsp.
+
+Autres éditeurs::
+Tout client LSP : commande `check-script lsp`, options d'initialisation
+`lang`, `profile`, `analyzeOnType`, `typingDelay` (ms) ; notification
+`checkScript/score` (`uri`, `score`, `grade`, `findings`) après chaque
+analyse complète.
+
 == Intégration continue
 
 GitLab::

@@ -12,6 +12,8 @@ check-script - évalue la qualité et la sécurité de scripts shell et Python
 
 *check-script* [_OPTIONS_] _SCRIPT_|_DOSSIER_|*-*...
 
+*check-script lsp* [*--lang* *fr*|*en*]
+
 == DESCRIPTION
 
 *check-script* note des scripts shell ou Python 3 sur cinq catégories (Sécurité,
@@ -173,6 +175,15 @@ Jokers : *SC20\**, *all*.
 *1*:: Seuil non atteint (*--fail-under*, *--fail-on-new*).
 *2*:: Erreur d'usage ou de configuration.
 *3*:: Script introuvable ou illisible, rapport impossible à écrire.
+
+== SERVEUR LSP
+
+*check-script lsp* est un serveur LSP (Language Server Protocol) sur
+l'entrée et la sortie standard, pour les éditeurs (extension VS Code, plugin
+Eclipse, greffon LSP de Geany, Neovim…) : diagnostics (analyse complète à
+l'ouverture et à l'enregistrement, règles intégrées pendant la frappe),
+corrections rapides, survol, formatage (shfmt, ruff format). Options
+d'initialisation : _lang_, _profile_, _analyzeOnType_, _typingDelay_.
 
 == EXEMPLES
 
