@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.17.0 — 2026-09-29
 
 - **Dockerfile** : règles DKR001 à DKR007 (image non épinglée, conteneur en
   root, `ADD` d'une URL sans somme de contrôle, `ADD` au lieu de `COPY`,
@@ -18,6 +18,14 @@
   Semgrep ; dans tous les rapports, étiquettes CWE du SARIF, vue de
   conformité du rapport HTML, filtre `--ref`, `--list-rules`, onglet Règles
   et survol LSP.
+
+### Fonctionnalités
+
+- Dockerfile, CI, chaîne d'approvisionnement et références CWE / OWASP / ANSSI (c4dca5e)
+
+### Documentation
+
+- règles Dockerfile et CI, référentiels CWE / OWASP / ANSSI (3b1d0a4)
 
 ## 0.16.0 — 2026-09-29
 

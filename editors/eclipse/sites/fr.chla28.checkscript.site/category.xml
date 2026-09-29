@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature id="fr.chla28.checkscript.feature" version="0.16.0">
+   <feature id="fr.chla28.checkscript.feature" version="0.17.0">
       <category name="checkscript"/>
    </feature>
    <category-def name="checkscript" label="CheckScript"/>

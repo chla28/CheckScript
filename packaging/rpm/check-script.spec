@@ -3,7 +3,7 @@
 # Prérequis de build : SDK Dart dans le PATH (aucun paquet « dart » dans les
 # dépôts Fedora/RHEL) et asciidoctor pour la page de manuel. Orchestration :
 # scripts/build-rpm.sh.
-%{!?version: %global version 0.16.0}
+%{!?version: %global version 0.17.0}
 
 # Binaire AOT de `dart compile exe` : pas d'information DWARF exploitable
 # (sous-paquet debuginfo vide) et le strip automatique le corrompt (il ne
