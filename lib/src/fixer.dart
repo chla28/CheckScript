@@ -487,3 +487,42 @@ Future<FixResult> _fixPython(ScriptInfo script,
   }
   return FixResult(script.content, text, applied);
 }
+
+/// Texte reformaté de [script] (shfmt pour le shell, `ruff format` pour
+/// Python), ou null : outil absent ou désactivé, erreur de syntaxe, texte
+/// déjà formaté, fichier hôte (Dockerfile, CI…). Pour « Formater le
+/// document » d'un éditeur : aucune autre correction n'est appliquée.
+Future<String?> formatScript(ScriptInfo script,
+    {CheckConfig config = const CheckConfig(),
+    CommandRunner runner = const ProcessCommandRunner()}) async {
+  if (script.embedded != null) return null;
+  final text = script.content;
+  final CommandResult? r;
+  if (script.dialect.isPython) {
+    final ruff = config.tool('ruff');
+    if (!ruff.enabled) return null;
+    r = await runner.run(
+        ruff.executable,
+        [
+          'format',
+          ...RuffAnalyzer.commonArgs(config, scriptPath: script.path),
+          '--stdin-filename=script.py',
+          '-'
+        ],
+        stdin: text);
+  } else {
+    final sf = config.tool('shfmt');
+    if (!sf.enabled || script.dialect == Dialect.zsh) return null;
+    r = await runner.run(
+        sf.executable,
+        [
+          '-ln=${script.dialect.shfmtName ?? 'auto'}',
+          '-i=${indentUnit(script.lines)}'
+        ],
+        stdin: text);
+  }
+  if (r == null || r.exitCode != 0 || r.stdout.isEmpty || r.stdout == text) {
+    return null;
+  }
+  return r.stdout;
+}

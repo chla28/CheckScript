@@ -283,6 +283,17 @@ Future<int> run(List<String> argv,
   out ??= stdout;
   err ??= stderr;
 
+  // Serveur LSP pour les éditeurs : check-script lsp [--lang fr|en].
+  if (argv.isNotEmpty && argv.first == 'lsp') {
+    final li = argv.indexOf('--lang');
+    return LspServer(stdin, stdout,
+            runner: runner ?? const ProcessCommandRunner(),
+            lang: li > 0 && li + 1 < argv.length
+                ? Lang.tryParse(argv[li + 1])
+                : null)
+        .serve();
+  }
+
   // La langue est nécessaire avant l'analyse complète des options (aide).
   var lang = Lang.fromEnvironment(Platform.environment);
   final li = argv
