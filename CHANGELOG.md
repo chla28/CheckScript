@@ -1,5 +1,15 @@
 # Changelog
 
+## Non publié
+
+- CI du dépôt conforme à ses propres règles : actions épinglées par SHA,
+  `permissions: contents: read` (écriture réservée au job de release),
+  `persist-credentials: false`, pas de cache setup-node, release créée
+  avec `gh` au lieu d'une action tierce.
+- SEC026 ne signale plus `git clone -b "$VAR"` (révision fixée par une
+  variable) ; actionlint n'est plus lancé sur les métadonnées d'action
+  (`action.yml`), qui ne sont pas un workflow.
+
 ## 0.17.0 — 2026-09-29
 
 - **Dockerfile** : règles DKR001 à DKR007 (image non épinglée, conteneur en

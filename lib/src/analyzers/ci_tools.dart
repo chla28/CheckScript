@@ -146,6 +146,13 @@ class ActionlintAnalyzer extends _HostTool {
   @override
   EmbeddedKind get kind => EmbeddedKind.githubActions;
 
+  /// actionlint ne vérifie que les workflows, pas les métadonnées d'une
+  /// action (action.yml).
+  @override
+  bool appliesTo(ScriptInfo script) =>
+      super.appliesTo(script) &&
+      !RegExp(r'(?:^|/)action\.ya?ml$').hasMatch(script.path);
+
   @override
   List<String> args(AnalysisContext ctx) => [
         '-format',

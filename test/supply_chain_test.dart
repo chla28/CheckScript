@@ -59,6 +59,10 @@ void main() {
     expect(ids('#!/bin/sh\ngit clone https://x/r.git\n'), contains('SEC026'));
     expect(ids('#!/bin/sh\ngit clone --branch v1.2 https://x/r.git\n'),
         isNot(contains('SEC026')));
+    // Branche ou tag donné par une variable : révision fixée par l'appelant.
+    expect(
+        ids('#!/bin/sh\ngit clone --depth 1 -b "\$VERSION" https://x/r.git\n'),
+        isNot(contains('SEC026')));
     expect(
         ids('#!/bin/sh\ngit clone https://x/r.git\n'
             'git -C r checkout 3f2c1ab\n'),
@@ -214,6 +218,10 @@ test:
       expect(HadolintAnalyzer().appliesTo(wf), isFalse);
       expect(ZizmorAnalyzer().appliesTo(wf), isTrue);
       expect(ActionlintAnalyzer().appliesTo(sh), isFalse);
+      // Métadonnées d'action : pas un workflow pour actionlint.
+      final action = ScriptInfo.fromContent('/r/action.yml', 'runs: {}\n');
+      expect(ActionlintAnalyzer().appliesTo(action), isFalse);
+      expect(ZizmorAnalyzer().appliesTo(action), isTrue);
     });
   });
 }

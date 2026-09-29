@@ -154,8 +154,8 @@ final List<LineRule> lineRules = [
   LineRule('SEC025',
       r'\[[^\]]*\btrusted=yes\b[^\]]*\]|--allow-unauthenticated\b|--allow-insecure-repositories\b|--no-gpg-checks?\b|--nogpgcheck\b|\bgpgcheck\s*=\s*0\b|\brepo_gpgcheck\s*=\s*0\b|\brpm\b[^|;&]*--no(?:signature|digest)\b|\bapk\b[^|;&]*--allow-untrusted\b',
       onRaw: true),
-  LineRule(
-      'SEC026', '${_cmd}git\\s+clone\\b(?![^;&|]*\\s(?:--branch|-b)\\s+v?\\d)',
+  LineRule('SEC026',
+      '${_cmd}git\\s+clone\\b(?![^;&|]*\\s(?:--branch|-b)[\\s=]+["\x27]?(?:v?\\d|\\\$))',
       when: (s) => !RegExp(
               r'\bgit\s+(?:-C\s+\S+\s+)?(?:checkout|switch\s+--detach|reset\s+--hard)\s+\S')
           .hasMatch(s.content)),
