@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.18.0 — 2026-09-29
 
 - **Rapport PDF** (`-o audit.pdf`, `--format pdf`, export de l'interface) :
   livrable d'audit avec page de garde, synthèse, référentiels CWE / OWASP /
@@ -10,6 +10,14 @@
   présence sur la machine d'analyse, paquet dnf / apt ; dans tous les
   rapports (et la liste des paquets à installer pour un dossier). Règle
   ROB017 : commande introuvable que le script ne vérifie pas.
+
+### Fonctionnalités
+
+- rapport PDF et inventaire des commandes externes (0421f31)
+
+### Documentation
+
+- rapport PDF et commandes externes (f2b8259)
 
 ## 0.17.1 — 2026-09-29
 
