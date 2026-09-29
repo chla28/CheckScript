@@ -44,7 +44,7 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
   *.html*, *.json*, *.sarif*, *.codeclimate.json*, *.txt*). Répétable.
 
 *-f, --format* _FORMAT_::
-  *terminal*, *md*, *adoc*, *html*, *json*, *sarif*, *codeclimate* (GitLab
+  *terminal*, *md*, *adoc*, *html*, *pdf*, *json*, *sarif*, *codeclimate* (GitLab
   Code Quality), *junit* (JUnit XML) ou *github* (annotations GitHub
   Actions) : format de la sortie standard, et des fichiers *-o* sans
   extension reconnue (l'extension prime).

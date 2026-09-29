@@ -32,7 +32,7 @@ L'outil exploite les analyseurs de référence lorsqu'ils sont installés
 (ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n`
 pour le shell ; Ruff, Bandit, Semgrep, mypy, Radon, Vermin — et en option
 Pylint, Pyright — pour Python, voir <<python>>) et les complète par des
-*règles intégrées* qui fonctionnent toujours (81 pour le shell, 10 pour
+*règles intégrées* qui fonctionnent toujours (82 pour le shell, 10 pour
 Python), et par les *règles personnalisées* du projet. Il analyse aussi le
 shell *intégré* aux workflows GitHub Actions, à GitLab CI, aux Dockerfile,
 aux Makefile et aux tâches Ansible.
@@ -167,7 +167,7 @@ checkbashisms   shell     disponible          2.26.5
 pydeps          python    disponible          3.14.7
 pip-audit       python    absent              (installer : pipx install pip-audit)
 custom          tous      intégré             0 règle(s) personnalisée(s)
-builtin         tous      intégré             81 + 10 règles
+builtin         tous      intégré             82 + 10 règles
 shfmt           shell     disponible          ?
 bashate         shell     disponible          2.1.1
 ----
@@ -213,8 +213,8 @@ intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 [cols="2,5",options="header"]
 |===
 |Option |Effet
-|`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension : `.md`, `.adoc`, `.html`, `.json`, `.sarif`, `.codeclimate.json` (ou `gl-code-quality-report.json`), `.txt`. Répétable.
-|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `json`, `sarif`, `codeclimate`, `junit` (JUnit XML), `github` (annotations GitHub Actions) : format de la sortie standard, et des fichiers `-o` sans extension reconnue (l'extension prime).
+|`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension : `.md`, `.adoc`, `.html`, `.pdf` (voir <<pdf>>), `.json`, `.sarif`, `.codeclimate.json` (ou `gl-code-quality-report.json`), `.xml` (JUnit), `.txt`. Répétable.
+|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate`, `junit` (JUnit XML), `github` (annotations GitHub Actions) : format de la sortie standard, et des fichiers `-o` sans extension reconnue (l'extension prime).
 |`-l`, `--lang fr\|en` |Langue du rapport. Défaut : `LC_ALL`, `LC_MESSAGES` puis `LANG`.
 |`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Force le dialecte au lieu de le déduire du shebang (ou de l'extension `.py`).
 |`--python-target VERSION` |Version minimale de Python que les scripts doivent supporter (défaut : `3.9`, voir <<python>>).
@@ -597,6 +597,7 @@ crochets : règle active seulement dans ce contexte.
 |ROB014 |Robustesse |Medium |Tâche planifiée sans verrou (`flock`) [cron]
 |ROB015 |Robustesse |Medium |Saisie interactive sans terminal [cron, systemd]
 |ROB016 |Robustesse |Medium |Tâche cron sans PATH fixé [cron]
+|ROB017 |Robustesse |Medium |Commande externe introuvable sur la machine d'analyse, que le script ne vérifie pas (`command -v`, `type`, `hash`) ; paquets dnf / apt indiqués (voir <<commandes>>)
 |MNT001 |Maintenabilité |Low |Ligne trop longue
 |MNT002 |Maintenabilité |Low/Medium |Fonction trop longue
 |MNT003 |Maintenabilité |Medium |Imbrication trop profonde
@@ -928,6 +929,54 @@ fois (la règle intégrée est conservée, avec son conseil et ses références)
 Une directive `# check-script disable=…` s'écrit dans le shell ou en
 commentaire du fichier hôte, sur la ligne précédente. Il n'y a pas de
 correction automatique dans un fichier hôte : `--fix` le laisse intact.
+
+[[pdf]]
+== Rapport PDF
+
+`-o audit.pdf` (ou *Exporter…* dans l'interface) produit un livrable
+d'audit :
+
+* page de garde : date, version de check-script, nombre de scripts, profil
+  et contextes, note moyenne et niveau, problèmes par sévérité ;
+* synthèse : scripts du plus faible au meilleur (note, niveau, problèmes par
+  sévérité) ;
+* référentiels : chaque référence CWE, OWASP ou ANSSI avec son intitulé, le
+  nombre de problèmes, la sévérité la plus haute et le nombre de scripts
+  (voir <<references>>) ;
+* paquets à installer (dnf, apt) pour les commandes externes des scripts ;
+* une section par script : notes par catégorie, commandes externes, puis
+  chaque problème avec sa ligne, sa sévérité, sa règle, le code concerné
+  (jamais une ligne contenant un secret), le conseil de correction et ses
+  références.
+
+Le PDF utilise une police TrueType du système (Noto Sans, DejaVu Sans,
+Liberation Sans ou Bitstream Vera, et leur variante à chasse fixe pour le
+code) ; sans aucune d'elles, les polices standard du PDF, les caractères
+non latins étant remplacés.
+
+[[commandes]]
+== Commandes externes
+
+Pour chaque script shell, check-script dresse l'inventaire des commandes
+externes qu'il lance (`jq`, `rsync`, `curl`… ; commandes internes du shell
+et fonctions du script exclues ; la commande lancée par `sudo`, `env`,
+`timeout`, `xargs`… est retenue aussi), avec les lignes, leur présence sur
+la machine d'analyse (chemin) et, pour les commandes courantes, le paquet
+qui les fournit sous Fedora/RHEL (dnf) et Debian/Ubuntu (apt).
+
+* terminal : ligne *Commandes externes*, `✗` pour une commande introuvable ;
+* Markdown, AsciiDoc : liste, paquets des commandes manquantes ;
+* HTML, PDF : tableau par script, et pour un dossier la ligne `dnf install
+  …` / `apt install …` des paquets nécessaires ;
+* JSON : `commands` (`name`, `lines`, `found`, `path`, `dnf`, `apt`,
+  `checked`).
+
+La règle ROB017 signale une commande introuvable que le script ne vérifie
+pas lui-même ; les commandes de base (coreutils, `grep`, `sed`, `awk`,
+`find`, `tar`…) n'en font pas l'objet. La machine d'analyse n'est pas
+forcément la machine cible : ROB017 se désactive comme toute règle. Les
+scripts intégrés (Dockerfile, CI) n'ont pas d'inventaire : leurs commandes
+s'exécutent ailleurs.
 
 [[references]]
 == Référentiels : CWE, OWASP, ANSSI

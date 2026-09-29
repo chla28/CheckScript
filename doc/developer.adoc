@@ -94,6 +94,8 @@ lib/src/
                                    repli ligne à ligne)
     python_deps.dart               Imports (pydeps : PYROB005, PYPOR002), dépendances déclarées
                                    (requirements, pyproject, PEP 723…), pip-audit
+    commands.dart                  Inventaire des commandes externes (CommandUse), paquets
+                                   dnf / apt, présence (command -v), ROB017
     ci_tools.dart                  hadolint (Dockerfile), actionlint et zizmor (workflows) :
                                    fichier hôte sur l'entrée standard, appliesTo, parseurs
     secrets.dart                   gitleaks, trufflehog
@@ -106,6 +108,8 @@ lib/src/
     sarif.dart                     SARIF 2.1.0
     codeclimate.dart               GitLab Code Quality
     junit.dart                     JUnit XML, annotations GitHub Actions (--format github)
+    pdf.dart                       Rapport d'audit PDF (paquet pdf) : polices du système,
+                                   repli latin-1 ; renderBytes (reporters.dart) pour l'écrire
 gui/                               Interface Flutter (voir <<gui>>)
 editors/vscode/                    Extension VS Code (TypeScript, vscode-languageclient) :
                                    npm run package → .vsix ; npm test → test de bout en bout

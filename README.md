@@ -9,7 +9,7 @@ AsciiDoc ou JSON, en français ou en anglais.
 `check-script` exploite **ShellCheck, shfmt, bashate, checkbashisms**,
 gitleaks, trufflehog et `bash -n` pour le shell, **Ruff, Bandit, Semgrep,
 mypy, Radon, Vermin** (et sur demande Pylint, Pyright) pour Python,
-lorsqu'ils sont installés, et les complète par des règles intégrées (81 pour
+lorsqu'ils sont installés, et les complète par des règles intégrées (82 pour
 le shell, 10 pour Python : secrets, `curl | sh`, permissions, PATH,
 `subprocess` sans timeout, dépendances non déclarées, structure…) avec un
 conseil de correction pour chacune, et par les règles personnalisées du
@@ -32,6 +32,7 @@ check-script --python-target 3.11 --with pylint scripts/
 check-script Dockerfile .github/workflows/     # scripts intégrés
 check-script --watch scripts/                  # réanalyse à chaque enregistrement
 check-script -o rapport.xml scripts/           # JUnit XML (Jenkins, GitLab)
+check-script -o audit.pdf scripts/             # rapport d'audit PDF
 check-script --list-tools                      # outils détectés
 check-script-gui                               # interface graphique
 ./CheckScript-VERSION-x86_64.AppImage          # interface (AppImage, sans installation)

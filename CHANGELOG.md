@@ -1,5 +1,16 @@
 # Changelog
 
+## Non publié
+
+- **Rapport PDF** (`-o audit.pdf`, `--format pdf`, export de l'interface) :
+  livrable d'audit avec page de garde, synthèse, référentiels CWE / OWASP /
+  ANSSI, paquets à installer et détail par script ; police TrueType du
+  système, repli sur les polices standard.
+- **Inventaire des commandes externes** des scripts shell : lignes,
+  présence sur la machine d'analyse, paquet dnf / apt ; dans tous les
+  rapports (et la liste des paquets à installer pour un dossier). Règle
+  ROB017 : commande introuvable que le script ne vérifie pas.
+
 ## 0.17.1 — 2026-09-29
 
 - CI du dépôt conforme à ses propres règles : actions épinglées par SHA,
