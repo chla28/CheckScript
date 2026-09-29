@@ -109,6 +109,10 @@ class Finding {
   /// Correction concrète de ce problème (vide si aucune correction sûre).
   final List<TextEdit> edits;
 
+  /// Références normatives : `CWE-78`, `OWASP A03:2021`, `ANSSI-BP-028 R59`…
+  /// (fournies par l'outil, complétées par le moteur).
+  final List<String> refs;
+
   const Finding({
     required this.tool,
     required this.ruleId,
@@ -124,6 +128,7 @@ class Finding {
     this.url,
     this.fingerprint,
     this.edits = const [],
+    this.refs = const [],
   });
 
   Finding copyWith(
@@ -133,7 +138,8 @@ class Finding {
           String? url,
           String? fingerprint,
           String? Function()? snippet,
-          List<TextEdit>? edits}) =>
+          List<TextEdit>? edits,
+          List<String>? refs}) =>
       Finding(
         tool: tool,
         ruleId: ruleId,
@@ -149,6 +155,7 @@ class Finding {
         url: url ?? this.url,
         fingerprint: fingerprint ?? this.fingerprint,
         edits: edits ?? this.edits,
+        refs: refs ?? this.refs,
       );
 
   /// Relit un problème sérialisé par [toJson] (baseline, interface Flutter).
@@ -169,6 +176,10 @@ class Finding {
             for (final e in l.whereType<Map<String, Object?>>())
               TextEdit.fromJson(e, '${j['rule']}'),
         ],
+        refs: [
+          if (j['refs'] case final List l)
+            for (final r in l) '$r',
+        ],
       );
 
   Map<String, Object?> toJson() => {
@@ -184,6 +195,7 @@ class Finding {
         if (url != null) 'url': url,
         if (fingerprint != null) 'fingerprint': fingerprint,
         if (edits.isNotEmpty) 'edits': [for (final e in edits) e.toJson()],
+        if (refs.isNotEmpty) 'refs': refs,
       };
 
   @override

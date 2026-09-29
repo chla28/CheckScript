@@ -14,8 +14,9 @@ _arguments -s \
   '--follow-source[suivre les fichiers sourcés]' \
   {-c,--config}'[configuration YAML]:fichier:_files -g "*.y(a|)ml"' \
   '*--with[activer un outil]:outil:(pylint pyright)' \
-  '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit gitleaks trufflehog syntax builtin custom)' \
+  '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor gitleaks trufflehog syntax builtin custom)' \
   '--no-external[règles intégrées seules]' \
+  '*--ref[problèmes rattachés à une référence CWE, OWASP ou ANSSI]:référence:' \
   {-w,--watch}'[réanalyser à chaque enregistrement]' \
   '(--embedded --no-embedded)'{--embedded,--no-embedded}'[scripts intégrés (CI, Dockerfile, Makefile, Ansible)]' \
   {-j,--jobs}'[scripts analysés simultanément]:nombre:' \

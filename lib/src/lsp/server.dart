@@ -34,6 +34,7 @@ import '../model/finding.dart';
 import '../model/report.dart';
 import '../rules/custom_rules.dart';
 import '../rules/examples.dart';
+import '../rules/references.dart';
 import '../script_info.dart';
 import '../version.dart';
 
@@ -454,6 +455,12 @@ class LspServer {
       }
       if (f.url != null) {
         b.write('\n\n[${fr ? 'Documentation' : 'Documentation'}](${f.url})');
+      }
+      if (f.refs.isNotEmpty) {
+        b.write('\n\n${[
+          for (final r in f.refs)
+            referenceUrl(r) == null ? r : '[$r](${referenceUrl(r)})'
+        ].join(' · ')}');
       }
       parts.add(b.toString());
     }

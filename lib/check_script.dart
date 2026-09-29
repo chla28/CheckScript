@@ -11,6 +11,7 @@ library;
 export 'src/analyzers/analyzer.dart';
 export 'src/analyzers/ast.dart'
     show AstFacts, CommandFact, FunctionFact, NestingFact, loadAst;
+export 'src/analyzers/ci_tools.dart';
 export 'src/analyzers/builtin_rules.dart'
     show
         runBuiltinRules,
@@ -52,6 +53,7 @@ export 'src/result_cache.dart';
 export 'src/rules/catalog.dart';
 export 'src/rules/custom_rules.dart';
 export 'src/rules/examples.dart';
+export 'src/rules/references.dart';
 export 'src/rules/registry.dart';
 export 'src/rules/same_rules.dart';
 export 'src/scoring.dart';

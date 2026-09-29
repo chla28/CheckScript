@@ -223,6 +223,9 @@ class _FindingsListState extends State<FindingsList> {
                               '${f.ruleId} · ${f.tool} · ${t.category(f.category)}',
                               style: Theme.of(context).textTheme.labelSmall),
                           if (f.hint != null) Text('→ ${f.hint}'),
+                          if (f.refs.isNotEmpty)
+                            Text(f.refs.join(' · '),
+                                style: Theme.of(context).textTheme.labelSmall),
                           if (open)
                             FixPanel(
                               finding: f,

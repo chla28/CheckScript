@@ -94,7 +94,8 @@ class _RulesScreenState extends State<RulesScreen> {
     return q.isEmpty ||
         e.id.toLowerCase().contains(q) ||
         e.title.toLowerCase().contains(q) ||
-        e.tool.toLowerCase().contains(q);
+        e.tool.toLowerCase().contains(q) ||
+        e.refs.any((r) => r.toLowerCase().contains(q));
   }
 
   void _addTyped() {
@@ -253,6 +254,7 @@ class _RulesScreenState extends State<RulesScreen> {
                 if (e.language != ToolLanguage.any) e.language.name,
                 if (locked) s.lockedByConfig,
                 if (state.seenRules.containsKey(e.key)) s.seenInScan,
+                ...e.refs,
               ].join(' · ')),
               secondary: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (sev != null) SeverityBadge(sev),

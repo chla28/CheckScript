@@ -435,6 +435,10 @@ List<Finding> parseBandit(String json) {
           // Bandit recopie la valeur du secret après « : » : jamais reproduite.
           message: secret ? text.split(':').first : text,
           url: r['more_info'] as String?,
+          refs: [
+            if (jsonInt((r['issue_cwe'] as Map?)?['id']) case final int cwe)
+              'CWE-$cwe',
+          ],
           equivalents: [
             'S$num',
             if (id == 'B307') 'W0123',
@@ -603,6 +607,21 @@ const _semgrepEquivalents = [
   'S1*', 'S2*', 'S3*', 'S4*', 'S5*', 'S6*', 'S7*',
 ];
 
+/// Références des métadonnées Semgrep : CWE, et catégories OWASP Top 10
+/// 2021 (les autres éditions sont ignorées, comme pour les règles intégrées).
+List<String> semgrepReferences(Map meta) {
+  List<String> strings(Object? v) => [
+        for (final e in v is List ? v : (v == null ? const [] : [v])) '$e'
+      ];
+  return [
+    for (final c in strings(meta['cwe']))
+      if (RegExp(r'^CWE-(\d+)').firstMatch(c) case final m?) 'CWE-${m[1]}',
+    for (final o in strings(meta['owasp']))
+      if (RegExp(r'^(A\d\d):2021\b').firstMatch(o) case final m?)
+        'OWASP ${m[1]}:2021',
+  ];
+}
+
 /// Sortie `semgrep --json` : problèmes et messages d'erreur.
 (List<Finding>, List<String>) parseSemgrep(String json) {
   final doc = _decode(json);
@@ -648,6 +667,7 @@ const _semgrepEquivalents = [
           ? 'Potential hard-coded secret (rule $id)'
           : '${extra['message']}'.trim().split('\n').first,
       url: (meta['source'] ?? meta['shortlink']) as String?,
+      refs: semgrepReferences(meta),
       equivalents: _semgrepEquivalents,
       edits: [
         if (!secret && fix is String && jsonInt(end['line']) != null)

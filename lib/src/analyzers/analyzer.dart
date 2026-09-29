@@ -237,6 +237,10 @@ abstract class Analyzer {
   /// Langage des scripts que l'outil sait analyser (shell par défaut).
   ToolLanguage get language => ToolLanguage.shell;
 
+  /// L'outil s'applique à [script] (par défaut : selon son langage ; les
+  /// outils propres aux Dockerfile ou aux workflows restreignent davantage).
+  bool appliesTo(ScriptInfo script) => language.accepts(script);
+
   Future<AnalyzerResult> analyze(AnalysisContext ctx);
 
   /// Version de l'outil (null si l'outil est absent, `?` si sa version n'est

@@ -51,6 +51,7 @@ String renderJunit(List<ScriptReport> reports) {
         if (f.snippet != null) f.snippet!,
         if (f.hint != null) f.hint!,
         if (f.url != null) f.url!,
+        if (f.refs.isNotEmpty) f.refs.join(' · '),
       ].join('\n'))}</failure>');
       b.writeln('    </testcase>');
     }

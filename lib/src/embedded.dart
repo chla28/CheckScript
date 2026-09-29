@@ -11,6 +11,7 @@ library;
 
 import 'package:yaml/yaml.dart';
 
+import 'model/finding.dart' show Severity;
 import 'script_info.dart' show Dialect;
 
 /// Type de fichier hôte.
@@ -45,7 +46,36 @@ class EmbeddedIssue {
   final String ruleId;
   final int line, column;
   final String detail;
-  const EmbeddedIssue(this.ruleId, this.line, this.column, this.detail);
+
+  /// Sévérité propre à ce cas (null : celle de la règle).
+  final Severity? severity;
+  const EmbeddedIssue(this.ruleId, this.line, this.column, this.detail,
+      {this.severity});
+}
+
+/// Nom de variable désignant un secret (mot de passe, jeton, clé…), hors
+/// chemins et noms de fichiers.
+final _secretName = RegExp(
+    r'(?:pass(?:word|wd)?|secret|token|api_?key|access_?key|private_?key|credentials?)s?$',
+    caseSensitive: false);
+final _notSecret = RegExp(r'_(?:file|path|dir|url|name|id|env|var|length)$',
+    caseSensitive: false);
+
+bool isSecretName(String name) =>
+    _secretName.hasMatch(name) && !_notSecret.hasMatch(name);
+
+/// Image de conteneur épinglée : empreinte, ou version autre que latest ;
+/// une image construite d'une variable n'est pas jugée.
+bool isPinnedImage(String image) {
+  final img = image.trim();
+  if (img.isEmpty || img.contains(r'$') || img.contains('@sha256:')) {
+    return true;
+  }
+  final last = img.split('/').last;
+  final colon = last.lastIndexOf(':');
+  if (colon < 0) return false;
+  final tag = last.substring(colon + 1);
+  return tag.isNotEmpty && tag != 'latest';
 }
 
 class EmbeddedScript {
@@ -313,6 +343,121 @@ class _Builder {
     // Action composite : le shell de chaque étape est obligatoire.
     steps(_get(_get(doc, 'runs') as YamlNode?, 'steps'), null, false);
     pipefail = true; // bash -eo pipefail {0}
+    _githubSecurity(doc);
+  }
+
+  static int _line(Object? n) => n is YamlNode ? n.span.start.line + 1 : 1;
+
+  static String? _str(Object? n) =>
+      n is YamlScalar && n.value != null ? '${n.value}' : null;
+
+  /// Secrets écrits en clair dans des variables (env:, variables:).
+  void _plainSecrets(Object? vars) {
+    if (vars is! YamlMap) return;
+    vars.nodes.forEach((k, v) {
+      final name = _str(k as YamlNode) ?? '';
+      final value = v is YamlMap ? _str(v.nodes['value']) : _str(v);
+      if (value == null || value.trim().isEmpty || !isSecretName(name)) return;
+      if (value.contains(r'${{') || value.startsWith(r'$')) return;
+      issues.add(EmbeddedIssue('CI004', _line(v), 1, name));
+    });
+  }
+
+  /// Image de conteneur de CI (chaîne, ou table name: / image:).
+  void _image(Object? n) {
+    final img =
+        n is YamlMap ? _str(n.nodes['name'] ?? n.nodes['image']) : _str(n);
+    if (img != null && !isPinnedImage(img)) {
+      issues.add(EmbeddedIssue('CI005', _line(n), 1, img));
+    }
+  }
+
+  static const _prTriggers = {'pull_request_target', 'workflow_run'};
+  static final _prHead = RegExp(
+      r'github\.(?:event\.(?:pull_request\.head|workflow_run\.head)|head_ref)');
+
+  /// Sécurité d'un workflow GitHub : actions non épinglées (CI001),
+  /// permissions (CI002), Poisoned Pipeline Execution (CI003), secrets en
+  /// clair (CI004), images non épinglées (CI005).
+  void _githubSecurity(YamlMap doc) {
+    final on = doc.nodes['on'];
+    final triggers = <String>{
+      if (on is YamlScalar) '${on.value}',
+      if (on is YamlList)
+        for (final t in on.nodes) '${t.value}',
+      if (on is YamlMap)
+        for (final k in on.keys) '$k',
+    };
+    final privileged = triggers.any(_prTriggers.contains);
+
+    void uses(Object? n) {
+      final ref = _str(n);
+      if (ref == null || ref.startsWith('./')) return;
+      if (ref.startsWith('docker://')) {
+        final img = ref.substring('docker://'.length);
+        if (!isPinnedImage(img)) {
+          issues.add(EmbeddedIssue('CI005', _line(n), 1, img));
+        }
+        return;
+      }
+      final at = ref.lastIndexOf('@');
+      final version = at < 0 ? '' : ref.substring(at + 1);
+      if (RegExp(r'^[0-9a-f]{40}$').hasMatch(version)) return;
+      final official = RegExp(r'^(?:actions|github)/').hasMatch(ref);
+      issues.add(EmbeddedIssue('CI001', _line(n), 1, ref,
+          severity: official ? Severity.low : null));
+    }
+
+    void permissions(Object? n) {
+      if (_str(n) == 'write-all') {
+        issues.add(EmbeddedIssue('CI002', _line(n), 1, 'write-all',
+            severity: Severity.high));
+      }
+    }
+
+    permissions(doc.nodes['permissions']);
+    _plainSecrets(doc.nodes['env']);
+    final jobs = doc.nodes['jobs'];
+    var missing = doc.nodes['permissions'] == null;
+    if (jobs is YamlMap) {
+      for (final e in jobs.nodes.entries) {
+        final job = e.value;
+        if (job is! YamlMap) continue;
+        permissions(job.nodes['permissions']);
+        if (job.nodes['permissions'] == null && missing) {
+          // Un seul signalement : le workflow n'a pas de permissions: global.
+          issues.add(EmbeddedIssue(
+              'CI002', _line(e.key), 1, '${(e.key as YamlNode).value}'));
+          missing = false;
+        }
+        uses(job.nodes['uses']); // workflow réutilisable
+        _plainSecrets(job.nodes['env']);
+        _image(job.nodes['container']);
+        final services = job.nodes['services'];
+        if (services is YamlMap) services.nodes.values.forEach(_image);
+        final steps = job.nodes['steps'];
+        if (steps is! YamlList) continue;
+        for (final step in steps.nodes.whereType<YamlMap>()) {
+          uses(step.nodes['uses']);
+          _plainSecrets(step.nodes['env']);
+          final withNode = step.nodes['with'];
+          final ref = _str(_get(withNode, 'ref'));
+          if (privileged &&
+              (_str(step.nodes['uses']) ?? '').startsWith('actions/checkout') &&
+              ref != null &&
+              _prHead.hasMatch(ref)) {
+            issues.add(EmbeddedIssue('CI003', _line(withNode), 1, ref.trim()));
+          }
+        }
+      }
+    }
+    final composite = _get(doc.nodes['runs'], 'steps');
+    if (composite is YamlList) {
+      for (final step in composite.nodes.whereType<YamlMap>()) {
+        uses(step.nodes['uses']);
+        _plainSecrets(step.nodes['env']);
+      }
+    }
   }
 
   static const _gitlabReserved = {
@@ -338,6 +483,18 @@ class _Builder {
 
     // before_script / after_script globaux (anciens), puis default: et jobs.
     scripts(doc);
+    // Sécurité : images non épinglées, secrets en clair.
+    void security(YamlMap m) {
+      _image(m.nodes['image']);
+      final services = m.nodes['services'];
+      if (services is YamlList) services.nodes.forEach(_image);
+      _plainSecrets(m.nodes['variables']);
+    }
+
+    security(doc);
+    for (final v in doc.nodes.values) {
+      if (v is YamlMap) security(v);
+    }
     doc.nodes.forEach((k, v) {
       final name = k is YamlScalar ? '${k.value}' : '$k';
       if (_gitlabReserved.contains(name) || v is! YamlMap) return;
@@ -414,6 +571,14 @@ class _Builder {
       }
       final m = RegExp(r'^(\s*)([A-Za-z]+)(\s+|$)').firstMatch(line);
       final instr = m?[2]!.toUpperCase();
+      if (m != null) {
+        // Texte de l'instruction, continuations jointes, commentaires ôtés.
+        final text = [
+          for (var j = i; j <= end; j++)
+            if (!source[j].trimLeft().startsWith('#') || j == i) source[j]
+        ].join(' ').replaceAll('$escape ', ' ').substring(m.end).trim();
+        _dockerCheck(instr!, text, i + 1);
+      }
       if (instr == 'SHELL') {
         final text = source.sublist(i, end + 1).join(' ');
         final words = RegExp(r'"([^"]*)"').allMatches(text).map((x) => x[1]!);
@@ -424,6 +589,116 @@ class _Builder {
         end = _dockerRun(i, end, m!.end, shell);
       }
       i = end + 1;
+    }
+    _dockerFinalUser();
+  }
+
+  // ── Règles propres aux Dockerfile ─────────────────────────────────────────
+
+  final _stages = <String>{};
+  int _fromLine = 0;
+  String? _fromImage;
+
+  /// USER de l'étape en cours : (ligne, valeur), null si aucun.
+  (int, String)? _user;
+
+  void _dockerCheck(String instr, String args, int line) {
+    final words =
+        args.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    switch (instr) {
+      case 'FROM':
+        // Dernière étape : c'est elle que le conteneur exécute.
+        final plain = words.where((w) => !w.startsWith('--')).toList();
+        if (plain.isEmpty) return;
+        final image = plain.first;
+        final as = plain.indexWhere((w) => w.toUpperCase() == 'AS');
+        if (as >= 0 && as + 1 < plain.length) {
+          _stages.add(plain[as + 1].toLowerCase());
+        }
+        _fromLine = line;
+        _fromImage = image;
+        _user = null;
+        if (image != 'scratch' &&
+            !_stages.contains(image.toLowerCase()) &&
+            !isPinnedImage(image)) {
+          issues.add(EmbeddedIssue('DKR001', line, 1, image));
+        }
+      case 'USER':
+        if (words.isNotEmpty) _user = (line, words.first);
+      case 'ADD':
+        final checksum = words.any((w) => w.startsWith('--checksum'));
+        final paths = words.where((w) => !w.startsWith('--')).toList();
+        if (paths.length < 2) return;
+        for (final src in paths.sublist(0, paths.length - 1)) {
+          final remote = RegExp(r'^(?:https?|git)://|^git@').hasMatch(src);
+          if (remote && !checksum && !src.endsWith('.git')) {
+            issues.add(EmbeddedIssue('DKR003', line, 1, src));
+          } else if (!remote &&
+              !RegExp(r'\.(?:tar(?:\.\w+)?|tgz|tbz2?|txz)$').hasMatch(src)) {
+            issues.add(EmbeddedIssue('DKR004', line, 1, src));
+          }
+        }
+      case 'ENV' || 'ARG':
+        // ENV A=1 B=2, ENV A 1 (ancienne forme), ARG A[=défaut].
+        final pairs = <(String, String?)>[];
+        if (instr == 'ENV' && words.length >= 2 && !words.first.contains('=')) {
+          pairs.add((words.first, words.sublist(1).join(' ')));
+        } else {
+          for (final w in words) {
+            final eq = w.indexOf('=');
+            pairs.add(
+                eq < 0 ? (w, null) : (w.substring(0, eq), w.substring(eq + 1)));
+          }
+        }
+        for (final (name, value) in pairs) {
+          if (!isSecretName(name)) continue;
+          final literal = value != null &&
+              value.replaceAll(RegExp(r'''^["']|["']$'''), '').isNotEmpty &&
+              !value.startsWith(r'$');
+          if (literal) {
+            issues.add(EmbeddedIssue('DKR005', line, 1, name));
+          } else if (instr == 'ARG') {
+            // Même sans valeur, un ARG reste dans l'historique de l'image.
+            issues.add(EmbeddedIssue('DKR005', line, 1, name,
+                severity: Severity.medium));
+          }
+        }
+      case 'RUN':
+        if (RegExp(r'\bapt(?:-get)?\s+(?:-\S+\s+)*install\b').hasMatch(args)) {
+          if (!args.contains('--no-install-recommends')) {
+            issues.add(EmbeddedIssue('DKR006', line, 1, 'apt-get install'));
+          }
+          if (!RegExp(r'/var/lib/apt/lists').hasMatch(args) &&
+              !args.contains('--mount=type=cache')) {
+            issues.add(EmbeddedIssue('DKR007', line, 1, 'apt'));
+          }
+        }
+        if (RegExp(r'\b(?:dnf|yum|microdnf)\s+(?:-\S+\s+)*install\b')
+                .hasMatch(args) &&
+            !RegExp(r'\b(?:dnf|yum|microdnf)\s+clean\s+all\b').hasMatch(args) &&
+            !args.contains('--mount=type=cache')) {
+          issues.add(EmbeddedIssue('DKR007', line, 1, 'dnf / yum'));
+        }
+        if (RegExp(r'\bapk\s+(?:-\S+\s+)*add\b').hasMatch(args) &&
+            !args.contains('--no-cache') &&
+            !args.contains('--mount=type=cache')) {
+          issues.add(EmbeddedIssue('DKR007', line, 1, 'apk'));
+        }
+    }
+  }
+
+  /// Fin du fichier : l'étape finale doit changer d'utilisateur (sauf image
+  /// vide ou déjà non privilégiée).
+  void _dockerFinalUser() {
+    final image = _fromImage;
+    if (image == null || image == 'scratch' || image.contains('nonroot')) {
+      return;
+    }
+    final u = _user;
+    if (u == null) {
+      issues.add(EmbeddedIssue('DKR002', _fromLine, 1, image));
+    } else if (RegExp(r'^(?:root|0)(?::|$)').hasMatch(u.$2)) {
+      issues.add(EmbeddedIssue('DKR002', u.$1, 1, 'USER ${u.$2}'));
     }
   }
 

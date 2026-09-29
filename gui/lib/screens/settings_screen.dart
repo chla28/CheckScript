@@ -205,6 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]
         ),
         (s.commonTools, ['gitleaks', 'trufflehog', 'syntax']),
+        (s.hostTools, ['hadolint', 'actionlint', 'zizmor']),
       ]) ...[
         Padding(
           padding: const EdgeInsets.only(top: 8, left: 16),

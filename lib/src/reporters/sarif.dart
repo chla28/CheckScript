@@ -44,7 +44,15 @@ String renderSarif(List<ScriptReport> reports) {
                 'defaultConfiguration': {'level': _level(f.severity)},
                 'properties': {
                   'category': f.category.name,
-                  'tags': [f.category.name, f.tool],
+                  // Convention GitHub : external/cwe/cwe-78.
+                  'tags': [
+                    f.category.name,
+                    f.tool,
+                    for (final r in f.refs)
+                      r.startsWith('CWE-')
+                          ? 'external/cwe/${r.toLowerCase()}'
+                          : r,
+                  ],
                   if (f.category == Category.security)
                     'security-severity': _securitySeverity(f.severity),
                 },

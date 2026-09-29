@@ -147,6 +147,19 @@ final List<LineRule> lineRules = [
       r'\bexport\s+[A-Z_]*(?:PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|ACCESS_?KEY|CREDENTIALS?)[A-Z_0-9]*(?:=|\s|;|$)',
       equivalents: ['SEC002'], hideSnippet: true),
 
+  // Chaîne d'approvisionnement.
+  LineRule('SEC024',
+      '$_cmd(?:sudo\\s+(?:-\\S+\\s+)*)?(?:python[23]?(?:\\.\\d+)?\\s+-m\\s+)?(?:pip[23]?|pipx|npm|go|gem|cargo)\\s+(?:install|i|add)\\b.*',
+      onBare: false, accept: (m, l) => hasUnpinnedPackage(m[0]!)),
+  LineRule('SEC025',
+      r'\[[^\]]*\btrusted=yes\b[^\]]*\]|--allow-unauthenticated\b|--allow-insecure-repositories\b|--no-gpg-checks?\b|--nogpgcheck\b|\bgpgcheck\s*=\s*0\b|\brepo_gpgcheck\s*=\s*0\b|\brpm\b[^|;&]*--no(?:signature|digest)\b|\bapk\b[^|;&]*--allow-untrusted\b',
+      onRaw: true),
+  LineRule(
+      'SEC026', '${_cmd}git\\s+clone\\b(?![^;&|]*\\s(?:--branch|-b)\\s+v?\\d)',
+      when: (s) => !RegExp(
+              r'\bgit\s+(?:-C\s+\S+\s+)?(?:checkout|switch\s+--detach|reset\s+--hard)\s+\S')
+          .hasMatch(s.content)),
+
   // ── Robustesse ────────────────────────────────────────────────────────────
   LineRule('ROB005', '${_cmd}cd(?:\\s+[^;&|]*)?\\s*\$',
       equivalents: ['SC2164'],
@@ -290,6 +303,74 @@ bool looksLikeSecret(String token) {
   return shannonEntropy(token) >= 4.0;
 }
 
+/// Options de gestionnaires de paquets suivies d'une valeur.
+const _optionsWithValue = {
+  '-r', '--requirement', '-c', '--constraint', '-i', '--index-url', //
+  '--extra-index-url', '-t', '--target', '--prefix', '--root', '-f',
+  '--find-links', '--python', '--registry', '--cache', '--install-dir',
+  '--bindir', '--git', '--path', '--version', '-v', '--source', '-s',
+};
+
+/// La commande d'installation (pip, pipx, npm -g, go, gem, cargo) vise au
+/// moins un paquet du registre sans version épinglée. Une installation
+/// depuis un fichier de dépendances, un chemin local ou une URL n'est pas
+/// visée ; npm n'est visé qu'en installation globale (-g).
+bool hasUnpinnedPackage(String command) {
+  final tools = RegExp(r'^(?:pip[23]?|pipx|npm|go|gem|cargo)$');
+  // Segment de la ligne qui contient la commande d'installation.
+  final words = command
+      .split(RegExp(r'\s*(?:&&|\|\||[;|&()`])\s*'))
+      .map((seg) => seg.trim().split(RegExp(r'\s+')))
+      .firstWhere((w) => w.any(tools.hasMatch), orElse: () => const []);
+  final i = words.indexWhere(tools.hasMatch);
+  if (i < 0 || i + 1 >= words.length) return false;
+  final tool = words[i];
+  // cargo add / npm add modifient un manifeste verrouillé : seul install vise.
+  if ((tool == 'cargo' || tool == 'go') && words[i + 1] != 'install') {
+    return false;
+  }
+  final args = words.sublist(i + 2);
+  if (args.any((a) =>
+      a == '-r' ||
+      a == '--requirement' ||
+      a.startsWith('--requirement=') ||
+      a == '-e' ||
+      a == '--editable')) {
+    return false;
+  }
+  if (tool == 'npm' && !args.any((a) => a == '-g' || a == '--global')) {
+    return false;
+  }
+  final hasVersionOption = args
+      .any((a) => a == '--version' || a == '-v' || a.startsWith('--version='));
+  final packages = <String>[];
+  for (var k = 0; k < args.length; k++) {
+    final a = args[k];
+    if (a.startsWith('-')) {
+      if (_optionsWithValue.contains(a)) k++;
+      continue;
+    }
+    packages.add(a.replaceAll(RegExp(r'''^["']|["']$'''), ''));
+  }
+  bool pinned(String p) {
+    if (p.isEmpty || p.startsWith(r'$')) return true; // variable : inconnu
+    if (RegExp(r'^(?:\.|/|~|[\w.-]+/)|\.(?:whl|tar\.gz|zip|tgz|gem|crate)$')
+            .hasMatch(p) &&
+        tool != 'go') {
+      return true; // chemin local, archive
+    }
+    if (p.contains('://') || p.startsWith('git+')) return true; // URL
+    return switch (tool) {
+      'pip' || 'pip2' || 'pip3' || 'pipx' => RegExp(r'===?').hasMatch(p),
+      'npm' => p.lastIndexOf('@') > 0,
+      'go' => RegExp(r'@v?\d').hasMatch(p),
+      _ => hasVersionOption || RegExp(r'[:@]\d').hasMatch(p),
+    };
+  }
+
+  return packages.any((p) => !pinned(p));
+}
+
 /// Applique toutes les règles intégrées (fonction pure, testable directement).
 List<Finding> runBuiltinRules(ScriptInfo s, CheckConfig config, Lang lang,
     {AstFacts? ast}) {
@@ -351,7 +432,7 @@ List<Finding> runBuiltinRules(ScriptInfo s, CheckConfig config, Lang lang,
   }
   // Scripts intégrés : problèmes relevés dans le fichier hôte.
   for (final i in s.embedded?.issues ?? const <EmbeddedIssue>[]) {
-    add(i.ruleId, i.line, extra: i.detail);
+    add(i.ruleId, i.line, extra: i.detail, severity: i.severity);
   }
 
   // ── Structure : fonctions, imbrication, boucles, commandes ───────────────

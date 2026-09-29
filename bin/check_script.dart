@@ -38,6 +38,9 @@ const externalTools = [
   'vermin',
   'pydeps',
   'pip-audit',
+  'hadolint',
+  'actionlint',
+  'zizmor',
   'custom',
 ];
 
@@ -108,6 +111,11 @@ ArgParser buildParser(Lang lang) {
                 '~/.config/check-script/config.yaml).',
             'YAML configuration (default: ./.checkscript.yaml then '
                 '~/.config/check-script/config.yaml).'))
+    ..addMultiOption('ref',
+        valueHelp: 'RÉFÉRENCE',
+        help: t(
+            'N\'affiche que les problèmes rattachés à cette référence (début du nom, sans casse : CWE-78, A08, CICD-SEC, ANSSI-BP-028) ; répétable. Les notes restent celles de l\'analyse complète.',
+            'Only show issues linked to this reference (name prefix, case-insensitive: CWE-78, A08, CICD-SEC, ANSSI-BP-028); repeatable. Scores stay those of the full analysis.'))
     ..addMultiOption('with',
         valueHelp: 'OUTIL',
         allowed: externalTools,
@@ -695,6 +703,15 @@ Future<int> run(List<String> argv,
     return exitOk;
   }
   if (reports.isEmpty) return inputError ? exitInput : exitUsage;
+  final refFilter = a['ref'] as List<String>;
+  if (refFilter.isNotEmpty) {
+    for (var i = 0; i < reports.length; i++) {
+      reports[i] = reports[i].withFindings([
+        for (final f in reports[i].findings)
+          if (matchesReference(f.refs, refFilter)) f
+      ]);
+    }
+  }
   if (baseline != null) {
     for (final r in reports.where((r) => r.comparison == null)) {
       err.writeln('${r.script.path} : ${Messages(lang).notInBaseline}');
@@ -914,6 +931,9 @@ String _installHint(String tool, Lang lang) {
     'pip-audit' =>
       'pipx install $tool',
     'pyright' => 'pipx install pyright | npm install -g pyright',
+    'hadolint' => 'https://github.com/hadolint/hadolint/releases',
+    'actionlint' => 'https://github.com/rhysd/actionlint/releases',
+    'zizmor' => 'pipx install zizmor',
     _ => '',
   };
   return how.isEmpty
@@ -942,6 +962,8 @@ void listRules(IOSink out, Lang lang,
         '${r.id.padRight(9)}${(r.python ? 'python' : 'shell').padRight(8)}'
         '${t.category(r.category).padRight(17)}'
         '${r.severity.label.padRight(10)}${r.title.of(lang)}$ctx');
+    final refs = referencesOf(r.id);
+    if (refs.isNotEmpty) out.writeln('${' ' * 44}${refs.join(' · ')}');
   }
   for (final r in custom) {
     out.writeln('${r.id.padRight(9)}${'custom'.padRight(8)}'

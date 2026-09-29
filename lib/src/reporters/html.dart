@@ -8,6 +8,7 @@ import '../fixer.dart';
 import '../i18n.dart';
 import '../model/finding.dart';
 import '../model/report.dart';
+import '../rules/references.dart';
 import '../rules/examples.dart';
 import '../version.dart';
 import 'reporters.dart';
@@ -34,7 +35,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .bar>i{display:block;height:100%;border-radius:4px}
 .sev{font-weight:600;font-size:.85em}.critical{color:var(--crit)}.high{color:var(--high)}.medium{color:var(--med)}.low{color:var(--low)}
 .global{font-size:2rem;font-weight:700}.filters label{margin-right:14px;white-space:nowrap}
-.hint{color:var(--muted);font-size:.9em}code,pre{font-family:ui-monospace,monospace;font-size:.88em}
+.hint{color:var(--muted);font-size:.9em}.refs{font-size:.8em;margin-top:.2em}.refs a{color:var(--muted)}code,pre{font-family:ui-monospace,monospace;font-size:.88em}
 pre.src{background:var(--code);border-radius:8px;padding:8px 0;overflow-x:auto;margin:0}
 .src .l{display:block;padding:0 12px;white-space:pre}.src .l[data-sev]{border-left:4px solid}
 .src .l[data-sev=critical]{border-color:var(--crit)}.src .l[data-sev=high]{border-color:var(--high)}
@@ -95,6 +96,7 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
   b.writeln('</div>');
 
   if (reports.length > 1) _folderSummary(b, reports, t, o.lang);
+  _referencesSummary(b, reports, t);
 
   for (var i = 0; i < reports.length; i++) {
     final r = reports[i];
@@ -175,6 +177,7 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
             '<td class="n">$line</td><td class="sev ${f.severity.name}">${f.severity.label}</td>'
             '<td>${_e(t.category(f.category))}</td><td>$rule<br><span class="muted">${_e(f.tool)}</span></td>'
             '<td>${_e(f.message)}$snip${f.hint == null ? '' : '<div class="hint">→ ${_e(f.hint!)}</div>'}'
+            '${_refsHtml(f.refs)}'
             '${_fixHtml(f, r.script.displayLines, t, o.lang)}</td></tr>');
       }
       b.writeln('</table></div>');
@@ -207,6 +210,54 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
   b.writeln(
       '<p class="muted">check-script $appVersion</p></main><script>$_js</script></body></html>');
   return b.toString();
+}
+
+/// Références d'un problème, en liens.
+String _refsHtml(List<String> refs) => refs.isEmpty
+    ? ''
+    : '<div class="refs">${[
+        for (final r in refs)
+          referenceUrl(r) == null
+              ? _e(r)
+              : '<a href="${_e(referenceUrl(r)!)}" title="${_e(referenceTitles[r] ?? '')}">${_e(r)}</a>'
+      ].join(' · ')}</div>';
+
+/// Vue de conformité : chaque référence (CWE, OWASP, ANSSI) avec le nombre
+/// de problèmes, la sévérité la plus haute et les scripts concernés.
+void _referencesSummary(
+    StringBuffer b, List<ScriptReport> reports, Messages t) {
+  final count = <String, int>{};
+  final worst = <String, Severity>{};
+  final scripts = <String, Set<String>>{};
+  for (final r in reports) {
+    for (final f in r.findings) {
+      for (final ref in f.refs) {
+        count[ref] = (count[ref] ?? 0) + 1;
+        final w = worst[ref];
+        if (w == null || f.severity.index < w.index) worst[ref] = f.severity;
+        (scripts[ref] ??= {}).add(r.script.path);
+      }
+    }
+  }
+  if (count.isEmpty) return;
+  b.writeln('<details class="card" id="references"><summary>'
+      '${_e(t.references)} (${count.length})</summary>'
+      '<p class="muted">${_e(t.referencesIntro)}</p>'
+      '<table class="sortable"><thead><tr><th>${_e(t.family)}</th>'
+      '<th>${_e(t.reference)}</th><th>${_e(t.message)}</th>'
+      '<th class="n">${_e(t.issuesCount)}</th><th>${_e(t.worstSeverity)}</th>'
+      '<th class="n">${_e(t.scriptsCount)}</th></tr></thead><tbody>');
+  for (final ref in sortReferences(count.keys)) {
+    final url = referenceUrl(ref);
+    final name = url == null ? _e(ref) : '<a href="${_e(url)}">${_e(ref)}</a>';
+    final w = worst[ref]!;
+    b.writeln('<tr><td>${_e(referenceFamily(ref))}</td><td>$name</td>'
+        '<td>${_e(referenceTitles[ref] ?? '')}</td>'
+        '<td class="n" data-v="${count[ref]}">${count[ref]}</td>'
+        '<td class="sev ${w.name}" data-v="${3 - w.index}">${w.label}</td>'
+        '<td class="n" data-v="${scripts[ref]!.length}">${scripts[ref]!.length}</td></tr>');
+  }
+  b.writeln('</tbody></table></details>');
 }
 
 /// Correction concrète (lignes avant / après) ou, à défaut, exemple générique

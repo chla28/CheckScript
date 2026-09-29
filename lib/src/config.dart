@@ -172,6 +172,10 @@ class CheckConfig {
     // Interpréteur des dépendances : '' → VIRTUAL_ENV, sinon python3.
     'pydeps': ToolConfig(executable: ''),
     'pip-audit': ToolConfig(executable: 'pip-audit'),
+    // Dockerfile et workflows GitHub Actions.
+    'hadolint': ToolConfig(executable: 'hadolint'),
+    'actionlint': ToolConfig(executable: 'actionlint'),
+    'zizmor': ToolConfig(executable: 'zizmor'),
     // Redondants avec Ruff et mypy : activables dans la configuration.
     'pylint': ToolConfig(
         enabled: false,

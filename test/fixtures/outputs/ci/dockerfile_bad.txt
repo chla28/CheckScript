@@ -1,0 +1,5 @@
+FROM python:latest
+ENV API_TOKEN=abc123secretvalue
+ADD config.yaml /etc/app/
+RUN apt-get update && apt-get install -y curl
+RUN cd /opt && pip install requests

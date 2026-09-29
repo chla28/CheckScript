@@ -89,6 +89,16 @@ class Messages {
   String get line => _t('Ligne', 'Line');
   String get severity => _t('Sévérité', 'Severity');
   String get rule => _t('Règle', 'Rule');
+  String get references =>
+      _t('Référentiels (CWE, OWASP, ANSSI)', 'References (CWE, OWASP, ANSSI)');
+  String get reference => _t('Référence', 'Reference');
+  String get family => _t('Famille', 'Family');
+  String get issuesCount => _t('Problèmes', 'Issues');
+  String get worstSeverity => _t('Sévérité max.', 'Worst severity');
+  String get scriptsCount => _t('Scripts', 'Scripts');
+  String get referencesIntro => _t(
+      'Problèmes de l\'analyse rattachés à chaque référence (les règles sans correspondance directe n\'y figurent pas).',
+      'Issues of this analysis linked to each reference (rules without a direct match are not listed).');
   String get message => _t('Message', 'Message');
   String get script => _t('Script', 'Script');
   String get noIssue => _t('Aucun problème détecté.', 'No issue detected.');

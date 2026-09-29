@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'analyzers/analyzer.dart';
 import 'analyzers/builtin_rules.dart';
+import 'analyzers/ci_tools.dart';
 import 'analyzers/external_tools.dart';
 import 'analyzers/python_deps.dart';
 import 'analyzers/python_tools.dart';
@@ -21,6 +22,7 @@ import 'model/finding.dart';
 import 'model/report.dart';
 import 'result_cache.dart';
 import 'rules/custom_rules.dart';
+import 'rules/references.dart';
 import 'version.dart';
 import 'rules/catalog.dart';
 import 'scoring.dart';
@@ -48,6 +50,11 @@ List<Analyzer> defaultAnalyzers() => [
       CheckbashismsAnalyzer(),
       BuiltinAnalyzer(),
       CustomRulesAnalyzer(),
+      // Après les règles intégrées : en cas de doublon, celles-ci (conseil
+      // en français, références CWE / OWASP / ANSSI) sont conservées.
+      HadolintAnalyzer(),
+      ActionlintAnalyzer(),
+      ZizmorAnalyzer(),
       ShfmtAnalyzer(),
       BashateAnalyzer(),
     ];
@@ -141,7 +148,7 @@ class Engine {
   /// intégrés : leur mise en forme est celle du fichier hôte).
   List<Analyzer> analyzersFor(ScriptInfo script) => [
         for (final a in analyzers)
-          if (a.language.accepts(script) &&
+          if (a.appliesTo(script) &&
               !(script.embedded != null && a.name == 'bashate') &&
               !(a.name == 'custom' && config.customRules.isEmpty))
             a
@@ -451,6 +458,8 @@ final Set<String> _secretRules = {
     if (r.hideSnippet) r.id,
   'SEC022',
   'PYSEC001',
+  'DKR005',
+  'CI004',
 };
 
 bool _revealsSecret(Finding f) => switch (f.tool) {
@@ -490,13 +499,14 @@ List<Finding> attachSource(List<Finding> findings, List<String> lines,
   ];
 }
 
-/// Complète conseils et liens de documentation manquants.
+/// Complète conseils, liens de documentation et références (CWE, OWASP,
+/// ANSSI).
 List<Finding> enrich(List<Finding> findings, Lang lang) => [
       for (final f in findings)
-        f.hint != null && f.url != null
-            ? f
-            : f.copyWith(
-                hint: f.hint ?? toolHint(f, lang), url: f.url ?? ruleUrl(f)),
+        f.copyWith(
+            hint: f.hint ?? toolHint(f, lang),
+            url: f.url ?? ruleUrl(f),
+            refs: findingReferences(f)),
     ];
 
 /// Lien de documentation d'une règle d'outil externe.

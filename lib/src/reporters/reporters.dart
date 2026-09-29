@@ -12,6 +12,7 @@ import 'junit.dart';
 import 'sarif.dart';
 import '../model/finding.dart';
 import '../model/report.dart';
+import '../rules/references.dart';
 import '../version.dart';
 
 enum OutputFormat {
@@ -319,6 +320,9 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
           if (o.maxDetails == null && help != null) {
             b.writeln(a.dim('${' ' * 46}→ $help'));
           }
+          if (o.maxDetails == null && f.refs.isNotEmpty) {
+            b.writeln(a.dim('${' ' * 46}${f.refs.join(' · ')}'));
+          }
         }
         if (fs.length > shown.length) {
           b.writeln(a.dim('  ${t.moreIssues(fs.length - shown.length)}'));
@@ -447,8 +451,14 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
         final rule =
             f.url == null ? '`${f.ruleId}`' : '[`${f.ruleId}`](${f.url})';
         final hint = f.hint == null ? '' : '<br>→ _${_mdCell(f.hint!)}_';
+        final refs = f.refs.isEmpty
+            ? ''
+            : '<br><sub>${[
+                for (final r in f.refs)
+                  referenceUrl(r) == null ? r : '[$r](${referenceUrl(r)})'
+              ].join(' · ')}</sub>';
         b.writeln('| ${_loc(f, t)} | ${f.severity.label} | ${f.tool} | $rule | '
-            '${_mdCell(f.message)}$snippet$hint |');
+            '${_mdCell(f.message)}$snippet$hint$refs |');
       }
       b.writeln();
     }
@@ -553,8 +563,14 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
         final rule =
             f.url == null ? '`${f.ruleId}`' : '${f.url}[`${f.ruleId}`]';
         final hint = f.hint == null ? '' : ' +\n_→ ${_adocCell(f.hint!)}_';
+        final refs = f.refs.isEmpty
+            ? ''
+            : ' +\n[.small]#${[
+                for (final r in f.refs)
+                  referenceUrl(r) == null ? r : '${referenceUrl(r)}[$r]'
+              ].join(' · ')}#';
         b.writeln('|${_loc(f, t)} |${f.severity.label} |${f.tool} |$rule '
-            '|${_adocCell(f.message)}$snippet$hint');
+            '|${_adocCell(f.message)}$snippet$hint$refs');
       }
       b.writeln('|===\n');
     }

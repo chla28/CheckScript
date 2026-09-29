@@ -142,6 +142,70 @@ tar xzf app.tar.gz'''),
     TITLE: ${{ github.event.issue.title }}
   run: echo "$TITLE"'''),
 
+  'SEC024': CodeExample(r'''pip install requests
+npm install -g typescript''', r'''pip install requests==2.32.3
+npm install -g typescript@5.9.2'''),
+  'SEC025': CodeExample(
+      r'''echo "deb [trusted=yes] http://repo.example.com/ stable main" \
+  > /etc/apt/sources.list.d/example.list''',
+      r'''curl -fsSL https://repo.example.com/key.gpg \
+  | gpg --dearmor -o /usr/share/keyrings/example.gpg
+echo "deb [signed-by=/usr/share/keyrings/example.gpg] https://repo.example.com/ stable main" \
+  > /etc/apt/sources.list.d/example.list'''),
+  'SEC026': CodeExample(r'''git clone https://github.com/org/outil.git''',
+      r'''git clone --branch v1.4.2 --depth 1 https://github.com/org/outil.git'''),
+  'DKR001': CodeExample(
+      r'''FROM python:latest''', r'''FROM python:3.12.6-slim@sha256:…'''),
+  'DKR002': CodeExample(r'''FROM debian:12
+COPY app /opt/app
+CMD ["/opt/app/run"]''', r'''FROM debian:12
+RUN useradd --system --no-create-home app
+COPY app /opt/app
+USER app
+CMD ["/opt/app/run"]'''),
+  'DKR003': CodeExample(r'''ADD https://example.com/outil.tar.gz /opt/''',
+      r'''ADD --checksum=sha256:… https://example.com/outil.tar.gz /opt/'''),
+  'DKR004': CodeExample(
+      r'''ADD config.yaml /etc/app/''', r'''COPY config.yaml /etc/app/'''),
+  'DKR005': CodeExample(r'''ENV API_TOKEN=9f86d081…
+RUN ./deploy.sh''', r'''RUN --mount=type=secret,id=api_token \
+    API_TOKEN="$(cat /run/secrets/api_token)" ./deploy.sh'''),
+  'DKR006': CodeExample(r'''RUN apt-get update && apt-get install -y curl''',
+      r'''RUN apt-get update && apt-get install -y --no-install-recommends curl'''),
+  'DKR007': CodeExample(
+      r'''RUN apt-get update && apt-get install -y --no-install-recommends curl''',
+      r'''RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*'''),
+  'CI001': CodeExample(r'''- uses: some-org/deploy-action@v2''',
+      r'''- uses: some-org/deploy-action@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v2.1.0'''),
+  'CI002': CodeExample(r'''on: push
+jobs:
+  build:
+    permissions: write-all''', r'''on: push
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest'''),
+  'CI003': CodeExample(r'''on: pull_request_target
+jobs:
+  test:
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}''',
+      r'''on: pull_request
+jobs:
+  test:
+    steps:
+      - uses: actions/checkout@v4'''),
+  'CI004': CodeExample(r'''env:
+  DEPLOY_TOKEN: ghp_…''', r'''env:
+  DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}'''),
+  'CI005': CodeExample(
+      r'''image: node:latest''', r'''image: node:22.9.0-bookworm@sha256:…'''),
+
   // ── Robustesse ────────────────────────────────────────────────────────────
   'ROB001': CodeExample(r'''#!/bin/bash
 cp "$src" "$dst"''', r'''#!/bin/bash

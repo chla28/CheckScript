@@ -75,6 +75,22 @@ class ScriptReport {
     this.explanation = ScoreExplanation.empty,
   });
 
+  /// Même rapport, problèmes limités à [kept] (filtre d'affichage : les
+  /// notes restent celles de l'analyse complète).
+  ScriptReport withFindings(List<Finding> kept) => ScriptReport(
+        script: script,
+        tools: tools,
+        findings: kept,
+        scores: scores,
+        global: global,
+        date: date,
+        suppressed: suppressed,
+        profile: profile,
+        contexts: contexts,
+        comparison: comparison,
+        explanation: explanation,
+      );
+
   ScriptReport withComparison(Comparison? c) => ScriptReport(
         script: script,
         tools: tools,

@@ -18,8 +18,9 @@ class S {
   String get folder => _t('Dossier', 'Folder');
   String get settings => _t('Réglages', 'Settings');
   String get rules => _t('Règles', 'Rules');
-  String get searchRules =>
-      _t('Rechercher (code, texte, outil)', 'Search (code, text, tool)');
+  String get searchRules => _t(
+      'Rechercher (code, texte, outil, CWE, OWASP, ANSSI)',
+      'Search (code, text, tool, CWE, OWASP, ANSSI)');
   String get allLanguages => _t('Tous les langages', 'All languages');
   String get allTools => _t('Tous les outils', 'All tools');
   String get allCategories => _t('Toutes les catégories', 'All categories');
@@ -55,6 +56,8 @@ class S {
   String get apply => _t('Appliquer', 'Apply');
   String get close => _t('Fermer', 'Close');
   String get recent => _t('Récents', 'Recent');
+  String get hostTools => _t('Dockerfile et workflows GitHub Actions',
+      'Dockerfiles and GitHub Actions workflows');
   String get smallerText => _t('Réduire le texte', 'Smaller text');
   String get largerText => _t('Agrandir le texte', 'Larger text');
   String get defaultTextSize => _t('Taille par défaut', 'Default size');

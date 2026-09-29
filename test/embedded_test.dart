@@ -67,8 +67,9 @@ jobs:
       expect(e.lines[13], isEmpty); // Python
       expect(e.lines[17], isEmpty); // Windows : PowerShell
       expect(e.pipefail, isTrue);
-      expect(e.issues.single.line, 12);
-      expect(e.issues.single.detail, contains('issue.title'));
+      final inj = e.issues.where((i) => i.ruleId == 'SEC023').single;
+      expect(inj.line, 12);
+      expect(inj.detail, contains('issue.title'));
     });
 
     test('GitLab CI : script, before_script, !reference ignoré', () {

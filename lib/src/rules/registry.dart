@@ -15,6 +15,7 @@ import '../i18n.dart';
 import '../model/finding.dart';
 import 'catalog.dart';
 import 'custom_rules.dart';
+import 'references.dart';
 
 class RuleEntry {
   /// Identifiant tel que rapporté (`SC2086`, `B602`, `arg-type`, `PYSEC001`).
@@ -32,6 +33,9 @@ class RuleEntry {
   final String title;
   final String? url;
 
+  /// Références normatives (CWE, OWASP, ANSSI).
+  final List<String> refs;
+
   const RuleEntry({
     required this.id,
     required this.tool,
@@ -40,6 +44,7 @@ class RuleEntry {
     this.severity,
     this.title = '',
     this.url,
+    this.refs = const [],
   });
 
   /// Clé de désactivation (`rules.disabled`).
@@ -723,6 +728,7 @@ List<RuleEntry> knownRules(Lang lang) => [
           category: r.category,
           severity: r.severity,
           title: r.title.of(lang),
+          refs: referencesOf(r.id),
         ),
       RuleEntry(
         id: 'SYNTAX',
