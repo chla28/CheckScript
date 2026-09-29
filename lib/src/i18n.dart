@@ -92,6 +92,17 @@ class Messages {
   String get references =>
       _t('Référentiels (CWE, OWASP, ANSSI)', 'References (CWE, OWASP, ANSSI)');
   String get reference => _t('Référence', 'Reference');
+  String get commands => _t('Commandes externes', 'External commands');
+  String get command => _t('Commande', 'Command');
+  String get present => _t('Présente', 'Present');
+  String get lines_ => _t('Lignes', 'Lines');
+  String get packagesToInstall =>
+      _t('Paquets à installer', 'Packages to install');
+  String get unknown => _t('?', '?');
+  String get yes => _t('oui', 'yes');
+  String get no => _t('non', 'no');
+  String get checkedByScript =>
+      _t('vérifiée par le script', 'checked by the script');
   String get family => _t('Famille', 'Family');
   String get issuesCount => _t('Problèmes', 'Issues');
   String get worstSeverity => _t('Sévérité max.', 'Worst severity');

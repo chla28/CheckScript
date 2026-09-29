@@ -533,7 +533,7 @@ Future<void> exportReports(
     dialogTitle: s.export,
     fileName: '$base-report.html',
     type: FileType.custom,
-    allowedExtensions: ['html', 'md', 'adoc', 'json', 'sarif', 'txt'],
+    allowedExtensions: ['html', 'pdf', 'md', 'adoc', 'json', 'sarif', 'txt'],
   );
   if (path == null) return;
   try {

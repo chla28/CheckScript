@@ -5,7 +5,7 @@
 
 _arguments -s \
   '*'{-o,--output}'[fichier de rapport]:fichier:_files' \
-  {-f,--format}'[format]:format:(terminal md adoc html json sarif codeclimate junit github)' \
+  {-f,--format}'[format]:format:(terminal md adoc html pdf json sarif codeclimate junit github)' \
   {-l,--lang}'[langue]:langue:(fr en)' \
   {-s,--shell}'[dialecte]:dialecte:(sh bash dash ksh zsh python)' \
   '--python-target[version minimale de Python]:version:(3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14)' \
@@ -14,7 +14,7 @@ _arguments -s \
   '--follow-source[suivre les fichiers sourcés]' \
   {-c,--config}'[configuration YAML]:fichier:_files -g "*.y(a|)ml"' \
   '*--with[activer un outil]:outil:(pylint pyright)' \
-  '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor gitleaks trufflehog syntax builtin custom)' \
+  '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor commands gitleaks trufflehog syntax builtin custom)' \
   '--no-external[règles intégrées seules]' \
   '*--ref[problèmes rattachés à une référence CWE, OWASP ou ANSSI]:référence:' \
   {-w,--watch}'[réanalyser à chaque enregistrement]' \

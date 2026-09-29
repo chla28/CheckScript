@@ -485,6 +485,14 @@ const List<RuleInfo> ruleCatalog = [
           'Replace the prompt with an option, a variable or a configuration file.'),
       contexts: {ExecContext.cron, ExecContext.systemd}),
   RuleInfo(
+      'ROB017',
+      _rob,
+      _m,
+      Tr('Commande externe introuvable sur la machine d\'analyse',
+          'External command not found on the analysis machine'),
+      Tr('Installer le paquet qui la fournit, ou vérifier sa présence en tête de script : command -v jq >/dev/null || { echo "jq requis" >&2; exit 1; }.',
+          'Install the package that provides it, or check for it at the top of the script: command -v jq >/dev/null || { echo "jq required" >&2; exit 1; }.')),
+  RuleInfo(
       'ROB016',
       _rob,
       _m,

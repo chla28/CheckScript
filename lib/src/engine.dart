@@ -7,6 +7,7 @@ import 'dart:io';
 import 'analyzers/analyzer.dart';
 import 'analyzers/builtin_rules.dart';
 import 'analyzers/ci_tools.dart';
+import 'analyzers/commands.dart';
 import 'analyzers/external_tools.dart';
 import 'analyzers/python_deps.dart';
 import 'analyzers/python_tools.dart';
@@ -35,6 +36,7 @@ import 'suppressions.dart';
 List<Analyzer> defaultAnalyzers() => [
       SyntaxAnalyzer(),
       ShellcheckAnalyzer(),
+      CommandsAnalyzer(),
       BanditAnalyzer(),
       RuffAnalyzer(),
       SemgrepAnalyzer(),
@@ -277,7 +279,7 @@ class Engine {
             ? r.run
             : ToolRun(r.run.tool, r.run.status,
                 version: v, detail: r.run.detail, findings: r.run.findings);
-        results[i] = AnalyzerResult(run, r.findings);
+        results[i] = AnalyzerResult(run, r.findings, r.data);
         running.remove(a.name);
         done++;
         onProgress?.call(AnalysisProgress(script.path,
@@ -342,6 +344,10 @@ class Engine {
         profile: config.profile.name,
         contexts: [for (final c in config.contexts) c.name],
         explanation: explainScore(findings, script.codeLines, config.scoring),
+        commands: [
+          for (final r in results)
+            if (r!.data case final List<CommandUse> uses) ...uses
+        ],
       );
       onProgress?.call(AnalysisProgress(script.path, null, total, total));
       // Pas de mise en cache si un outil a échoué (réseau…) : on réessaiera.

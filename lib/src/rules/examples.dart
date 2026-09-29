@@ -207,6 +207,12 @@ jobs:
       r'''image: node:latest''', r'''image: node:22.9.0-bookworm@sha256:…'''),
 
   // ── Robustesse ────────────────────────────────────────────────────────────
+  'ROB017': CodeExample(r'''jq -r .version package.json''',
+      r'''command -v jq >/dev/null || { echo "jq requis (dnf/apt install jq)" >&2; exit 1; }
+jq -r .version package.json''',
+      goodEn:
+          r'''command -v jq >/dev/null || { echo "jq required (dnf/apt install jq)" >&2; exit 1; }
+jq -r .version package.json'''),
   'ROB001': CodeExample(r'''#!/bin/bash
 cp "$src" "$dst"''', r'''#!/bin/bash
 set -euo pipefail

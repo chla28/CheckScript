@@ -7,6 +7,7 @@ import 'dart:convert';
 import '../fixer.dart';
 import '../i18n.dart';
 import '../model/finding.dart';
+import '../analyzers/commands.dart';
 import '../model/report.dart';
 import '../rules/references.dart';
 import '../rules/examples.dart';
@@ -97,6 +98,9 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
 
   if (reports.length > 1) _folderSummary(b, reports, t, o.lang);
   _referencesSummary(b, reports, t);
+  if (reports.length > 1) {
+    _packagesHtml(b, [for (final r in reports) ...r.commands], t);
+  }
 
   for (var i = 0; i < reports.length; i++) {
     final r = reports[i];
@@ -124,6 +128,7 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
           '<div class="muted">${_e(t.suppressedCount(r.suppressed))}</div>');
     }
     b.writeln('</div>');
+    _commandsHtml(b, r.commands, t);
 
     b.writeln(
         '<div class="card"><table><tr><th>${t.category_}</th><th>${t.score}</th>');
@@ -210,6 +215,38 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
   b.writeln(
       '<p class="muted">check-script $appVersion</p></main><script>$_js</script></body></html>');
   return b.toString();
+}
+
+/// Inventaire des commandes externes d'un script.
+void _commandsHtml(StringBuffer b, List<CommandUse> uses, Messages t) {
+  if (uses.isEmpty) return;
+  final missing = uses.where((u) => u.found == false).length;
+  b.writeln('<details class="card"><summary>${_e(t.commands)} (${uses.length}'
+      '${missing == 0 ? '' : ', $missing ✗'})</summary>'
+      '<table class="sortable"><thead><tr><th>${_e(t.command)}</th>'
+      '<th>${_e(t.lines_)}</th><th>${_e(t.present)}</th><th>dnf</th>'
+      '<th>apt</th></tr></thead><tbody>');
+  for (final u in uses) {
+    final present = switch (u.found) {
+      true => _e(u.path ?? t.yes),
+      false => '<span class="sev critical">${_e(t.no)}</span>'
+          '${u.checked ? ' <span class="muted">(${_e(t.checkedByScript)})</span>' : ''}',
+      null => t.unknown,
+    };
+    b.writeln('<tr><td><code>${_e(u.name)}</code></td>'
+        '<td>${u.lines.join(', ')}</td><td>$present</td>'
+        '<td>${_e(u.dnf ?? '')}</td><td>${_e(u.apt ?? '')}</td></tr>');
+  }
+  b.writeln('</tbody></table></details>');
+}
+
+/// Paquets à installer pour l'ensemble des scripts d'un dossier.
+void _packagesHtml(StringBuffer b, List<CommandUse> uses, Messages t) {
+  final (dnf, apt) = requiredPackages(uses);
+  if (dnf.isEmpty && apt.isEmpty) return;
+  b.writeln('<div class="card"><strong>${_e(t.packagesToInstall)}</strong>'
+      '<pre class="snip">dnf install ${_e(dnf.join(' '))}\n'
+      'apt install ${_e(apt.join(' '))}</pre></div>');
 }
 
 /// Références d'un problème, en liens.

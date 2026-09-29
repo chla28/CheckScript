@@ -12,6 +12,7 @@ export 'src/analyzers/analyzer.dart';
 export 'src/analyzers/ast.dart'
     show AstFacts, CommandFact, FunctionFact, NestingFact, loadAst;
 export 'src/analyzers/ci_tools.dart';
+export 'src/analyzers/commands.dart';
 export 'src/analyzers/builtin_rules.dart'
     show
         runBuiltinRules,
@@ -47,6 +48,7 @@ export 'src/reporters/codeclimate.dart';
 export 'src/reporters/dashboard.dart';
 export 'src/reporters/html.dart';
 export 'src/reporters/junit.dart';
+export 'src/reporters/pdf.dart';
 export 'src/reporters/reporters.dart';
 export 'src/reporters/sarif.dart';
 export 'src/result_cache.dart';

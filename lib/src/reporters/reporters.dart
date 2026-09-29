@@ -4,11 +4,13 @@ library;
 
 import 'dart:convert';
 
+import '../analyzers/commands.dart';
 import '../explain.dart';
 import '../i18n.dart';
 import 'codeclimate.dart';
 import 'html.dart';
 import 'junit.dart';
+import 'pdf.dart';
 import 'sarif.dart';
 import '../model/finding.dart';
 import '../model/report.dart';
@@ -24,7 +26,8 @@ enum OutputFormat {
   html,
   codeclimate,
   junit,
-  github;
+  github,
+  pdf;
 
   /// Format déduit de l'extension d'un fichier de sortie.
   static OutputFormat? fromPath(String path) {
@@ -40,6 +43,7 @@ enum OutputFormat {
     if (p.endsWith('.html') || p.endsWith('.htm')) return html;
     if (p.endsWith('.txt')) return terminal;
     if (p.endsWith('.xml')) return junit;
+    if (p.endsWith('.pdf')) return pdf;
     return null;
   }
 
@@ -53,6 +57,7 @@ enum OutputFormat {
         'text' || 'txt' || 'terminal' => terminal,
         'junit' || 'xml' => junit,
         'github' => github,
+        'pdf' => pdf,
         _ => null,
       };
 }
@@ -95,11 +100,26 @@ String render(
       OutputFormat.codeclimate => renderCodeClimate(reports),
       OutputFormat.junit => renderJunit(reports),
       OutputFormat.github => renderGithub(reports),
+      OutputFormat.pdf =>
+        throw UnsupportedError('PDF : utiliser renderBytes (format binaire)'),
     };
+
+/// Rapport en octets : PDF, ou texte UTF-8 des autres formats.
+Future<List<int>> renderBytes(List<ScriptReport> reports, OutputFormat format,
+        RenderOptions opts) async =>
+    format == OutputFormat.pdf
+        ? await renderPdf(reports, opts)
+        : utf8.encode(render(reports, format, opts));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilitaires communs
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Commande dans un rapport textuel : `jq` (paquets), marquée si absente.
+String _mdCommand(CommandUse c, Messages t) {
+  final pkg = c.dnf == null ? '' : ' (dnf ${c.dnf}, apt ${c.apt})';
+  return c.found == false ? '`${c.name}` ✗$pkg' : '`${c.name}`';
+}
 
 String fmtScore(double v, Lang lang) {
   final s = v.toStringAsFixed(1);
@@ -245,6 +265,9 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
     b.writeln('${t.dialect}${t.colon}${r.script.dialectLabel}    '
         '${t.lines}${t.colon}${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln(a.dim('${t.tools}${t.colon}${_toolsLine(r, t)}'));
+    if (r.commands.isNotEmpty) {
+      b.writeln(a.dim('${t.commands}${t.colon}${commandsLine(r.commands)}'));
+    }
     final pl = _profileLine(r, t);
     if (pl != null) b.writeln(a.dim(pl));
     b.writeln();
@@ -385,6 +408,10 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
         '- **${t.lines}**${t.colon}${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln('- **${t.date}**${t.colon}${_date(r.date)}');
     b.writeln('- **${t.tools}**${t.colon}${_toolsLine(r, t)}');
+    if (r.commands.isNotEmpty) {
+      b.writeln('- **${t.commands}**${t.colon}'
+          '${[for (final c in r.commands) _mdCommand(c, t)].join(', ')}');
+    }
     final pl = _profileLine(r, t);
     if (pl != null) b.writeln('- $pl');
     if (r.suppressed > 0) b.writeln('- ${t.suppressedCount(r.suppressed)}');
@@ -507,6 +534,11 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
         '${t.lines}:: ${t.linesDetail(r.script.totalLines, r.script.codeLines, r.script.commentLines)}');
     b.writeln('${t.date}:: ${_date(r.date)}');
     b.writeln('${t.tools}:: ${_toolsLine(r, t)}');
+    if (r.commands.isNotEmpty) {
+      b.writeln('${t.commands}:: ${[
+        for (final c in r.commands) _mdCommand(c, t)
+      ].join(', ')}');
+    }
     final pl = _profileLine(r, t);
     if (pl != null) {
       b.writeln('${t.profile}:: ${pl.split(t.colon).skip(1).join(t.colon)}');

@@ -19,7 +19,7 @@ _check_script() {
 
   case "$prev" in
     --format | -f)
-      mapfile -t COMPREPLY < <(compgen -W "terminal md adoc html json sarif codeclimate junit github" -- "$cur")
+      mapfile -t COMPREPLY < <(compgen -W "terminal md adoc html pdf json sarif codeclimate junit github" -- "$cur")
       return 0
       ;;
     --lang | -l)
@@ -39,7 +39,7 @@ _check_script() {
       return 0
       ;;
     --with | --without)
-      mapfile -t COMPREPLY < <(compgen -W "shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor gitleaks trufflehog syntax builtin custom" -- "$cur")
+      mapfile -t COMPREPLY < <(compgen -W "shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor commands gitleaks trufflehog syntax builtin custom" -- "$cur")
       return 0
       ;;
     --sort)

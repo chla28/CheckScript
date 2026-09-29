@@ -160,6 +160,7 @@ class CheckConfig {
     'trufflehog': ToolConfig(executable: 'trufflehog'),
     'syntax': ToolConfig(executable: ''),
     'builtin': ToolConfig(executable: ''),
+    'commands': ToolConfig(executable: ''),
     'custom': ToolConfig(executable: ''),
     // Python. PLR2004 (constantes « magiques ») et S603 / B603 / B404
     // (tout appel à subprocess) sont trop bavards pour des scripts.

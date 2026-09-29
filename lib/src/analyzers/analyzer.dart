@@ -215,7 +215,11 @@ class AnalysisContext {
 class AnalyzerResult {
   final ToolRun run;
   final List<Finding> findings;
-  const AnalyzerResult(this.run, [this.findings = const []]);
+
+  /// Données propres à l'outil, reprises dans le rapport (inventaire des
+  /// commandes externes…).
+  final Object? data;
+  const AnalyzerResult(this.run, [this.findings = const [], this.data]);
 }
 
 /// Langage traité par un analyseur.

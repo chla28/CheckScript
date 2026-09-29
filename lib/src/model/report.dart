@@ -1,6 +1,7 @@
 /// Résultat complet de l'analyse d'un script.
 library;
 
+import '../analyzers/commands.dart';
 import '../explain.dart';
 import '../scoring.dart';
 import '../script_info.dart';
@@ -61,6 +62,9 @@ class ScriptReport {
   /// Ce que coûte chaque règle, et comment gagner un niveau.
   final ScoreExplanation explanation;
 
+  /// Commandes externes du script (shell), avec leur présence et leur paquet.
+  final List<CommandUse> commands;
+
   const ScriptReport({
     required this.script,
     required this.tools,
@@ -73,6 +77,7 @@ class ScriptReport {
     this.contexts = const [],
     this.comparison,
     this.explanation = ScoreExplanation.empty,
+    this.commands = const [],
   });
 
   /// Même rapport, problèmes limités à [kept] (filtre d'affichage : les
@@ -89,6 +94,7 @@ class ScriptReport {
         contexts: contexts,
         comparison: comparison,
         explanation: explanation,
+        commands: commands,
       );
 
   ScriptReport withComparison(Comparison? c) => ScriptReport(
@@ -103,6 +109,7 @@ class ScriptReport {
         contexts: contexts,
         comparison: c,
         explanation: explanation,
+        commands: commands,
       );
 
   /// Relit [toJson] pour [script] (cache des résultats) ; la comparaison
@@ -129,6 +136,10 @@ class ScriptReport {
       profile: '${j['profile'] ?? 'standard'}',
       contexts: [for (final c in (j['contexts'] as List? ?? const [])) '$c'],
       explanation: ScoreExplanation.fromJson(j['explanation']),
+      commands: [
+        for (final c in j['commands'] as List? ?? const [])
+          CommandUse.fromJson((c as Map).cast<String, Object?>())
+      ],
     );
   }
 
@@ -158,6 +169,8 @@ class ScriptReport {
         if (explanation.impacts.isNotEmpty) 'explanation': explanation.toJson(),
         if (comparison != null) 'comparison': comparison!.toJson(),
         'tools': [for (final t in tools) t.toJson()],
+        if (commands.isNotEmpty)
+          'commands': [for (final c in commands) c.toJson()],
         'findings': [for (final f in findings) f.toJson()],
       };
 }

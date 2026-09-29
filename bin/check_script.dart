@@ -41,6 +41,7 @@ const externalTools = [
   'hadolint',
   'actionlint',
   'zizmor',
+  'commands',
   'custom',
 ];
 
@@ -51,8 +52,8 @@ ArgParser buildParser(Lang lang) {
         abbr: 'o',
         valueHelp: 'FICHIER',
         help: t(
-            'Écrit le rapport dans FICHIER (.md, .adoc, .html, .json, .sarif, .codeclimate.json, .xml (JUnit), .txt) ; répétable.',
-            'Write the report to FILE (.md, .adoc, .html, .json, .sarif, .codeclimate.json, .xml (JUnit), .txt); repeatable.'))
+            'Écrit le rapport dans FICHIER (.md, .adoc, .html, .pdf, .json, .sarif, .codeclimate.json, .xml (JUnit), .txt) ; répétable.',
+            'Write the report to FILE (.md, .adoc, .html, .pdf, .json, .sarif, .codeclimate.json, .xml (JUnit), .txt); repeatable.'))
     ..addOption('format',
         abbr: 'f',
         allowed: [
@@ -65,6 +66,7 @@ ArgParser buildParser(Lang lang) {
           'codeclimate',
           'junit',
           'github',
+          'pdf',
         ],
         help: t(
             'Format de la sortie standard, et des fichiers de sortie sans '
@@ -733,7 +735,7 @@ Future<int> run(List<String> argv,
   // En --dry-run, la sortie standard porte le diff.
   if (!(a['quiet'] as bool) && !dryRun) {
     final fmt = forced ?? OutputFormat.terminal;
-    out.write(render(
+    out.add(await renderBytes(
         reports,
         fmt,
         RenderOptions(
@@ -750,7 +752,8 @@ Future<int> run(List<String> argv,
     try {
       final file = File(path);
       await file.parent.create(recursive: true);
-      await file.writeAsString(render(reports, fmt, RenderOptions(lang: lang)));
+      await file.writeAsBytes(
+          await renderBytes(reports, fmt, RenderOptions(lang: lang)));
       err.writeln(Messages(lang).reportWritten(path));
     } on FileSystemException catch (e) {
       err.writeln(t(

@@ -807,8 +807,8 @@ class AppState extends ChangeNotifier {
   /// Exporte les rapports affichés dans [path] (format selon l'extension).
   Future<void> export(String path, List<ScriptReport> reports) async {
     final fmt = OutputFormat.fromPath(path) ?? OutputFormat.markdown;
-    await File(path)
-        .writeAsString(render(reports, fmt, RenderOptions(lang: lang)));
+    await File(path).writeAsBytes(
+        await renderBytes(reports, fmt, RenderOptions(lang: lang)));
   }
 
   /// Détecte les outils externes et leur version.
