@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature id="fr.chla28.checkscript.feature" label="CheckScript" version="0.15.0"
+      provider-name="Christophe Lafaille">
+   <description url="https://github.com/chla28/CheckScript">
+Analyse des scripts shell et Python (et du shell des Dockerfile, Makefile, GitLab CI) par
+« check-script lsp » : problèmes soulignés, corrections rapides, survol, formatage,
+note dans la ligne d'état. Nécessite check-script 0.16 ou plus récent.
+   </description>
+   <copyright>Copyright (C) 2026 Christophe Lafaille</copyright>
+   <license url="https://www.gnu.org/licenses/lgpl-3.0.html">
+GNU Lesser General Public License, version 3 ou ultérieure (LGPL-3.0-or-later).
+   </license>
+   <requires>
+      <import plugin="org.eclipse.lsp4e"/>
+      <import plugin="org.eclipse.ui.genericeditor"/>
+   </requires>
+   <plugin id="fr.chla28.checkscript" version="0.15.0"/>
+</feature>

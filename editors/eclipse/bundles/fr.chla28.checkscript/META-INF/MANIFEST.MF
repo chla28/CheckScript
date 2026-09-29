@@ -1,0 +1,18 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: CheckScript
+Bundle-SymbolicName: fr.chla28.checkscript;singleton:=true
+Bundle-Version: 0.15.0
+Bundle-Vendor: Christophe Lafaille
+Bundle-Activator: fr.chla28.checkscript.Activator
+Bundle-ActivationPolicy: lazy
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: fr.chla28.checkscript
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.core.contenttype,
+ org.eclipse.jface,
+ org.eclipse.ui,
+ org.eclipse.ui.workbench,
+ org.eclipse.lsp4e,
+ org.eclipse.lsp4j,
+ org.eclipse.lsp4j.jsonrpc

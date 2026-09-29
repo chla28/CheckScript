@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <!-- Types de contenu analysés par CheckScript (fichiers texte). -->
+   <extension point="org.eclipse.core.contenttype.contentTypes">
+      <content-type id="fr.chla28.checkscript.shell" name="Script shell (CheckScript)"
+            base-type="org.eclipse.core.runtime.text" priority="normal"
+            file-extensions="sh,bash,ksh,dash,zsh"/>
+      <content-type id="fr.chla28.checkscript.python" name="Script Python (CheckScript)"
+            base-type="org.eclipse.core.runtime.text" priority="normal"
+            file-extensions="py,pyw"/>
+      <content-type id="fr.chla28.checkscript.dockerfile" name="Dockerfile (CheckScript)"
+            base-type="org.eclipse.core.runtime.text" priority="normal"
+            file-names="Dockerfile,Containerfile" file-extensions="dockerfile,containerfile"/>
+      <content-type id="fr.chla28.checkscript.makefile" name="Makefile (CheckScript)"
+            base-type="org.eclipse.core.runtime.text" priority="normal"
+            file-names="Makefile,makefile,GNUmakefile" file-extensions="mk"/>
+      <content-type id="fr.chla28.checkscript.gitlabci" name="GitLab CI (CheckScript)"
+            base-type="org.eclipse.core.runtime.text" priority="normal"
+            file-names=".gitlab-ci.yml"/>
+   </extension>
+
+   <!-- Serveur LSP : « check-script lsp ». -->
+   <extension point="org.eclipse.lsp4e.languageServer">
+      <server id="fr.chla28.checkscript.server" label="CheckScript"
+            class="fr.chla28.checkscript.CheckScriptConnectionProvider"
+            clientImpl="fr.chla28.checkscript.CheckScriptLanguageClient"/>
+      <contentTypeMapping id="fr.chla28.checkscript.server" contentType="fr.chla28.checkscript.shell"/>
+      <contentTypeMapping id="fr.chla28.checkscript.server" contentType="fr.chla28.checkscript.python"/>
+      <contentTypeMapping id="fr.chla28.checkscript.server" contentType="fr.chla28.checkscript.dockerfile"/>
+      <contentTypeMapping id="fr.chla28.checkscript.server" contentType="fr.chla28.checkscript.makefile"/>
+      <contentTypeMapping id="fr.chla28.checkscript.server" contentType="fr.chla28.checkscript.gitlabci"/>
+   </extension>
+
+   <!-- Éditeur générique (diagnostics, survol, corrections de LSP4E). -->
+   <extension point="org.eclipse.ui.editors">
+      <editorContentTypeBinding editorId="org.eclipse.ui.genericeditor.GenericEditor" contentTypeId="fr.chla28.checkscript.shell"/>
+      <editorContentTypeBinding editorId="org.eclipse.ui.genericeditor.GenericEditor" contentTypeId="fr.chla28.checkscript.python"/>
+      <editorContentTypeBinding editorId="org.eclipse.ui.genericeditor.GenericEditor" contentTypeId="fr.chla28.checkscript.dockerfile"/>
+      <editorContentTypeBinding editorId="org.eclipse.ui.genericeditor.GenericEditor" contentTypeId="fr.chla28.checkscript.makefile"/>
+      <editorContentTypeBinding editorId="org.eclipse.ui.genericeditor.GenericEditor" contentTypeId="fr.chla28.checkscript.gitlabci"/>
+   </extension>
+
+   <extension point="org.eclipse.ui.preferencePages">
+      <page id="fr.chla28.checkscript.preferences" name="CheckScript"
+            class="fr.chla28.checkscript.CheckScriptPreferencePage"/>
+   </extension>
+   <extension point="org.eclipse.core.runtime.preferences">
+      <initializer class="fr.chla28.checkscript.PreferenceInitializer"/>
+   </extension>
+</plugin>

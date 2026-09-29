@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Plugin Eclipse de CheckScript (client LSP4E de « check-script lsp ») :
+     mvn -f editors/eclipse/pom.xml verify
+     → sites/fr.chla28.checkscript.site/target/repository (site de mise à jour). -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>fr.chla28.checkscript</groupId>
+  <artifactId>checkscript-eclipse</artifactId>
+  <version>0.15.0</version>
+  <packaging>pom</packaging>
+
+  <properties>
+    <tycho.version>5.0.4</tycho.version>
+    <eclipse.release>https://download.eclipse.org/releases/2026-09/</eclipse.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <modules>
+    <module>bundles/fr.chla28.checkscript</module>
+    <module>features/fr.chla28.checkscript.feature</module>
+    <module>sites/fr.chla28.checkscript.site</module>
+  </modules>
+
+  <repositories>
+    <repository>
+      <id>eclipse-release</id>
+      <layout>p2</layout>
+      <url>${eclipse.release}</url>
+    </repository>
+  </repositories>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>tycho-maven-plugin</artifactId>
+        <version>${tycho.version}</version>
+        <extensions>true</extensions>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>target-platform-configuration</artifactId>
+        <version>${tycho.version}</version>
+        <configuration>
+          <environments>
+            <environment><os>linux</os><ws>gtk</ws><arch>x86_64</arch></environment>
+            <environment><os>linux</os><ws>gtk</ws><arch>aarch64</arch></environment>
+            <environment><os>win32</os><ws>win32</ws><arch>x86_64</arch></environment>
+            <environment><os>macosx</os><ws>cocoa</ws><arch>aarch64</arch></environment>
+          </environments>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
