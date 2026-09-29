@@ -50,6 +50,28 @@ Map<String, String Function(String, String, String)> versionFiles = {
   'doc/developer.adoc': (s, old, v) => s.replaceAll(
       '"tool": "check-script", "version": "$old"',
       '"tool": "check-script", "version": "$v"'),
+  // Extensions d'éditeurs.
+  'editors/vscode/package.json': (s, old, v) =>
+      s.replaceFirst('"version": "$old"', '"version": "$v"'),
+  'editors/vscode/package-lock.json': (s, old, v) => s.replaceAllMapped(
+      RegExp('("name": "check-script",\\s*"version": ")${RegExp.escape(old)}"'),
+      (m) => '${m[1]}$v"'),
+  'editors/eclipse/pom.xml': (s, old, v) =>
+      s.replaceFirst('<version>$old</version>', '<version>$v</version>'),
+  'editors/eclipse/bundles/fr.chla28.checkscript/pom.xml': (s, old, v) =>
+      s.replaceFirst('<version>$old</version>', '<version>$v</version>'),
+  'editors/eclipse/features/fr.chla28.checkscript.feature/pom.xml':
+      (s, old, v) =>
+          s.replaceFirst('<version>$old</version>', '<version>$v</version>'),
+  'editors/eclipse/sites/fr.chla28.checkscript.site/pom.xml': (s, old, v) =>
+      s.replaceFirst('<version>$old</version>', '<version>$v</version>'),
+  'editors/eclipse/bundles/fr.chla28.checkscript/META-INF/MANIFEST.MF':
+      (s, old, v) =>
+          s.replaceFirst('Bundle-Version: $old', 'Bundle-Version: $v'),
+  'editors/eclipse/features/fr.chla28.checkscript.feature/feature.xml':
+      (s, old, v) => s.replaceAll('version="$old"', 'version="$v"'),
+  'editors/eclipse/sites/fr.chla28.checkscript.site/category.xml':
+      (s, old, v) => s.replaceAll('version="$old"', 'version="$v"'),
   'packaging/rpm/check-script.spec': (s, old, v) =>
       s.replaceAll('global version $old}', 'global version $v}'),
   'packaging/rpm/check-script-gui.spec': (s, old, v) =>
