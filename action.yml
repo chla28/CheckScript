@@ -76,7 +76,7 @@ runs:
     # le dossier de l'action appelante (erreur « add-matcher »).
     - name: SDK Dart
       shell: bash
-      run: |
+      run: | # zizmor: ignore[github-env] chemin fixe ajouté à GITHUB_PATH
         set -euo pipefail
         if command -v dart >/dev/null; then
           exit 0

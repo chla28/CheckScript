@@ -7,13 +7,20 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   check-script:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - id: cs
-        uses: ./
+        # Action du dépôt (à la racine : la syntaxe $/ ne le permet pas
+        # encore de façon documentée).
+        uses: ./ # zizmor: ignore[self-repository]
         with:
           paths: scripts packaging .github .githooks
           sarif: ''
