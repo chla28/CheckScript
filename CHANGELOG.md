@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.1 — 2026-10-04
+
+### Documentation
+
+- origine du dépôt générée par Claude Code dans le README (84c107d)
+
+### Maintenance
+
+- ignorer .vscode et .claude (0b20f08)
+
 ## 0.18.0 — 2026-09-29
 
 - **Rapport PDF** (`-o audit.pdf`, `--format pdf`, export de l'interface) :
