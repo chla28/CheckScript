@@ -12,7 +12,7 @@ Ce repo github (ainsi que plusieurs autres) est le résultat de cette recherche.
 
 `check-script` exploite **ShellCheck, shfmt, bashate, checkbashisms**,
 gitleaks, trufflehog et `bash -n` pour le shell, **Ruff, Bandit, Semgrep,
-mypy, Radon, Vermin** (et sur demande Pylint, Pyright) pour Python,
+mypy, Radon, Vermin**, pip-audit (et sur demande Pylint, Pyright) pour Python,
 lorsqu'ils sont installés, et les complète par des règles intégrées (82 pour
 le shell, 10 pour Python : secrets, `curl | sh`, permissions, PATH,
 `subprocess` sans timeout, dépendances non déclarées, structure…) avec un
@@ -53,6 +53,19 @@ Performance        9,0 █████████░            0        0     
 
 Note globale : 1,5/10 (E)
 ```
+
+## Interface graphique
+
+![Analyse d'un script shell : code coloré, radar et notes par catégorie](doc/screenshots/analyse-clair.png)
+
+![Problèmes d'un script Python (thème sombre) : filtres, références CWE / OWASP, corrections](doc/screenshots/problemes-python.png)
+
+![Analyse d'un dossier : notes par script et historique](doc/screenshots/dossier.png)
+
+![Catalogue des règles : activation et désactivation de chacune](doc/screenshots/regles.png)
+
+Ces captures sont régénérées par `SCREENSHOT_DIR=../doc/screenshots flutter test test/screenshot_test.dart`
+(depuis `gui/`, voir le guide développeur).
 
 ## Référentiels
 
