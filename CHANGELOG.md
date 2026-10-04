@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.3 — 2026-10-04
+
+### Documentation
+
+- page de manuel, guide développeur et README de l'interface (e30cc35)
+- copies d'écran de l'interface graphique dans le README (a1f40a1)
+
 ## 0.18.2 — 2026-10-04
 
 ### Documentation

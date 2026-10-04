@@ -3,7 +3,7 @@ description: >-
   Évalue un script shell (Sécurité, Robustesse, Maintenabilité, Portabilité,
   Performance) en exploitant shellcheck, shfmt, bashate, checkbashisms et des
   règles intégrées.
-version: 0.18.2
+version: 0.18.3
 publish_to: none
 
 environment:
