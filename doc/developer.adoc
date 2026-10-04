@@ -77,6 +77,8 @@ lib/src/
   history.dart                     FolderHistory, HistoryEntry (historique des dossiers : GUI,
                                    --history-dir, --dashboard)
   feedback.dart                    FalsePositive, FalsePositiveLog, anonymizeCode
+  json_num.dart                    jsonInt : lecture tolérante des nombres du JSON des outils
+                                   (nombre ou chaîne selon la version)
   reporters/dashboard.dart         renderDashboard, DashboardRepo, sparkline (tableau de bord)
   config_discovery.dart            findProjectConfig (.checkscript.yaml jusqu'à la racine git)
   rules/same_rules.dart            sameRuleIds : la même règle dans plusieurs outils (Ruff S ↔

@@ -82,7 +82,11 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
   séparé par des virgules.
 
 *--without* _OUTIL_::
-  Désactive un outil. Répétable ou séparé par des virgules.
+  Désactive un outil : *shellcheck*, *shfmt*, *bashate*, *checkbashisms*,
+  *gitleaks*, *trufflehog*, *syntax*, *ruff*, *bandit*, *semgrep*, *mypy*,
+  *pyright*, *pylint*, *radon*, *vermin*, *pydeps*, *pip-audit*, *hadolint*,
+  *actionlint*, *zizmor*, *commands*, *custom* ou *builtin*. Répétable ou
+  séparé par des virgules.
 
 *--no-external*::
   N'utilise que les règles intégrées.

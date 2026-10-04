@@ -1,17 +1,15 @@
 # check_script_gui
 
-Interface graphique de check-script
+Interface graphique de check-script (Flutter, Linux).
 
-## Getting Started
+```bash
+cd gui
+flutter pub get
+flutter run -d linux     # lancement en développement
+flutter test             # tests
+flutter build linux      # binaire de production
+```
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+L'interface s'appuie sur le paquet `check_script` du dépôt (`path: ..`) et sur
+les outils externes détectés (voir `check-script --list-tools`). Le mode
+d'emploi est dans [`doc/user.adoc`](../doc/user.adoc).
