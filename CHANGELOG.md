@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.4 — 2026-10-04
+
+### Maintenance
+
+- ignorer le dossier Specifications (a95bed2)
+
 ## 0.18.3 — 2026-10-04
 
 ### Documentation

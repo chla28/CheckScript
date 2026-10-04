@@ -89,7 +89,7 @@ attachés à chaque release ; configuration **Geany** dans
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: chla28/CheckScript@v0.18.3
+- uses: chla28/CheckScript@v0.18.4
   with:
     paths: scripts .github
     fail-under: '6'

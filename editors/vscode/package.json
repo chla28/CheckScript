@@ -2,7 +2,7 @@
   "name": "check-script",
   "displayName": "CheckScript",
   "description": "Évalue les scripts shell et Python (et le shell des workflows, Dockerfile, Makefile) : problèmes soulignés, corrections rapides, survol, note, formatage.",
-  "version": "0.18.3",
+  "version": "0.18.4",
   "publisher": "chla28",
   "license": "LGPL-3.0-or-later",
   "repository": {

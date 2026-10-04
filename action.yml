@@ -1,6 +1,6 @@
 # Action GitHub réutilisable :
 #
-#   - uses: chla28/CheckScript@v0.18.3
+#   - uses: chla28/CheckScript@v0.18.4
 #     with:
 #       paths: scripts .github
 #       fail-under: '7'
