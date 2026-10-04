@@ -6,9 +6,9 @@ avec, pour chacune, le nombre de problèmes par sévérité (Critical / High /
 Medium / Low) et leur total. Sortie dans le terminal et/ou en Markdown,
 AsciiDoc ou JSON, en français ou en anglais.
 
-IMPORTANT: Je suis développeur dans le monde la cybersécurité et j'ai besoin de nombreux outils pour mon travail.
-Jusqu'à maintenant j'utilisais du Bash et Python3 pour "agréger" ces différents outils et il y a quelques mois maintenant, je me suis tourné viers l'IA pour voir si l'IA pouvait m'aider pour me simpligier la vie.
-Ce repo github (ainsi que plusieurs autres) est le résultat de cette recherche. La totalité des fichiers présents dans cette arborescence est généréé par Claude Code en suivant mes directives et mes nombreuses interactions avec l'IA. Le résultat est impressionnant pour moi car je peux désormais faire des choses très vite maintenant.
+IMPORTANT: Je suis développeur dans le monde de la cybersécurité et j'ai besoin de nombreux outils pour mon travail.
+Jusqu'à maintenant j'utilisais du Bash et Python3 pour "agréger" ces différents outils et il y a quelques mois maintenant, je me suis tourné vers l'IA pour voir si l'IA pouvait m'aider pour me simplifier la vie.
+Ce repo github (ainsi que plusieurs autres) est le résultat de cette recherche. La totalité des fichiers présents dans cette arborescence est générée par Claude Code en suivant mes directives et mes nombreuses interactions avec l'IA. Le résultat est impressionnant pour moi car je peux désormais faire des choses très vite.
 
 `check-script` exploite **ShellCheck, shfmt, bashate, checkbashisms**,
 gitleaks, trufflehog et `bash -n` pour le shell, **Ruff, Bandit, Semgrep,
