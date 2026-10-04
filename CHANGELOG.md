@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.2 — 2026-10-04
+
+### Documentation
+
+- correction des fautes de frappe du README (0282e00)
+
 ## 0.18.1 — 2026-10-04
 
 ### Documentation
