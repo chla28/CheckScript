@@ -38,6 +38,7 @@ modules:
       - install -Dm644 fr.chla28.check_script_gui.metainfo.xml
           /app/share/metainfo/fr.chla28.check_script_gui.metainfo.xml
       - install -Dm644 LICENSE /app/share/licenses/fr.chla28.check_script_gui/LICENSE
+      - install -Dm644 COPYING /app/share/licenses/fr.chla28.check_script_gui/COPYING
       - install -Dm644 check_script.svg
           /app/share/icons/hicolor/scalable/apps/fr.chla28.check_script_gui.svg
     sources:
