@@ -21,8 +21,7 @@ written in **English or French**.
   (`_t(fr, en)`); never add a French-only or English-only string.
 - **Rules**: a new rule comes with a fix suggestion, a test and an entry in
   the rule table of the user guide.
-- **Security issues**: please do not open a public issue; contact the
-  maintainer privately.
+- **Security issues**: please do not open a public issue; see [SECURITY.md](SECURITY.md).
 
 ## Français
 
@@ -45,5 +44,4 @@ Merci de votre intérêt pour CheckScript ! Les issues et pull requests peuvent
   uniquement française ou uniquement anglaise.
 - **Règles** : une nouvelle règle s'accompagne d'un conseil de correction,
   d'un test et d'une entrée dans le tableau des règles du guide utilisateur.
-- **Failles de sécurité** : n'ouvrez pas d'issue publique ; contactez le
-  mainteneur en privé.
+- **Failles de sécurité** : n'ouvrez pas d'issue publique ; voir [SECURITY.md](SECURITY.md).

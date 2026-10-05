@@ -7,3 +7,14 @@ dist/
 .vscode
 .claude
 Specifications/
+
+# Fichiers de configuration personnels (montés à la racine par certains sandbox)
+/.bashrc
+/.bash_profile
+/.zshrc
+/.zprofile
+/.profile
+/.gitconfig
+/.gitmodules
+/.mcp.json
+/.ripgreprc
