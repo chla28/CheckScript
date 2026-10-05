@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.5 — 2026-10-05
+
+### Documentation
+
+- version anglaise de la documentation (f68997a)
+
 ## 0.18.4 — 2026-10-04
 
 ### Maintenance
