@@ -6,7 +6,7 @@ dist/
 .idea/
 .vscode
 .claude
-Specifications/
+Specifications
 
 # Fichiers de configuration personnels (montés à la racine par certains sandbox)
 /.bashrc
