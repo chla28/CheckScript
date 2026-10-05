@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.1 — 2026-10-05
+
+### Maintenance
+
+- **license**: switch to LGPL-3.0-or-later (416f0ca)
+
 ## 0.19.0 — 2026-10-05
 
 ## 0.18.8 — 2026-10-05
