@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.2 — 2026-10-05
+
+### Maintenance
+
+- ignore Specifications at any level (977a2bd)
+
 ## 0.19.1 — 2026-10-05
 
 ### Maintenance
