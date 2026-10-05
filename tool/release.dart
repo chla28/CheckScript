@@ -7,7 +7,7 @@
 ///   dart run tool/release.dart [--push]       publie (et pousse main + tag)
 ///   options : --version X.Y.Z (imposer), --trailer "Clé: valeur" (répétable)
 ///
-/// Les notes rédigées sous « ## Non publié » du CHANGELOG sont conservées en
+/// Les notes rédigées sous « ## Unreleased » (ou « ## Non publié ») du CHANGELOG sont conservées en
 /// tête de la section. Le dépôt doit être propre (fichiers suivis).
 library;
 
@@ -49,8 +49,7 @@ Map<String, String Function(String, String, String)> versionFiles = {
   // Seule la version de check-script (l'exemple contient aussi celle de
   // ShellCheck).
   for (final f in ['doc/developer.adoc', 'doc/developer.fr.adoc'])
-    f: (s, old, v) => s.replaceAll(
-        '"tool": "check-script", "version": "$old"',
+    f: (s, old, v) => s.replaceAll('"tool": "check-script", "version": "$old"',
         '"tool": "check-script", "version": "$v"'),
   // Extensions d'éditeurs.
   'editors/vscode/package.json': (s, old, v) =>
@@ -129,9 +128,10 @@ Future<void> main(List<String> args) async {
   }
 
   final changelog = File('CHANGELOG.md').readAsStringSync();
-  final unreleased =
-      RegExp(r'^## Non publié\n([\s\S]*?)(?=^## )', multiLine: true)
-          .firstMatch(changelog);
+  final unreleased = RegExp(
+          r'^## (?:Unreleased|Non publié)\n([\s\S]*?)(?=^## )',
+          multiLine: true)
+      .firstMatch(changelog);
   final section = changelogSection(next, _today(), commits.reversed.toList(),
       manualNotes: unreleased?[1] ?? '');
   stdout.writeln(

@@ -2,25 +2,25 @@
 /// CheckScript : validation des messages, montée de version et section du
 /// CHANGELOG déduites des commits.
 ///
-/// Format : `type(portée)!: description`, types et portées en anglais,
-/// description en français. `BREAKING CHANGE:` (corps) ou `!` : changement
-/// incompatible.
+/// Format : `type(portée)!: description`, types, portées et description en
+/// anglais (l'historique antérieur à 0.18.6 est en français).
+/// `BREAKING CHANGE:` (corps) ou `!` : changement incompatible.
 library;
 
 /// Types acceptés et titre de leur rubrique dans le CHANGELOG (null : pas
-/// de rubrique propre, regroupé dans « Maintenance »).
+/// de rubrique propre, regroupé dans 'Maintenance').
 const Map<String, String?> commitTypes = {
-  'feat': 'Fonctionnalités',
-  'fix': 'Correctifs',
-  'perf': 'Performances',
-  'refactor': 'Refactorisation',
+  'feat': 'Features',
+  'fix': 'Bug fixes',
+  'perf': 'Performance',
+  'refactor': 'Refactoring',
   'docs': 'Documentation',
   'test': 'Tests',
-  'build': 'Construction et paquets',
-  'ci': 'Intégration continue',
+  'build': 'Build and packaging',
+  'ci': 'Continuous integration',
   'style': null,
   'chore': null,
-  'revert': 'Retours arrière',
+  'revert': 'Reverts',
 };
 
 /// Longueur maximale de la première ligne.
@@ -106,17 +106,17 @@ String? nextVersion(String current, List<Commit> commits) {
 }
 
 /// Section du CHANGELOG pour [version] : notes rédigées à la main
-/// ([manualNotes], section « Non publié ») puis commits par rubrique.
+/// ([manualNotes], section « Unreleased ») puis commits par rubrique.
 String changelogSection(String version, String date, List<Commit> commits,
     {String manualNotes = ''}) {
   final b = StringBuffer('## $version — $date\n\n');
   if (manualNotes.trim().isNotEmpty) b.writeln('${manualNotes.trim()}\n');
   String line(Commit c) =>
-      '- ${c.scope == null ? '' : '**${c.scope}** : '}${c.description}'
+      '- ${c.scope == null ? '' : '**${c.scope}**: '}${c.description}'
       '${c.hash.isEmpty ? '' : ' (${c.hash.substring(0, c.hash.length < 7 ? c.hash.length : 7)})'}';
   final breaking = commits.where((c) => c.breaking).toList();
   if (breaking.isNotEmpty) {
-    b.writeln('### Changements incompatibles\n');
+    b.writeln('### Breaking changes\n');
     breaking.map(line).forEach(b.writeln);
     b.writeln();
   }

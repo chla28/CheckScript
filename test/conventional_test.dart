@@ -59,11 +59,9 @@ void main() {
           manualNotes: '- Note rédigée à la main.\n');
       expect(
           s, startsWith('## 0.12.0 — 2026-09-26\n\n- Note rédigée à la main.'));
-      expect(
-          s, contains('### Changements incompatibles\n\n- **cli** : change C'));
-      expect(s.indexOf('### Fonctionnalités'),
-          lessThan(s.indexOf('### Correctifs')));
-      expect(s, contains('- **gui** : ajoute A (abcdef1)'));
+      expect(s, contains('### Breaking changes\n\n- **cli**: change C'));
+      expect(s.indexOf('### Features'), lessThan(s.indexOf('### Bug fixes')));
+      expect(s, contains('- **gui**: ajoute A (abcdef1)'));
       expect(s, contains('### Maintenance\n\n- range D'));
     });
   });
