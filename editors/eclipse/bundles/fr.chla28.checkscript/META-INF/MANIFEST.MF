@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: CheckScript
 Bundle-SymbolicName: fr.chla28.checkscript;singleton:=true
-Bundle-Version: 0.19.2
+Bundle-Version: 0.20.0
 Bundle-Vendor: Christophe Lafaille
 Bundle-Activator: fr.chla28.checkscript.Activator
 Bundle-ActivationPolicy: lazy

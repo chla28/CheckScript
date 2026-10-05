@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.20.0 — 2026-10-05
+
+### Features
+
+- **gui**: online help, contextual tooltips and ? buttons (72d188e)
+
+### Documentation
+
+- describe the GUI online help (03f3578)
+
 ## 0.19.2 — 2026-10-05
 
 ### Maintenance
