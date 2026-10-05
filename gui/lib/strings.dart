@@ -18,6 +18,13 @@ class S {
   String get folder => _t('Dossier', 'Folder');
   String get settings => _t('Réglages', 'Settings');
   String get rules => _t('Règles', 'Rules');
+  String get help => _t('Aide', 'Help');
+  String helpOn(String topic) => _t('Aide : $topic', 'Help: $topic');
+  String get fullHelp => _t('Aide complète', 'Full help');
+  String get searchHelp => _t('Rechercher dans l\'aide', 'Search the help');
+  String get clearSearch => _t('Effacer la recherche', 'Clear the search');
+  String get noHelpFound =>
+      _t('Aucun sujet ne correspond.', 'No topic matches.');
   String get searchRules => _t(
       'Rechercher (code, texte, outil, CWE, OWASP, ANSSI)',
       'Search (code, text, tool, CWE, OWASP, ANSSI)');

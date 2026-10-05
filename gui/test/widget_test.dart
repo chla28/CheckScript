@@ -192,13 +192,16 @@ void main() {
     await tester.ensureVisible(find.text('Réglages'));
     await tester.tap(find.text('Réglages'));
     await tester.pumpAndSettle();
+    // Seul l'écran affiché (réglages) compte : les autres sont hors scène.
+    final scrollable = find
+        .descendant(
+            of: find.byType(IndexedStack), matching: find.byType(Scrollable))
+        .last;
+    await tester.scrollUntilVisible(find.text('Police du code'), 200,
+        scrollable: scrollable);
     expect(find.text('Police du code'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Profil de notation'), 200,
-        scrollable: find
-            .descendant(
-                of: find.byType(IndexedStack),
-                matching: find.byType(Scrollable))
-            .last);
+        scrollable: scrollable);
     expect(find.text('Profil de notation'), findsOneWidget);
   });
 

@@ -7,6 +7,7 @@ import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../help/tips.dart';
 import '../strings.dart';
 import '../code_style.dart';
 
@@ -39,6 +40,7 @@ class FixPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = S(lang);
     final t = s.m;
+    final tp = Tips(lang);
     final preview = fixPreview(finding, lines);
     final example = preview == null ? exampleFor(finding.ruleId) : null;
 
@@ -77,26 +79,35 @@ class FixPanel extends StatelessWidget {
         ...blocks,
         const SizedBox(height: 4),
         Wrap(spacing: 8, children: [
-          TextButton.icon(
-            icon: const Icon(Icons.copy, size: 16),
-            label: Text(s.copy),
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.maybeOf(context);
-              await Clipboard.setData(ClipboardData(text: toCopy));
-              messenger?.showSnackBar(SnackBar(content: Text(s.copied)));
-            },
+          tip(
+            tp.copyCode,
+            TextButton.icon(
+              icon: const Icon(Icons.copy, size: 16),
+              label: Text(s.copy),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                await Clipboard.setData(ClipboardData(text: toCopy));
+                messenger?.showSnackBar(SnackBar(content: Text(s.copied)));
+              },
+            ),
           ),
           if (preview != null && onApply != null)
-            FilledButton.tonalIcon(
-              icon: const Icon(Icons.auto_fix_high, size: 16),
-              label: Text(s.applyThisFix),
-              onPressed: onApply,
+            tip(
+              tp.applyThisFix,
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.auto_fix_high, size: 16),
+                label: Text(s.applyThisFix),
+                onPressed: onApply,
+              ),
             ),
           if (preview != null && onApplyRule != null && ruleOccurrences > 1)
-            OutlinedButton.icon(
-              icon: const Icon(Icons.done_all, size: 16),
-              label: Text(s.applyRuleFixes(ruleOccurrences, finding.ruleId)),
-              onPressed: onApplyRule,
+            tip(
+              tp.applyRuleFixes,
+              OutlinedButton.icon(
+                icon: const Icon(Icons.done_all, size: 16),
+                label: Text(s.applyRuleFixes(ruleOccurrences, finding.ruleId)),
+                onPressed: onApplyRule,
+              ),
             ),
         ]),
       ]),

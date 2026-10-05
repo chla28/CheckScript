@@ -79,11 +79,14 @@ void main() {
     await tester.pumpWidget(RepaintBoundary(
         key: const Key('shot'), child: CheckScriptApp(state: state)));
     if (tab != 0) {
-      await tester.tap(find.byIcon(const [
-        Icons.folder_outlined,
-        Icons.rule_outlined,
-        Icons.settings_outlined,
-      ][tab - 1]));
+      await tester.tap(find.descendant(
+          of: find.byType(NavigationRail),
+          matching: find.byIcon(const [
+            Icons.folder_outlined,
+            Icons.rule_outlined,
+            Icons.settings_outlined,
+            Icons.help_outline,
+          ][tab - 1])));
     }
     await tester.pumpAndSettle();
     if (openIssues) {
@@ -119,6 +122,7 @@ void main() {
         await s.setRuleEnabled('SC2086', false);
       }, tab: 2);
       await run(tester, 'reglages', Brightness.light, (s) async {}, tab: 3);
+      await run(tester, 'aide', Brightness.light, (s) async {}, tab: 4);
       // Laisse expirer les minuteurs d'animation (info-bulles, défilement).
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 5));

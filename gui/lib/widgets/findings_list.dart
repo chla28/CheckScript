@@ -7,6 +7,9 @@ import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../help/help_content.dart';
+import '../help/help_screen.dart';
+import '../help/tips.dart';
 import '../strings.dart';
 import 'common.dart';
 import 'fix_panel.dart';
@@ -93,7 +96,7 @@ class _FindingsListState extends State<FindingsList> {
 
   /// Tout cocher / décocher parmi les problèmes corrigeables affichés, et
   /// corriger la sélection.
-  Widget _selectionBar(S s, List<Finding> fixable) {
+  Widget _selectionBar(S s, Tips tp, List<Finding> fixable) {
     final n = fixable.where(_selected.contains).length;
     final all = n == fixable.length;
     final selected = [
@@ -106,22 +109,28 @@ class _FindingsListState extends State<FindingsList> {
           spacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              Checkbox(
-                tristate: true,
-                value: n == 0 ? false : (all ? true : null),
-                onChanged: (_) => setState(() => all
-                    ? _selected.removeAll(fixable)
-                    : _selected.addAll(fixable)),
+            tip(
+              tp.selectAllFixable,
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Checkbox(
+                  tristate: true,
+                  value: n == 0 ? false : (all ? true : null),
+                  onChanged: (_) => setState(() => all
+                      ? _selected.removeAll(fixable)
+                      : _selected.addAll(fixable)),
+                ),
+                Text(s.selectFixable(fixable.length)),
+              ]),
+            ),
+            tip(
+              tp.fixSelection,
+              FilledButton.tonalIcon(
+                onPressed: selected.isEmpty
+                    ? null
+                    : () => widget.onApplySelection!(selected),
+                icon: const Icon(Icons.auto_fix_high, size: 18),
+                label: Text(s.fixSelection(selected.length)),
               ),
-              Text(s.selectFixable(fixable.length)),
-            ]),
-            FilledButton.tonalIcon(
-              onPressed: selected.isEmpty
-                  ? null
-                  : () => widget.onApplySelection!(selected),
-              icon: const Icon(Icons.auto_fix_high, size: 18),
-              label: Text(s.fixSelection(selected.length)),
             ),
           ]),
     );
@@ -131,6 +140,7 @@ class _FindingsListState extends State<FindingsList> {
   Widget build(BuildContext context) {
     final s = S(widget.lang);
     final t = s.m;
+    final tp = Tips(widget.lang);
     final b = Theme.of(context).brightness;
     final filtered = filter(widget.findings, _categories, _severities);
     final e = widget.explanation;
@@ -140,28 +150,36 @@ class _FindingsListState extends State<FindingsList> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Wrap(spacing: 6, runSpacing: 4, children: [
         for (final c in Category.values)
-          FilterChip(
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            label: Text(
-                '${t.category(c)} (${widget.findings.where((f) => f.category == c).length})'),
-            selected: _categories.contains(c),
-            onSelected: (v) =>
-                setState(() => v ? _categories.add(c) : _categories.remove(c)),
+          tip(
+            tp.categoryChip,
+            FilterChip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              label: Text(
+                  '${t.category(c)} (${widget.findings.where((f) => f.category == c).length})'),
+              selected: _categories.contains(c),
+              onSelected: (v) => setState(
+                  () => v ? _categories.add(c) : _categories.remove(c)),
+            ),
           ),
+        HelpButton(HelpTopic.issues, lang: widget.lang),
       ]),
       const SizedBox(height: 4),
       Wrap(spacing: 6, children: [
         for (final sev in Severity.values)
-          FilterChip(
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            label: Text(sev.label,
-                style: TextStyle(
-                    color: severityColor(sev, b), fontWeight: FontWeight.w600)),
-            selected: _severities.contains(sev),
-            onSelected: (v) => setState(
-                () => v ? _severities.add(sev) : _severities.remove(sev)),
+          tip(
+            tp.severity(sev),
+            FilterChip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              label: Text(sev.label,
+                  style: TextStyle(
+                      color: severityColor(sev, b),
+                      fontWeight: FontWeight.w600)),
+              selected: _severities.contains(sev),
+              onSelected: (v) => setState(
+                  () => v ? _severities.add(sev) : _severities.remove(sev)),
+            ),
           ),
       ]),
       if (widget.explanation != null)
@@ -171,8 +189,14 @@ class _FindingsListState extends State<FindingsList> {
             showSelectedIcon: false,
             style: const ButtonStyle(visualDensity: VisualDensity.compact),
             segments: [
-              ButtonSegment(value: false, label: Text(s.sortCategory)),
-              ButtonSegment(value: true, label: Text(s.sortQuickWin)),
+              ButtonSegment(
+                  value: false,
+                  label: Text(s.sortCategory),
+                  tooltip: tp.sortCategory),
+              ButtonSegment(
+                  value: true,
+                  label: Text(s.sortQuickWin),
+                  tooltip: tp.sortQuickWin),
             ],
             selected: {_quickWin},
             onSelectionChanged: (v) => setState(() => _quickWin = v.first),
@@ -180,7 +204,7 @@ class _FindingsListState extends State<FindingsList> {
         ),
       if (widget.onApplySelection != null &&
           shown.any((f) => f.edits.isNotEmpty))
-        _selectionBar(s, shown.where((f) => f.edits.isNotEmpty).toList()),
+        _selectionBar(s, tp, shown.where((f) => f.edits.isNotEmpty).toList()),
       const Divider(),
       Expanded(
         child: shown.isEmpty
@@ -201,20 +225,25 @@ class _FindingsListState extends State<FindingsList> {
                     // ListTile limite la hauteur de leading (48 px) : badge
                     // et ligne sont réduits plutôt que de déborder (libellé
                     // « fichier entier » sur deux lignes).
-                    leading: SizedBox(
-                      width: 64,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child:
-                            Column(mainAxisSize: MainAxisSize.min, children: [
-                          SeverityBadge(f.severity),
-                          const SizedBox(height: 2),
-                          Text(f.line == 0 ? s.wholeFile : 'L${f.line}',
-                              maxLines: 1,
-                              style: Theme.of(context).textTheme.labelSmall),
-                        ]),
-                      ),
-                    ),
+                    leading: tip(
+                        tp.lineBadge,
+                        SizedBox(
+                          width: 64,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SeverityBadge(f.severity),
+                                  const SizedBox(height: 2),
+                                  Text(f.line == 0 ? s.wholeFile : 'L${f.line}',
+                                      maxLines: 1,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall),
+                                ]),
+                          ),
+                        )),
                     title: Text(f.message),
                     subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,46 +277,59 @@ class _FindingsListState extends State<FindingsList> {
                               f.line > 0)
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
-                                icon: const Icon(Icons.edit_note, size: 18),
-                                label: Text(s.openAtLine(f.line)),
-                                onPressed: () => widget.onOpenInEditor!(f),
+                              child: tip(
+                                tp.openInEditor,
+                                TextButton.icon(
+                                  icon: const Icon(Icons.edit_note, size: 18),
+                                  label: Text(s.openAtLine(f.line)),
+                                  onPressed: () => widget.onOpenInEditor!(f),
+                                ),
                               ),
                             ),
                           if (open && widget.onReportFalsePositive != null)
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
-                                icon: const Icon(Icons.flag_outlined, size: 18),
-                                label: Text(s.reportFalsePositive),
-                                onPressed: () =>
-                                    widget.onReportFalsePositive!(f),
+                              child: tip(
+                                tp.reportFalsePositive,
+                                TextButton.icon(
+                                  icon:
+                                      const Icon(Icons.flag_outlined, size: 18),
+                                  label: Text(s.reportFalsePositive),
+                                  onPressed: () =>
+                                      widget.onReportFalsePositive!(f),
+                                ),
                               ),
                             ),
                           if (open && widget.onDisableRule != null)
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
-                                icon:
-                                    const Icon(Icons.visibility_off, size: 16),
-                                label: Text(s.doNotReport(f.ruleId)),
-                                onPressed: () => widget.onDisableRule!(f),
+                              child: tip(
+                                tp.doNotReport(f.ruleId),
+                                TextButton.icon(
+                                  icon: const Icon(Icons.visibility_off,
+                                      size: 16),
+                                  label: Text(s.doNotReport(f.ruleId)),
+                                  onPressed: () => widget.onDisableRule!(f),
+                                ),
                               ),
                             ),
                         ]),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       if (f.url != null)
                         IconButton(
-                          tooltip: s.documentation,
+                          tooltip: tp.documentation,
                           icon: const Icon(Icons.open_in_new, size: 18),
                           onPressed: () => launchUrl(Uri.parse(f.url!)),
                         ),
                       if (widget.onApplySelection != null && f.edits.isNotEmpty)
-                        Checkbox(
-                          value: _selected.contains(f),
-                          semanticLabel: s.selectForFix,
-                          onChanged: (v) => setState(() =>
-                              v! ? _selected.add(f) : _selected.remove(f)),
+                        tip(
+                          tp.fixCheckbox,
+                          Checkbox(
+                            value: _selected.contains(f),
+                            semanticLabel: s.selectForFix,
+                            onChanged: (v) => setState(() =>
+                                v! ? _selected.add(f) : _selected.remove(f)),
+                          ),
                         ),
                     ]),
                   );

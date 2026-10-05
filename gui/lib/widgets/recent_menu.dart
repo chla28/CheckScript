@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../app_state.dart';
+import '../help/tips.dart';
 import '../strings.dart';
 
 class RecentMenu extends StatelessWidget {
@@ -25,7 +26,7 @@ class RecentMenu extends StatelessWidget {
     final s = S(state.lang);
     final recent = state.settings.recent;
     return PopupMenuButton<String>(
-      tooltip: s.recent,
+      tooltip: '${s.recent} — ${Tips(state.lang).recentMenu}',
       enabled: !state.busy,
       icon: const Icon(Icons.history),
       onSelected: (v) {

@@ -11,6 +11,9 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../code_style.dart';
 import '../editor.dart';
+import '../help/help_content.dart';
+import '../help/help_screen.dart';
+import '../help/tips.dart';
 import '../strings.dart';
 import '../widgets/findings_list.dart';
 import '../widgets/score_panel.dart';
@@ -44,10 +47,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Widget build(BuildContext context) {
     final s = S(state.lang);
     final report = state.current;
-    return _body(context, s, report);
+    return _body(context, s, report, Tips(state.lang));
   }
 
-  Widget _body(BuildContext context, S s, ScriptReport? report) {
+  Widget _body(BuildContext context, S s, ScriptReport? report, Tips tp) {
     return LayoutBuilder(
         builder: (context, outer) => Column(children: [
               // Barre d'outils : au plus 40 % de la hauteur, défilante au-delà
@@ -62,38 +65,49 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          FilledButton.icon(
-                              onPressed: state.busy ? null : _open,
-                              icon: const Icon(Icons.file_open),
-                              label: Text(s.openScript)),
-                          OutlinedButton.icon(
-                              onPressed: state.busy || report == null
-                                  ? null
-                                  : state.reanalyze,
-                              icon: const Icon(Icons.refresh),
-                              label: Text(s.reanalyze)),
-                          OutlinedButton.icon(
-                              onPressed: state.busy || report == null
-                                  ? null
-                                  : () => _fix(context),
-                              icon: const Icon(Icons.auto_fix_high),
-                              label: Text(s.fix)),
-                          OutlinedButton.icon(
-                              onPressed: report == null
-                                  ? null
-                                  : () =>
-                                      exportReports(context, state, [report]),
-                              icon: const Icon(Icons.save_alt),
-                              label: Text(s.export)),
-                          OutlinedButton.icon(
-                              onPressed: report == null ||
-                                      report.script.path == '<stdin>'
-                                  ? null
-                                  : () => _edit(context, report.script.path,
-                                      _selectedLine ?? 1),
-                              icon: const Icon(Icons.edit_note),
-                              label: Text(s.openInEditor)),
+                          tip(
+                              tp.openScript,
+                              FilledButton.icon(
+                                  onPressed: state.busy ? null : _open,
+                                  icon: const Icon(Icons.file_open),
+                                  label: Text(s.openScript))),
+                          tip(
+                              tp.reanalyze,
+                              OutlinedButton.icon(
+                                  onPressed: state.busy || report == null
+                                      ? null
+                                      : state.reanalyze,
+                                  icon: const Icon(Icons.refresh),
+                                  label: Text(s.reanalyze))),
+                          tip(
+                              tp.fix,
+                              OutlinedButton.icon(
+                                  onPressed: state.busy || report == null
+                                      ? null
+                                      : () => _fix(context),
+                                  icon: const Icon(Icons.auto_fix_high),
+                                  label: Text(s.fix))),
+                          tip(
+                              tp.export,
+                              OutlinedButton.icon(
+                                  onPressed: report == null
+                                      ? null
+                                      : () => exportReports(
+                                          context, state, [report]),
+                                  icon: const Icon(Icons.save_alt),
+                                  label: Text(s.export))),
+                          tip(
+                              tp.openInEditor,
+                              OutlinedButton.icon(
+                                  onPressed: report == null ||
+                                          report.script.path == '<stdin>'
+                                      ? null
+                                      : () => _edit(context, report.script.path,
+                                          _selectedLine ?? 1),
+                                  icon: const Icon(Icons.edit_note),
+                                  label: Text(s.openInEditor))),
                           BaselineButton(state: state),
+                          HelpButton(HelpTopic.analysis, lang: state.lang),
                           if (report != null)
                             Text(report.script.path,
                                 style: Theme.of(context).textTheme.bodySmall),
@@ -112,8 +126,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           length: 2,
                           child: Column(children: [
                             TabBar(tabs: [
-                              Tab(text: s.summary),
-                              Tab(text: '${s.issues} (${issues.length})'),
+                              tip(tp.tabSummary, Tab(text: s.summary)),
+                              tip(tp.tabIssues,
+                                  Tab(text: '${s.issues} (${issues.length})')),
                             ]),
                             Expanded(
                               child: TabBarView(children: [
@@ -417,9 +432,11 @@ class _ZoomBar extends StatelessWidget {
       child: Row(children: [
         const SizedBox(width: 8),
         Flexible(
-          child: Text(g.codeFont ?? defaultCodeFont,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall),
+          child: tip(
+              Tips(state.lang).codeFont,
+              Text(g.codeFont ?? defaultCodeFont,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall)),
         ),
         const Spacer(),
         IconButton(
@@ -493,28 +510,33 @@ class BaselineButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = S(state.lang);
     if (state.baseline != null) {
-      return InputChip(
-        avatar: const Icon(Icons.compare_arrows, size: 18),
-        label: Text(
-            '${s.baselineLoaded} : ${state.baselinePath!.split('/').last}'),
-        onDeleted: state.busy ? null : state.clearBaseline,
-        deleteButtonTooltipMessage: s.clearBaseline,
+      return tip(
+        Tips(state.lang).baselineChip,
+        InputChip(
+          avatar: const Icon(Icons.compare_arrows, size: 18),
+          label: Text(
+              '${s.baselineLoaded} : ${state.baselinePath!.split('/').last}'),
+          onDeleted: state.busy ? null : state.clearBaseline,
+          deleteButtonTooltipMessage: s.clearBaseline,
+        ),
       );
     }
-    return OutlinedButton.icon(
-      onPressed: state.busy
-          ? null
-          : () async {
-              final r = await FilePicker.pickFiles(
-                  dialogTitle: s.loadBaseline,
-                  type: FileType.custom,
-                  allowedExtensions: ['json']);
-              final path = r?.files.single.path;
-              if (path != null) await state.loadBaseline(path);
-            },
-      icon: const Icon(Icons.compare_arrows),
-      label: Text(s.loadBaseline),
-    );
+    return tip(
+        Tips(state.lang).loadBaseline,
+        OutlinedButton.icon(
+          onPressed: state.busy
+              ? null
+              : () async {
+                  final r = await FilePicker.pickFiles(
+                      dialogTitle: s.loadBaseline,
+                      type: FileType.custom,
+                      allowedExtensions: ['json']);
+                  final path = r?.files.single.path;
+                  if (path != null) await state.loadBaseline(path);
+                },
+          icon: const Icon(Icons.compare_arrows),
+          label: Text(s.loadBaseline),
+        ));
   }
 }
 

@@ -9,6 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_state.dart';
+import '../help/help_content.dart';
+import '../help/help_screen.dart';
+import '../help/tips.dart';
 import '../strings.dart';
 import '../widgets/common.dart';
 
@@ -110,6 +113,7 @@ class _RulesScreenState extends State<RulesScreen> {
     _refreshLocked();
     final s = S(state.lang);
     final t = s.m;
+    final tp = Tips(state.lang);
     final g = state.settings;
     final theme = Theme.of(context);
     final entries = allEntries(state, state.lang, s.typedCode, custom: _custom);
@@ -125,17 +129,20 @@ class _RulesScreenState extends State<RulesScreen> {
     }.toList()
       ..sort();
 
-    DropdownButton<T?> dropdown<T>(T? value, String all, Map<T, String> items,
-            ValueChanged<T?> onChanged) =>
-        DropdownButton<T?>(
-          value: value,
-          isDense: true,
-          items: [
-            DropdownMenuItem(value: null, child: Text(all)),
-            for (final e in items.entries)
-              DropdownMenuItem(value: e.key, child: Text(e.value)),
-          ],
-          onChanged: onChanged,
+    Widget dropdown<T>(T? value, String all, Map<T, String> items,
+            ValueChanged<T?> onChanged, String help) =>
+        tip(
+          help,
+          DropdownButton<T?>(
+            value: value,
+            isDense: true,
+            items: [
+              DropdownMenuItem(value: null, child: Text(all)),
+              for (final e in items.entries)
+                DropdownMenuItem(value: e.key, child: Text(e.value)),
+            ],
+            onChanged: onChanged,
+          ),
         );
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -148,15 +155,18 @@ class _RulesScreenState extends State<RulesScreen> {
           children: [
             SizedBox(
               width: 320,
-              child: TextField(
-                controller: _search,
-                decoration: InputDecoration(
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: s.searchRules,
-                  border: const OutlineInputBorder(),
+              child: tip(
+                tp.searchRules,
+                TextField(
+                  controller: _search,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: s.searchRules,
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
-                onChanged: (_) => setState(() {}),
               ),
             ),
             dropdown<ToolLanguage>(
@@ -166,14 +176,17 @@ class _RulesScreenState extends State<RulesScreen> {
                   ToolLanguage.shell: 'shell',
                   ToolLanguage.python: 'python',
                 },
-                (v) => setState(() => _language = v)),
+                (v) => setState(() => _language = v),
+                tp.languageFilter),
             dropdown<String>(_tool, s.allTools, {for (final x in tools) x: x},
-                (v) => setState(() => _tool = v)),
+                (v) => setState(() => _tool = v), tp.toolFilter),
             dropdown<Category>(
                 _category,
                 s.allCategories,
                 {for (final c in Category.values) c: t.category(c)},
-                (v) => setState(() => _category = v)),
+                (v) => setState(() => _category = v),
+                tp.categoryFilter),
+            HelpButton(HelpTopic.rules, lang: state.lang),
           ],
         ),
       ),
@@ -186,16 +199,24 @@ class _RulesScreenState extends State<RulesScreen> {
           children: [
             Text(s.rulesCount(shown.length, entries.length, disabled),
                 style: theme.textTheme.bodyMedium),
-            OutlinedButton.icon(
-              onPressed: g.disabledRules.isEmpty ? null : state.enableAllRules,
-              icon: const Icon(Icons.done_all),
-              label: Text(s.enableAll(g.disabledRules.length)),
+            tip(
+              tp.enableAll,
+              OutlinedButton.icon(
+                onPressed:
+                    g.disabledRules.isEmpty ? null : state.enableAllRules,
+                icon: const Icon(Icons.done_all),
+                label: Text(s.enableAll(g.disabledRules.length)),
+              ),
             ),
-            FilledButton.tonalIcon(
-              onPressed:
-                  state.busy || state.current == null ? null : state.reanalyze,
-              icon: const Icon(Icons.refresh),
-              label: Text(s.reanalyze),
+            tip(
+              tp.reanalyze,
+              FilledButton.tonalIcon(
+                onPressed: state.busy || state.current == null
+                    ? null
+                    : state.reanalyze,
+                icon: const Icon(Icons.refresh),
+                label: Text(s.reanalyze),
+              ),
             ),
             Text(s.nextScanHint, style: theme.textTheme.bodySmall),
           ],
@@ -206,21 +227,27 @@ class _RulesScreenState extends State<RulesScreen> {
         child: Row(children: [
           SizedBox(
             width: 320,
-            child: TextField(
-              controller: _add,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: s.disableOtherHint,
-                border: const OutlineInputBorder(),
+            child: tip(
+              tp.disableOther,
+              TextField(
+                controller: _add,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: s.disableOtherHint,
+                  border: const OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => _addTyped(),
               ),
-              onSubmitted: (_) => _addTyped(),
             ),
           ),
           const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: _addTyped,
-            icon: const Icon(Icons.block),
-            label: Text(s.disableOther),
+          tip(
+            tp.disableOther,
+            OutlinedButton.icon(
+              onPressed: _addTyped,
+              icon: const Icon(Icons.block),
+              label: Text(s.disableOther),
+            ),
           ),
         ]),
       ),
@@ -233,39 +260,43 @@ class _RulesScreenState extends State<RulesScreen> {
             final locked = _locked.contains(e.key);
             final enabled = !locked && !g.disabledRules.contains(e.key);
             final sev = e.severity;
-            return CheckboxListTile(
-              key: ValueKey(e.key),
-              dense: true,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: enabled,
-              onChanged:
-                  locked ? null : (v) => state.setRuleEnabled(e.key, v ?? true),
-              title: Text.rich(TextSpan(children: [
-                TextSpan(
-                    text: e.id,
-                    style: const TextStyle(
-                        fontFamily: 'monospace', fontWeight: FontWeight.w600)),
-                if (e.title.isNotEmpty) TextSpan(text: '   ${e.title}'),
-              ])),
-              subtitle: Text([
-                e.tool,
-                t.category(e.category),
-                sev?.label ?? s.severityVaries,
-                if (e.language != ToolLanguage.any) e.language.name,
-                if (locked) s.lockedByConfig,
-                if (state.seenRules.containsKey(e.key)) s.seenInScan,
-                ...e.refs,
-              ].join(' · ')),
-              secondary: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (sev != null) SeverityBadge(sev),
-                if (e.url != null)
-                  IconButton(
-                    tooltip: s.documentation,
-                    icon: const Icon(Icons.open_in_new, size: 18),
-                    onPressed: () => launchUrl(Uri.parse(e.url!)),
-                  ),
-              ]),
-            );
+            return tip(
+                locked ? tp.lockedRule : tp.ruleCheckbox,
+                CheckboxListTile(
+                  key: ValueKey(e.key),
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: enabled,
+                  onChanged: locked
+                      ? null
+                      : (v) => state.setRuleEnabled(e.key, v ?? true),
+                  title: Text.rich(TextSpan(children: [
+                    TextSpan(
+                        text: e.id,
+                        style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w600)),
+                    if (e.title.isNotEmpty) TextSpan(text: '   ${e.title}'),
+                  ])),
+                  subtitle: Text([
+                    e.tool,
+                    t.category(e.category),
+                    sev?.label ?? s.severityVaries,
+                    if (e.language != ToolLanguage.any) e.language.name,
+                    if (locked) s.lockedByConfig,
+                    if (state.seenRules.containsKey(e.key)) s.seenInScan,
+                    ...e.refs,
+                  ].join(' · ')),
+                  secondary: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (sev != null) SeverityBadge(sev),
+                    if (e.url != null)
+                      IconButton(
+                        tooltip: tp.documentation,
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        onPressed: () => launchUrl(Uri.parse(e.url!)),
+                      ),
+                  ]),
+                ));
           },
         ),
       ),

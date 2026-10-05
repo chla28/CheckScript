@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../app_state.dart';
+import '../help/help_content.dart';
+import '../help/help_screen.dart';
+import '../help/tips.dart';
 import '../strings.dart';
 import '../widgets/common.dart';
 import '../widgets/history_chart.dart';
@@ -49,12 +52,14 @@ class _FolderScreenState extends State<FolderScreen> {
   Widget build(BuildContext context) {
     final s = S(state.lang);
     final t = s.m;
+    final tp = Tips(state.lang);
     final b = Theme.of(context).brightness;
     final reports = sortReports(state.folderReports, _sort, _asc);
 
     DataColumn col(String label, SortKey key, {bool numeric = true}) =>
         DataColumn(
           label: Text(label),
+          tooltip: tp.folderSort,
           numeric: numeric,
           onSort: (_, __) => setState(() {
             _asc = _sort == key ? !_asc : true;
@@ -72,32 +77,42 @@ class _FolderScreenState extends State<FolderScreen> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              FilledButton.icon(
-                onPressed: state.busy
-                    ? null
-                    : () async {
-                        final dir = await FilePicker.getDirectoryPath(
-                            dialogTitle: s.openFolder);
-                        if (dir != null) await state.analyzeFolder(dir);
-                      },
-                icon: const Icon(Icons.folder_open),
-                label: Text(s.openFolder),
+              tip(
+                tp.openFolder,
+                FilledButton.icon(
+                  onPressed: state.busy
+                      ? null
+                      : () async {
+                          final dir = await FilePicker.getDirectoryPath(
+                              dialogTitle: s.openFolder);
+                          if (dir != null) await state.analyzeFolder(dir);
+                        },
+                  icon: const Icon(Icons.folder_open),
+                  label: Text(s.openFolder),
+                ),
               ),
-              OutlinedButton.icon(
-                onPressed: state.busy || state.folderPath == null
-                    ? null
-                    : () => state.analyzeFolder(state.folderPath!),
-                icon: const Icon(Icons.refresh),
-                label: Text(s.reanalyze),
+              tip(
+                tp.reanalyze,
+                OutlinedButton.icon(
+                  onPressed: state.busy || state.folderPath == null
+                      ? null
+                      : () => state.analyzeFolder(state.folderPath!),
+                  icon: const Icon(Icons.refresh),
+                  label: Text(s.reanalyze),
+                ),
               ),
-              OutlinedButton.icon(
-                onPressed: reports.isEmpty
-                    ? null
-                    : () => exportReports(context, state, reports),
-                icon: const Icon(Icons.save_alt),
-                label: Text(s.export),
+              tip(
+                tp.export,
+                OutlinedButton.icon(
+                  onPressed: reports.isEmpty
+                      ? null
+                      : () => exportReports(context, state, reports),
+                  icon: const Icon(Icons.save_alt),
+                  label: Text(s.export),
+                ),
               ),
               BaselineButton(state: state),
+              HelpButton(HelpTopic.folder, lang: state.lang),
               if (state.folderPath != null)
                 Text(state.folderPath!,
                     style: Theme.of(context).textTheme.bodySmall),
@@ -116,8 +131,10 @@ class _FolderScreenState extends State<FolderScreen> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(s.history,
-                            style: Theme.of(context).textTheme.titleSmall),
+                        tip(
+                            tp.history,
+                            Text(s.history,
+                                style: Theme.of(context).textTheme.titleSmall)),
                         const SizedBox(height: 4),
                         Text(s.historyLine(
                             state.folderHistory.length,
@@ -162,7 +179,7 @@ class _FolderScreenState extends State<FolderScreen> {
                       col(t.globalScore, -1),
                       col(s.issues, 5),
                       if (state.baseline != null)
-                        DataColumn(label: Text(s.trend)),
+                        DataColumn(label: Text(s.trend), tooltip: tp.trend),
                     ],
                     rows: [
                       for (final r in reports)

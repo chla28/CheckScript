@@ -19,6 +19,9 @@ import 'screens/analysis_screen.dart';
 import 'screens/folder_screen.dart';
 import 'screens/rules_screen.dart';
 import 'screens/settings_screen.dart';
+import 'help/help_content.dart';
+import 'help/help_screen.dart';
+import 'help/tips.dart';
 import 'strings.dart';
 import 'widgets/recent_menu.dart';
 
@@ -83,6 +86,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
   bool _dragging = false;
 
+  /// Sujet affiché par l'écran d'aide (dernière entrée de la navigation).
+  final _helpTopic = ValueNotifier(HelpTopic.start);
+  static const _helpIndex = 4;
+
   AppState get state => widget.state;
 
   @override
@@ -94,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     state.removeListener(_onState);
+    _helpTopic.dispose();
     super.dispose();
   }
 
@@ -117,6 +125,21 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
   }
+
+  /// Ouvre l'écran d'aide sur [topic] (aide contextuelle).
+  void _openHelp(HelpTopic topic) {
+    _helpTopic.value = topic;
+    setState(() => _index = _helpIndex);
+  }
+
+  /// Sujet d'aide de l'écran affiché (touche F1).
+  HelpTopic _topicOfScreen() => switch (_index) {
+        0 => HelpTopic.analysis,
+        1 => HelpTopic.folder,
+        2 => HelpTopic.rules,
+        3 => HelpTopic.settings,
+        _ => _helpTopic.value,
+      };
 
   Future<void> _openRecent(String path, bool directory) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -153,11 +176,14 @@ class _HomeScreenState extends State<HomeScreen> {
           }),
       RulesScreen(state: state),
       SettingsScreen(state: state),
+      HelpScreen(lang: state.lang, topic: _helpTopic),
     ];
     // Ctrl+plus / Ctrl+moins / Ctrl+0 : taille du code, depuis tout l'écran.
     void zoom(double? d) => state.updateSettings(state.settings.zoomCode(d));
     return CallbackShortcuts(
       bindings: {
+        const SingleActivator(LogicalKeyboardKey.f1): () =>
+            _openHelp(_topicOfScreen()),
         for (final k in [
           LogicalKeyboardKey.equal,
           LogicalKeyboardKey.add,
@@ -172,13 +198,24 @@ class _HomeScreenState extends State<HomeScreen> {
         for (final k in [LogicalKeyboardKey.digit0, LogicalKeyboardKey.numpad0])
           SingleActivator(k, control: true): () => zoom(null),
       },
-      child: Focus(
-          autofocus: true, child: _scaffold(context, s, screens, progress)),
+      child: HelpScope(
+        openHelp: _openHelp,
+        child: Focus(
+            autofocus: true, child: _scaffold(context, s, screens, progress)),
+      ),
     );
   }
 
+  NavigationRailDestination _destination(
+          IconData icon, IconData selected, String label, String help) =>
+      NavigationRailDestination(
+          icon: Icon(icon),
+          selectedIcon: Icon(selected),
+          label: tip(help, Text(label)));
+
   Widget _scaffold(
       BuildContext context, S s, List<Widget> screens, ProgressInfo? progress) {
+    final tp = Tips(state.lang);
     return Scaffold(
       body: DropTarget(
         onDragEntered: (_) => setState(() => _dragging = true),
@@ -206,22 +243,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     trailing: RecentMenu(state: state, onOpen: _openRecent),
                     destinations: [
-                      NavigationRailDestination(
-                          icon: const Icon(Icons.description_outlined),
-                          selectedIcon: const Icon(Icons.description),
-                          label: Text(s.analysis)),
-                      NavigationRailDestination(
-                          icon: const Icon(Icons.folder_outlined),
-                          selectedIcon: const Icon(Icons.folder),
-                          label: Text(s.folder)),
-                      NavigationRailDestination(
-                          icon: const Icon(Icons.rule_outlined),
-                          selectedIcon: const Icon(Icons.rule),
-                          label: Text(s.rules)),
-                      NavigationRailDestination(
-                          icon: const Icon(Icons.settings_outlined),
-                          selectedIcon: const Icon(Icons.settings),
-                          label: Text(s.settings)),
+                      _destination(Icons.description_outlined,
+                          Icons.description, s.analysis, tp.navAnalysis),
+                      _destination(Icons.folder_outlined, Icons.folder,
+                          s.folder, tp.navFolder),
+                      _destination(Icons.rule_outlined, Icons.rule, s.rules,
+                          tp.navRules),
+                      _destination(Icons.settings_outlined, Icons.settings,
+                          s.settings, tp.navSettings),
+                      _destination(
+                          Icons.help_outline, Icons.help, s.help, tp.navHelp),
                     ],
                   ),
                 ),
@@ -247,8 +278,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               LinearProgressIndicator(value: progress.fraction),
                             ]),
                       ),
-                      TextButton(
-                          onPressed: state.cancel, child: Text(s.cancel)),
+                      tip(
+                          tp.cancelAnalysis,
+                          TextButton(
+                              onPressed: state.cancel, child: Text(s.cancel))),
                     ]),
                   ),
                 ),

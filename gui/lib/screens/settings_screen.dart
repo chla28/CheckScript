@@ -10,6 +10,9 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../code_style.dart';
 import '../editor.dart';
+import '../help/help_content.dart';
+import '../help/help_screen.dart';
+import '../help/tips.dart';
 import '../strings.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -108,13 +111,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = S(state.lang);
     final g = state.settings;
     final theme = Theme.of(context);
-    Widget section(String title) => Padding(
+    final tp = Tips(state.lang);
+    Widget section(String title, HelpTopic help, [String? hint]) => Padding(
           padding: const EdgeInsets.fromLTRB(0, 20, 0, 6),
-          child: Text(title, style: theme.textTheme.titleMedium),
+          child: Row(children: [
+            Flexible(
+              child: tip(
+                  hint,
+                  Text(title,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium)),
+            ),
+            HelpButton(help, lang: state.lang),
+          ]),
         );
 
     return ListView(padding: const EdgeInsets.all(16), children: [
-      section(s.language),
+      section(s.language, HelpTopic.settings, tp.language),
       SegmentedButton<Lang?>(
         segments: [
           ButtonSegment(value: null, label: Text(s.systemDefault)),
@@ -125,7 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onSelectionChanged: (v) =>
             state.updateSettings(g.copyWith(lang: () => v.first)),
       ),
-      section(s.theme),
+      section(s.theme, HelpTopic.settings, tp.theme),
       SegmentedButton<ThemeMode>(
         segments: [
           ButtonSegment(value: ThemeMode.system, label: Text(s.systemDefault)),
@@ -136,11 +149,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onSelectionChanged: (v) =>
             state.updateSettings(g.copyWith(theme: v.first)),
       ),
-      section(s.codeFont),
+      section(s.codeFont, HelpTopic.settings, tp.codeFontField),
       _CodeFontField(state: state),
       const SizedBox(height: 8),
       Row(children: [
-        Text(s.codeFontSize),
+        tip(tp.codeFontSize, Text(s.codeFontSize)),
         Expanded(
           child: Slider(
             value: g.codeFontSize,
@@ -167,34 +180,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
           overflow: TextOverflow.fade,
         ),
       ),
-      section(s.profile),
+      section(s.profile, HelpTopic.profiles, tp.profile),
       SegmentedButton<Profile>(
         segments: [
-          ButtonSegment(value: Profile.strict, label: Text(s.profileStrict)),
           ButtonSegment(
-              value: Profile.standard, label: Text(s.profileStandard)),
-          ButtonSegment(value: Profile.legacy, label: Text(s.profileLegacy)),
+              value: Profile.strict,
+              label: Text(s.profileStrict),
+              tooltip: tp.profileStrict),
+          ButtonSegment(
+              value: Profile.standard,
+              label: Text(s.profileStandard),
+              tooltip: tp.profileStandard),
+          ButtonSegment(
+              value: Profile.legacy,
+              label: Text(s.profileLegacy),
+              tooltip: tp.profileLegacy),
         ],
         selected: {g.profile},
         onSelectionChanged: (v) =>
             state.updateSettings(g.copyWith(profile: v.first)),
       ),
-      section(s.contexts),
+      section(s.contexts, HelpTopic.profiles, tp.contexts),
       Wrap(spacing: 8, children: [
         for (final c in [
           ExecContext.root,
           ExecContext.cron,
           ExecContext.systemd
         ])
-          FilterChip(
-            label: Text(c.name),
-            selected: g.contexts.contains(c),
-            onSelected: (v) => state.updateSettings(g.copyWith(
-                contexts:
-                    v ? {...g.contexts, c} : ({...g.contexts}..remove(c)))),
+          tip(
+            tp.context(c),
+            FilterChip(
+              label: Text(c.name),
+              selected: g.contexts.contains(c),
+              onSelected: (v) => state.updateSettings(g.copyWith(
+                  contexts:
+                      v ? {...g.contexts, c} : ({...g.contexts}..remove(c)))),
+            ),
           ),
       ]),
-      section(s.tools),
+      section(s.tools, HelpTopic.tools),
       for (final (title, tools) in [
         (s.shellTools, ['shellcheck', 'shfmt', 'bashate', 'checkbashisms']),
         (
@@ -212,30 +236,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Text(title, style: theme.textTheme.labelLarge),
         ),
         for (final tool in tools)
-          SwitchListTile(
-            dense: true,
-            title: Text(tool),
-            subtitle: Text(switch (tool) {
-              'syntax' => 'bash -n / sh -n / python3 compile()',
-              'semgrep' => '${_version(s, tool)} · ${s.semgrepNetwork}',
-              'pylint' || 'pyright' => '${_version(s, tool)} · ${s.optIn}',
-              _ => _version(s, tool),
-            }),
-            value: g.toolEnabled(tool),
-            onChanged: (v) => state.updateSettings(g.withTool(tool, v)),
-          ),
+          tip(
+              tp.tool(tool),
+              SwitchListTile(
+                dense: true,
+                title: Text(tool),
+                subtitle: Text(switch (tool) {
+                  'syntax' => 'bash -n / sh -n / python3 compile()',
+                  'semgrep' => '${_version(s, tool)} · ${s.semgrepNetwork}',
+                  'pylint' || 'pyright' => '${_version(s, tool)} · ${s.optIn}',
+                  _ => _version(s, tool),
+                }),
+                value: g.toolEnabled(tool),
+                onChanged: (v) => state.updateSettings(g.withTool(tool, v)),
+              )),
       ],
-      SwitchListTile(
-        dense: true,
-        title: Text(s.ruffProjectConfig),
-        value: g.ruffProjectConfig,
-        onChanged: (v) =>
-            state.updateSettings(g.copyWith(ruffProjectConfig: v)),
+      tip(
+        tp.ruffProjectConfig,
+        SwitchListTile(
+          dense: true,
+          title: Text(s.ruffProjectConfig),
+          value: g.ruffProjectConfig,
+          onChanged: (v) =>
+              state.updateSettings(g.copyWith(ruffProjectConfig: v)),
+        ),
       ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
         child: Row(children: [
-          Expanded(child: Text(s.pythonTarget)),
+          Expanded(child: tip(tp.pythonTarget, Text(s.pythonTarget))),
           DropdownButton<String?>(
             value: g.pythonTarget,
             items: [
@@ -251,68 +280,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ]),
       ),
-      SwitchListTile(
-        title: Text(s.useCacheSetting),
-        value: g.useCache,
-        onChanged: (v) => state.updateSettings(g.copyWith(useCache: v)),
+      tip(
+        tp.useCache,
+        SwitchListTile(
+          title: Text(s.useCacheSetting),
+          value: g.useCache,
+          onChanged: (v) => state.updateSettings(g.copyWith(useCache: v)),
+        ),
       ),
-      SwitchListTile(
-        title: Text(s.watchFileSetting),
-        value: g.watchFile,
-        onChanged: (v) => state.updateSettings(g.copyWith(watchFile: v)),
+      tip(
+        tp.watchFile,
+        SwitchListTile(
+          title: Text(s.watchFileSetting),
+          value: g.watchFile,
+          onChanged: (v) => state.updateSettings(g.copyWith(watchFile: v)),
+        ),
       ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-        child: TextFormField(
-          initialValue: g.editorCommand,
-          decoration: InputDecoration(
-            labelText: s.editorCommand,
-            helperText: s.editorHint(detectEditor()),
-            border: const OutlineInputBorder(),
-            isDense: true,
+        child: tip(
+          tp.editorCommand,
+          TextFormField(
+            initialValue: g.editorCommand,
+            decoration: InputDecoration(
+              labelText: s.editorCommand,
+              helperText: s.editorHint(detectEditor()),
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (v) => state.updateSettings(g.copyWith(
+                editorCommand: () => v.trim().isEmpty ? null : v.trim())),
           ),
-          onChanged: (v) => state.updateSettings(g.copyWith(
-              editorCommand: () => v.trim().isEmpty ? null : v.trim())),
         ),
       ),
-      SwitchListTile(
-        title: Text(s.followSource),
-        value: g.followSource,
-        onChanged: (v) => state.updateSettings(g.copyWith(followSource: v)),
+      tip(
+        tp.followSource,
+        SwitchListTile(
+          title: Text(s.followSource),
+          value: g.followSource,
+          onChanged: (v) => state.updateSettings(g.copyWith(followSource: v)),
+        ),
       ),
       Align(
         alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-            onPressed: state.detectTools,
-            icon: const Icon(Icons.search),
-            label: Text(s.detect)),
+        child: tip(
+          tp.detect,
+          TextButton.icon(
+              onPressed: state.detectTools,
+              icon: const Icon(Icons.search),
+              label: Text(s.detect)),
+        ),
       ),
-      section(s.configFile),
+      section(s.configFile, HelpTopic.config),
       Row(children: [
         Expanded(child: Text(g.configPath ?? s.none)),
         Tooltip(
-          message: s.importHint,
+          message: tp.importConfig,
           child: TextButton(
             onPressed: () => _import(context),
             child: Text(s.importConfig),
           ),
         ),
         Tooltip(
-          message: s.exportHint,
+          message: tp.exportConfig,
           child: TextButton(
             onPressed: () => _export(context),
             child: Text(s.exportConfig),
           ),
         ),
         if (g.configPath != null)
-          TextButton(
-            onPressed: () =>
-                state.updateSettings(g.copyWith(configPath: () => null)),
-            child: Text(s.remove),
+          tip(
+            tp.removeConfig,
+            TextButton(
+              onPressed: () =>
+                  state.updateSettings(g.copyWith(configPath: () => null)),
+              child: Text(s.remove),
+            ),
           ),
       ]),
       const SizedBox(height: 24),
-      Text('check-script $appVersion', style: theme.textTheme.bodySmall),
+      Row(children: [
+        Text('check-script $appVersion', style: theme.textTheme.bodySmall),
+        HelpButton(HelpTopic.about, lang: state.lang),
+      ]),
     ]);
   }
 
