@@ -1,0 +1,66 @@
+# Exemple de configuration de check-script.
+#
+# Emplacements lus (le premier trouvé) :
+#   1. --config FICHIER
+#   2. ./.checkscript.yaml
+#   3. ${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml
+# Toutes les clés sont facultatives : une clé absente garde la valeur du profil.
+
+profile: default                # strict | default | legacy (--profile prime)
+context: []                     # [root, cron, systemd] : règles et sévérités dédiées
+followSource: false             # shellcheck -x (fichiers sourcés)
+pythonTarget: "3.9"             # Python minimal à supporter (entre guillemets)
+
+tools:
+  shellcheck:
+    enabled: true
+    path: shellcheck            # nom dans le PATH ou chemin absolu
+    exclude: [SC1091]           # transmis à shellcheck --exclude
+  shfmt:
+    enabled: true
+  bashate:
+    enabled: true
+    exclude: [E006]             # transmis à bashate --ignore
+  checkbashisms: true           # forme courte : activé / désactivé
+  gitleaks: true                # secrets (si installé)
+  trufflehog: true              # secrets, sans vérification réseau (si installé)
+  syntax: true                  # contrôle bash -n / sh -n / compilation Python
+  builtin: true                 # règles intégrées
+  # ── Scripts Python ──
+  ruff:
+    exclude: [PLR2004, S603]    # transmis à ruff --ignore
+  bandit:
+    exclude: [B404, B603]       # transmis à bandit -s
+  semgrep:
+    enabled: true
+    # Règles : p/python par défaut (téléchargées, gardées en cache une
+    # semaine) ; sur un poste isolé, un fichier ou un dossier local.
+    # config: /opt/regles/python.yml
+  mypy: true
+  radon: true                   # complexité, indice de maintenabilité
+  vermin: true                  # version minimale de Python requise
+  pylint: false                 # redondant avec ruff (activable)
+  pyright: false                # redondant avec mypy (activable)
+
+rules:
+  # Règles ignorées, tout outil confondu (SCxxxx, Exxx, SECxxx…).
+  disabled: [MNT005]
+  # Reclassement d'une règle (catégorie et/ou sévérité).
+  overrides:
+    SC2086: { category: security, severity: medium }
+
+scoring:
+  weights: { critical: 4, high: 2, medium: 0.75, low: 0.25 }
+  referenceLines: 100           # au-delà, Medium/Low sont atténués (√(100/n))
+  categoryWeights:              # poids dans la note globale
+    security: 1.5
+    robustness: 1.25
+    maintainability: 1
+    portability: 0.75
+    performance: 0.5
+
+thresholds:
+  maxLineLength: 120            # MNT001 (et bashate --max-line-length)
+  maxFunctionLines: 60          # MNT002 (Medium au-delà du double)
+  maxNesting: 4                 # MNT003
+  maxLinesWithoutFunction: 150  # MNT008

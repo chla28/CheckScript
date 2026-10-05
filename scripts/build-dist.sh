@@ -212,7 +212,8 @@ fi
 
 # ── Ressources ───────────────────────────────────────────────────────────────
 echo "▶ Ajout des ressources…"
-cp doc/user.adoc doc/developer.adoc doc/checkscript.example.yaml "${DIST_DIR}/doc/"
+cp doc/user.adoc doc/developer.adoc doc/user.fr.adoc doc/developer.fr.adoc \
+  doc/checkscript.example.yaml "${DIST_DIR}/doc/"
 cp -r doc/ci "${DIST_DIR}/doc/"
 echo "  ✓ doc/ (user.adoc, developer.adoc, checkscript.example.yaml, ci/)"
 cp completions/check-script.bash completions/_check-script "${DIST_DIR}/completions/"
@@ -224,7 +225,7 @@ if command -v asciidoctor &>/dev/null; then
 else
   echo "  ⚠  asciidoctor absent : page de manuel non générée." >&2
 fi
-cp README.md CHANGELOG.md LICENSE "${DIST_DIR}/"
+cp README.md README.fr.md CHANGELOG.md LICENSE "${DIST_DIR}/"
 echo "  ✓ README.md / CHANGELOG.md / LICENSE"
 cp "${SCRIPT_DIR}/install.sh" "${SCRIPT_DIR}/uninstall.sh" "${DIST_DIR}/"
 chmod +x "${DIST_DIR}/install.sh" "${DIST_DIR}/uninstall.sh"

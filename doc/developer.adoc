@@ -1,383 +1,382 @@
-= check-script — Guide développeur
+= check-script — Developer guide
 :toc:
-:toc-title: Table des matières
+:toc-title: Table of contents
 :toclevels: 2
-:lang: fr
+:lang: en
 :source-highlighter: rouge
 :icons: font
 :sectnums:
 
-== Vue d'ensemble
+== Overview
 
-`check-script` est une bibliothèque Dart (`lib/`) exposée par un CLI
-(`bin/check_script.dart`) et une interface Flutter (`gui/`). Elle orchestre
-des analyseurs de scripts shell et Python 3 (outils externes et règles
-intégrées),
-normalise leurs résultats en *problèmes* (`Finding`) classés par catégorie et
-sévérité, les dédoublonne, applique directives, contextes et configuration,
-calcule les notes et produit les rapports. Elle sait aussi corriger les
-défauts sûrs et comparer une analyse à une référence.
+`check-script` is a Dart library (`lib/`) exposed through a CLI
+(`bin/check_script.dart`) and a Flutter interface (`gui/`). It orchestrates
+analyzers for shell and Python 3 scripts (external tools and built-in
+rules),
+normalizes their results into *findings* (`Finding`) classified by category and
+severity, deduplicates them, applies directives, contexts and configuration,
+computes the scores and produces the reports. It can also fix the
+safe defects and compare an analysis against a baseline.
 
-=== Principes
+=== Principles
 
-* *Exploiter les outils existants* (ShellCheck, shfmt, bashate,
-  checkbashisms, gitleaks, trufflehog, `bash -n`) plutôt que les réécrire ;
-  les règles intégrées couvrent ce qu'ils ne traitent pas et assurent une
-  analyse minimale sans eux.
-* *Dégradation gracieuse* : un outil absent est signalé, jamais bloquant ;
-  sans shfmt, les règles structurelles retombent sur un lexer heuristique.
-* *Bibliothèque d'abord* : `lib/` n'écrit jamais sur la console ; le CLI et
-  l'interface ne sont que des façades.
-* *Testabilité* : l'exécution des commandes passe par `CommandRunner`
-  (remplacé par un faux dans les tests) ; les parseurs sont des fonctions
-  pures testées sur des sorties *réelles* enregistrées ; un corpus fige le
-  comportement sur des scripts réels.
-* *Pas de fuite de secrets* : jamais recopiés dans les rapports, trufflehog
-  lancé sans vérification réseau.
+* *Use existing tools* (ShellCheck, shfmt, bashate,
+  checkbashisms, gitleaks, trufflehog, `bash -n`) rather than rewrite them;
+  the built-in rules cover what they do not handle and provide a
+  minimal analysis without them.
+* *Graceful degradation*: a missing tool is reported, never blocking;
+  without shfmt, the structural rules fall back to a heuristic lexer.
+* *Library first*: `lib/` never writes to the console; the CLI and
+  the interface are only facades.
+* *Testability*: command execution goes through `CommandRunner`
+  (replaced by a fake in the tests); parsers are pure functions tested on
+  recorded *real* outputs; a corpus freezes the behavior on real scripts.
+* *No secret leaks*: secrets are never copied into reports, trufflehog is
+  run without network verification.
 
-== Arborescence
+== Source tree
 
 ----
-bin/check_script.dart              CLI : options, correction, sorties, seuils, codes retour
-lib/check_script.dart              Exports de la bibliothèque
+bin/check_script.dart              CLI: options, fixing, outputs, thresholds, exit codes
+lib/check_script.dart              Library exports
 lib/src/
   model/finding.dart               Category, Severity, Finding (hint, url, fingerprint), ToolRun
   model/report.dart                ScriptReport, Comparison (+ toJson)
-  script_info.dart                 ScriptInfo : shebang, Dialect, métriques, CRLF
+  script_info.dart                 ScriptInfo: shebang, Dialect, metrics, CRLF
   config.dart                      CheckConfig, Profile, ToolConfig, ScoringConfig, Thresholds (YAML)
-  i18n.dart                        Lang, Tr (texte bilingue), Messages (libellés)
-  engine.dart                      Engine : orchestration, progression, annulation, dédoublonnage,
-                                   enrichissement (liens), contextes, configuration, tri
+  i18n.dart                        Lang, Tr (bilingual text), Messages (labels)
+  engine.dart                      Engine: orchestration, progress, cancellation, deduplication,
+                                   enrichment (links), contexts, configuration, sorting
   scoring.dart                     scoreCategory, globalScore, sizeFactor, gradeFor
-  suppressions.dart                Directives # check-script disable…
-  baseline.dart                    Empreintes (FNV-1a), Baseline, comparaison
-  fixer.dart                       --fix : corrections ShellCheck, intégrées, shfmt ; contrôle syntaxe
-  diff.dart                        Diff unifié (Myers)
-  discovery.dart                   collectScripts, isScriptFile, isExcluded (fichiers, dossiers,
-                                   fichiers hôtes)
-  watch.dart                       watchTargets : lots de fichiers modifiés (--watch, vue Dossier)
-  embedded.dart                    Scripts intégrés (GitHub Actions, GitLab CI, Dockerfile,
-                                   Makefile, Ansible) : script virtuel ligne à ligne, SEC023
-  version.dart                     appVersion (synchronisée avec pubspec.yaml)
-  rules/catalog.dart               Catalogue des règles intégrées (titre, conseil, contexte),
-                                   ExecContext, escalades de sévérité par contexte
-  rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
+  suppressions.dart                # check-script disable… directives
+  baseline.dart                    Fingerprints (FNV-1a), Baseline, comparison
+  fixer.dart                       --fix: ShellCheck, built-in, shfmt fixes; syntax check
+  diff.dart                        Unified diff (Myers)
+  discovery.dart                   collectScripts, isScriptFile, isExcluded (files, folders,
+                                   host files)
+  watch.dart                       watchTargets: batches of modified files (--watch, Folder view)
+  embedded.dart                    Embedded scripts (GitHub Actions, GitLab CI, Dockerfile,
+                                   Makefile, Ansible): line-by-line virtual script, SEC023
+  version.dart                     appVersion (kept in sync with pubspec.yaml)
+  rules/catalog.dart               Catalog of built-in rules (title, hint, context),
+                                   ExecContext, severity escalations by context
+  rules/examples.dart              "To avoid / to write" examples per rule (shell and Python)
   rules/custom_rules.dart          CustomRule (rules.custom), CustomRulesAnalyzer
-  rules/references.dart            Références CWE / OWASP / ANSSI des règles (ruleReferences),
-                                   intitulés, liens, findingReferences, matchesReference (--ref)
-  lsp/server.dart                  Serveur LSP (check-script lsp) : trames JSON-RPC,
-                                   diagnostics (complets / pendant la frappe), survol,
-                                   corrections rapides, formatage, checkScript/score
-  highlight.dart                   Coloration : jetons par ligne (shell, Python, YAML,
-                                   Dockerfile, Makefile), états multilignes (heredoc…)
-  explain.dart                     ScoreExplanation, explainScore (coût et gain par règle, plan
-                                   vers le niveau supérieur), sortByQuickWin
-  result_cache.dart                ResultCache (rapports JSON par clé), fastHash (FNV-1a 64 bits)
+  rules/references.dart            CWE / OWASP / ANSSI references of the rules (ruleReferences),
+                                   titles, links, findingReferences, matchesReference (--ref)
+  lsp/server.dart                  LSP server (check-script lsp): JSON-RPC frames,
+                                   diagnostics (full / while typing), hover,
+                                   quick fixes, formatting, checkScript/score
+  highlight.dart                   Highlighting: tokens per line (shell, Python, YAML,
+                                   Dockerfile, Makefile), multiline states (heredoc…)
+  explain.dart                     ScoreExplanation, explainScore (cost and gain per rule, plan
+                                   to the next grade), sortByQuickWin
+  result_cache.dart                ResultCache (JSON reports by key), fastHash (64-bit FNV-1a)
   git.dart                         changedSince (--changed-since), normalizedPath
-  history.dart                     FolderHistory, HistoryEntry (historique des dossiers : GUI,
+  history.dart                     FolderHistory, HistoryEntry (folder history: GUI,
                                    --history-dir, --dashboard)
   feedback.dart                    FalsePositive, FalsePositiveLog, anonymizeCode
-  json_num.dart                    jsonInt : lecture tolérante des nombres du JSON des outils
-                                   (nombre ou chaîne selon la version)
-  reporters/dashboard.dart         renderDashboard, DashboardRepo, sparkline (tableau de bord)
-  config_discovery.dart            findProjectConfig (.checkscript.yaml jusqu'à la racine git)
-  rules/same_rules.dart            sameRuleIds : la même règle dans plusieurs outils (Ruff S ↔
-                                   Bandit B, Ruff PL ↔ Pylint, ShellCheck ↔ intégrées)
-  rules/registry.dart              RuleEntry, knownRules : règles intégrées et codes externes
-                                   classés, titres bilingues (onglet Règles de l'interface)
+  json_num.dart                    jsonInt: tolerant reading of numbers in the tools' JSON
+                                   (number or string depending on the version)
+  reporters/dashboard.dart         renderDashboard, DashboardRepo, sparkline (dashboard)
+  config_discovery.dart            findProjectConfig (.checkscript.yaml up to the git root)
+  rules/same_rules.dart            sameRuleIds: the same rule in several tools (Ruff S ↔
+                                   Bandit B, Ruff PL ↔ Pylint, ShellCheck ↔ built-in)
+  rules/registry.dart              RuleEntry, knownRules: built-in rules and classified
+                                   external codes, bilingual titles (Rules tab of the interface)
   analyzers/
     analyzer.dart                  Analyzer, AnalysisContext, CommandRunner, CancelToken
-    shellcheck.dart                ShellCheck (JSON) et table de classement SCxxxx
-    external_tools.dart            Contrôle syntaxique (bash -n, compilation Python), shfmt,
-                                   bashate, checkbashisms et leurs parseurs
-    python_tools.dart              Ruff, Bandit, Semgrep, mypy, Pyright, Pylint, Radon, Vermin :
-                                   invocation, parseurs, classement, équivalents
-    python_rules.dart              Règles intégrées Python ; PythonFacts (module ast via python3,
-                                   repli ligne à ligne)
-    python_deps.dart               Imports (pydeps : PYROB005, PYPOR002), dépendances déclarées
+    shellcheck.dart                ShellCheck (JSON) and SCxxxx classification table
+    external_tools.dart            Syntax check (bash -n, Python compilation), shfmt,
+                                   bashate, checkbashisms and their parsers
+    python_tools.dart              Ruff, Bandit, Semgrep, mypy, Pyright, Pylint, Radon, Vermin:
+                                   invocation, parsers, classification, equivalents
+    python_rules.dart              Built-in Python rules; PythonFacts (ast module via python3,
+                                   line-by-line fallback)
+    python_deps.dart               Imports (pydeps: PYROB005, PYPOR002), declared dependencies
                                    (requirements, pyproject, PEP 723…), pip-audit
-    commands.dart                  Inventaire des commandes externes (CommandUse), paquets
-                                   dnf / apt, présence (command -v), ROB017
-    ci_tools.dart                  hadolint (Dockerfile), actionlint et zizmor (workflows) :
-                                   fichier hôte sur l'entrée standard, appliesTo, parseurs
+    commands.dart                  Inventory of external commands (CommandUse), dnf / apt
+                                   packages, presence (command -v), ROB017
+    ci_tools.dart                  hadolint (Dockerfile), actionlint and zizmor (workflows):
+                                   host file on standard input, appliesTo, parsers
     secrets.dart                   gitleaks, trufflehog
-    ast.dart                       AstFacts : faits extraits de `shfmt --to-json`
-    shell_lexer.dart               Lexer heuristique (repli sans shfmt)
-    builtin_rules.dart             Détection des règles intégrées (lignes, structure, fichier)
+    ast.dart                       AstFacts: facts extracted from `shfmt --to-json`
+    shell_lexer.dart               Heuristic lexer (fallback without shfmt)
+    builtin_rules.dart             Detection of built-in rules (lines, structure, file)
   reporters/
-    reporters.dart                 Terminal, Markdown, AsciiDoc, JSON ; OutputFormat, render()
-    html.dart                      HTML autonome (filtres, source annotée)
+    reporters.dart                 Terminal, Markdown, AsciiDoc, JSON; OutputFormat, render()
+    html.dart                      Standalone HTML (filters, annotated source)
     sarif.dart                     SARIF 2.1.0
     codeclimate.dart               GitLab Code Quality
-    junit.dart                     JUnit XML, annotations GitHub Actions (--format github)
-    pdf.dart                       Rapport d'audit PDF (paquet pdf) : polices du système,
-                                   repli latin-1 ; renderBytes (reporters.dart) pour l'écrire
-gui/                               Interface Flutter (voir <<gui>>)
-editors/vscode/                    Extension VS Code (TypeScript, vscode-languageclient) :
-                                   npm run package → .vsix ; npm test → test de bout en bout
-                                   dans un vrai VS Code (CHECK_SCRIPT, VSCODE_EXECUTABLE)
-editors/eclipse/                   Plugin Eclipse (LSP4E, éditeur générique) : Maven Tycho,
-                                   mvn -f editors/eclipse/pom.xml verify → site de mise à jour
-                                   (copier d'abord LICENSE dans bundles/fr.chla28.checkscript/)
-editors/geany/lsp.conf             Configuration du greffon LSP Client de Geany
-action.yml                         Action GitHub composite (compile check-script, annotations,
-                                   résumé, SARIF) ; testée par .github/workflows/self-check.yml
-tool/calibrate.dart                Calibrage sur le corpus
-tool/false_positives.dart          Synthèse des faux positifs signalés (par règle)
-test/                              Tests ; fixtures/ (dont sorties réelles des outils), corpus/
-completions/                       Complétions bash et zsh
-doc/                               Guides, page de manuel (check-script.1.adoc), exemples CI
-packaging/rpm/                     Specs RPM (CLI, interface)
+    junit.dart                     JUnit XML, GitHub Actions annotations (--format github)
+    pdf.dart                       PDF audit report (pdf package): system fonts,
+                                   latin-1 fallback; renderBytes (reporters.dart) writes it
+gui/                               Flutter interface (see <<gui>>)
+editors/vscode/                    VS Code extension (TypeScript, vscode-languageclient):
+                                   npm run package → .vsix; npm test → end-to-end test
+                                   in a real VS Code (CHECK_SCRIPT, VSCODE_EXECUTABLE)
+editors/eclipse/                   Eclipse plugin (LSP4E, generic editor): Maven Tycho,
+                                   mvn -f editors/eclipse/pom.xml verify → update site
+                                   (first copy LICENSE into bundles/fr.chla28.checkscript/)
+editors/geany/lsp.conf             Configuration of Geany's LSP Client plugin
+action.yml                         Composite GitHub Action (builds check-script, annotations,
+                                   summary, SARIF); tested by .github/workflows/self-check.yml
+tool/calibrate.dart                Calibration on the corpus
+tool/false_positives.dart          Summary of reported false positives (per rule)
+test/                              Tests; fixtures/ (including real tool outputs), corpus/
+completions/                       Bash and zsh completions
+doc/                               Guides, man page (check-script.1.adoc), CI examples
+packaging/rpm/                     RPM specs (CLI, interface)
 scripts/                           build-dist.sh, build-rpm.sh, install.sh, uninstall.sh,
                                    pre-commit-hook.sh
-.pre-commit-hooks.yaml             Hooks pour le framework pre-commit
+.pre-commit-hooks.yaml             Hooks for the pre-commit framework
 ----
 
-== Flux d'analyse
+== Analysis flow
 
 ----
-fichier ──► ScriptInfo.fromContent (shebang ou extension .py → Dialect, CRLF, lignes)
+file ──► ScriptInfo.fromContent (shebang or .py extension → Dialect, CRLF, lines)
               │
               ▼
-Engine.analyze ── pour chaque Analyzer du langage du script (analyzersFor),
-              │   activé, dans l'ordre de priorité :
+Engine.analyze ── for each enabled Analyzer of the script's language (analyzersFor),
+              │   in priority order:
               │     shell  : syntax → shellcheck → gitleaks → trufflehog → checkbashisms
-              │              → builtin (arbre shfmt si disponible) → shfmt → bashate
+              │              → builtin (shfmt tree if available) → shfmt → bashate
               │     python : syntax → bandit → ruff → semgrep → mypy → pyright → pylint
               │              → vermin → radon → gitleaks → trufflehog → builtin (ast)
-              │     outils lancés en parallèle (Future.wait), résultats rangés dans
-              │     l'ordre de priorité ; Engine(parallel: false) pour l'ordre strict
-              │     onProgress(AnalysisProgress) ; CancelToken vérifié à chaque outil
-              │   analyzeFiles(paths, jobs) : plusieurs scripts à la fois (défaut
-              │     Engine.defaultJobs = processeurs / 4, entre 1 et 4), ordre conservé
+              │     tools run in parallel (Future.wait), results stored in
+              │     priority order; Engine(parallel: false) for strict order
+              │     onProgress(AnalysisProgress); CancelToken checked for each tool
+              │   analyzeFiles(paths, jobs): several scripts at once (default
+              │     Engine.defaultJobs = processors / 4, between 1 and 4), order preserved
               ▼
-deduplicate   ── garde le premier de chaque groupe de doublons
-Suppressions  ── directives # check-script disable… (comptées dans `suppressed`)
-enrich        ── liens de documentation, conseils génériques des outils externes
-escalate      ── sévérités relevées selon les contextes (root, cron, systemd)
+deduplicate   ── keeps the first of each group of duplicates
+Suppressions  ── # check-script disable… directives (counted in `suppressed`)
+enrich        ── documentation links, generic hints for external tools
+escalate      ── severities raised according to contexts (root, cron, systemd)
 applyConfig   ── rules.disabled, rules.overrides
-fingerprintAll── empreintes stables (baseline, SARIF, Code Quality)
-sortFindings  ── catégorie, sévérité, ligne
+fingerprintAll── stable fingerprints (baseline, SARIF, Code Quality)
+sortFindings  ── category, severity, line
 scoreCategory × 5, globalScore
               ▼
-ScriptReport ──► Baseline.compare (si référence) ──► render(format)
+ScriptReport ──► Baseline.compare (if baseline) ──► render(format)
 ----
 
-== Modèle
+== Model
 
-`Finding`:: `tool`, `ruleId`, `category`, `severity`, `line` (0 = fichier),
-`column`, `message`, `snippet`, `equivalents` (codes d'autres outils
-désignant le même défaut), `hint` (conseil), `url` (documentation),
-`fingerprint`, `endLine` (fin de l'instruction multi-ligne signalée, pour
-le dédoublonnage : recouvrement de lignes, étendue ≤ `maxDuplicateSpan`),
-`edits` (correction concrète : `TextEdit` 1-based, fin
-exclusive ; issue du `fix` ShellCheck ou de `attachFixes` pour les
-corrections intégrées). `Finding.fromJson` relit `toJson`.
-`fixPreview` en tire les lignes avant / après ; `exampleFor`
-(`rules/examples.dart`) donne l'exemple générique d'une règle.
+`Finding`:: `tool`, `ruleId`, `category`, `severity`, `line` (0 = file),
+`column`, `message`, `snippet`, `equivalents` (codes of other tools
+designating the same defect), `hint` (advice), `url` (documentation),
+`fingerprint`, `endLine` (end of the reported multi-line statement, used for
+deduplication: line overlap, extent ≤ `maxDuplicateSpan`),
+`edits` (concrete fix: 1-based `TextEdit`, exclusive end;
+coming from ShellCheck's `fix` or from `attachFixes` for the
+built-in fixes). `Finding.fromJson` reads back `toJson`.
+`fixPreview` derives the before / after lines from it; `exampleFor`
+(`rules/examples.dart`) gives the generic example of a rule.
 
-`ToolRun`:: `ok`, `missing`, `skipped`, `failed`, `disabled` ; version ;
-nombre de problèmes ; `detail` (`ast` / `lexer` pour les règles intégrées).
+`ToolRun`:: `ok`, `missing`, `skipped`, `failed`, `disabled`; version;
+number of findings; `detail` (`ast` / `lexer` for built-in rules).
 
-`ScriptReport`:: script, outils, problèmes, 5 `CategoryScore`, note globale,
-niveau, date, `suppressed`, `profile`, `contexts`, `comparison`.
+`ScriptReport`:: script, tools, findings, 5 `CategoryScore`, global score,
+grade, date, `suppressed`, `profile`, `contexts`, `comparison`.
 
-== Analyseurs
+== Analyzers
 
 [source,dart]
 ----
 abstract class Analyzer {
-  String get name;                                   // clé de configuration
-  ToolLanguage get language;                         // shell (défaut), python ou any
+  String get name;                                   // configuration key
+  ToolLanguage get language;                         // shell (default), python or any
   Future<AnalyzerResult> analyze(AnalysisContext ctx);
-  Future<String?> version(CommandRunner runner, CheckConfig config); // null = absent, '?' = illisible
+  Future<String?> version(CommandRunner runner, CheckConfig config); // null = absent, '?' = unreadable
 }
 ----
 
-`CommandRunner.run(exe, args, {stdin, cancel})` renvoie `null` si
-l'exécutable est introuvable. `ProcessCommandRunner` force `LC_ALL=C`, écrit
-`stdin` (utilisé par `shfmt --to-json`, `bash -n`, le formatage de `--fix`)
-et tue le processus quand le `CancelToken` est déclenché. Les analyseurs
-passent par `ctx.run(...)`, qui transmet le jeton.
+`CommandRunner.run(exe, args, {stdin, cancel})` returns `null` if
+the executable cannot be found. `ProcessCommandRunner` forces `LC_ALL=C`, writes
+`stdin` (used by `shfmt --to-json`, `bash -n`, the formatting of `--fix`)
+and kills the process when the `CancelToken` is triggered. Analyzers
+go through `ctx.run(...)`, which forwards the token.
 
 [cols="1,3,3",options="header"]
 |===
-|Outil |Invocation |Parseur / classement
-|syntax |`bash\|sh\|ksh\|zsh -n FICHIER` |`parseSyntaxErrors` → `SYNTAX` Robustesse/Critical
+|Tool |Invocation |Parser / classification
+|syntax |`bash\|sh\|ksh\|zsh -n FILE` |`parseSyntaxErrors` → `SYNTAX` Robustness/Critical
 |shellcheck |`--format=json1 --enable=… --exclude=… --shell=… [--external-sources --source-path=SCRIPTDIR]` |`parseShellcheckJson` + `classifyShellcheck`
-|gitleaks |`detect --no-git --redact --exit-code=0 --report-format=json --report-path=/dev/stdout` |`parseGitleaks` → `GL:<règle>` Critical
-|trufflehog |`filesystem FICHIER --json --no-update --no-verification` |`parseTrufflehog` → `TH:<détecteur>` High (Critical si vérifié)
-|checkbashisms |`--extra [--force]`, scripts sh/dash/sans shebang |`parseCheckbashisms` → `CB`
-|builtin |`shfmt --to-json -ln=…` sur l'entrée standard (relance en bash pour un sh non POSIX) |`AstFacts.fromJson` puis `runBuiltinRules`
-|shfmt |`-d -ln=… -i=<unité>` ; relance en `-ln=bash` si l'analyse POSIX échoue |`parseShfmtDiff` (`FORMAT`), `parseShfmtErrors` (`PARSE` / `DIALECT`)
-|bashate |`--ignore=… --max-line-length=N` |`parseBashate` (2.x et 0.x)
-|syntax (Python) |`python3 -c <pythonCompileScript> FICHIER` : `compile()` sans `__pycache__` |`parsePythonSyntaxError` (`ligne:colonne:message`)
-|ruff |`check --isolated --no-cache --target-version=pyNN --line-length=N --select=… --ignore=… --output-format=json` puis `format --diff` |`parseRuff` + `classifyRuff`, `ruffEquivalents` ; corrections `safe` → `edits`
-|bandit |`-f json -q -s …` |`parseBandit` (sévérité × confiance, `banditMap`, secrets caviardés)
-|semgrep |`scan --config=p/python --json --metrics=off --quiet --disable-version-check` |`parseSemgrep` (catégorie des métadonnées ; `fix` → `edits`)
-|mypy |`--output=json --no-incremental --cache-dir=/dev/null --ignore-missing-imports --check-untyped-defs [--python-version]` |`parseMypy` (une ligne JSON par erreur)
-|pyright |`--outputjson --pythonversion V` |`parsePyright` (positions 0-based)
+|gitleaks |`detect --no-git --redact --exit-code=0 --report-format=json --report-path=/dev/stdout` |`parseGitleaks` → `GL:<rule>` Critical
+|trufflehog |`filesystem FILE --json --no-update --no-verification` |`parseTrufflehog` → `TH:<detector>` High (Critical if verified)
+|checkbashisms |`--extra [--force]`, sh/dash scripts or without shebang |`parseCheckbashisms` → `CB`
+|builtin |`shfmt --to-json -ln=…` on standard input (rerun in bash for a non-POSIX sh) |`AstFacts.fromJson` then `runBuiltinRules`
+|shfmt |`-d -ln=… -i=<unit>`; rerun with `-ln=bash` if POSIX parsing fails |`parseShfmtDiff` (`FORMAT`), `parseShfmtErrors` (`PARSE` / `DIALECT`)
+|bashate |`--ignore=… --max-line-length=N` |`parseBashate` (2.x and 0.x)
+|syntax (Python) |`python3 -c <pythonCompileScript> FILE`: `compile()` without `__pycache__` |`parsePythonSyntaxError` (`line:column:message`)
+|ruff |`check --isolated --no-cache --target-version=pyNN --line-length=N --select=… --ignore=… --output-format=json` then `format --diff` |`parseRuff` + `classifyRuff`, `ruffEquivalents`; `safe` fixes → `edits`
+|bandit |`-f json -q -s …` |`parseBandit` (severity × confidence, `banditMap`, redacted secrets)
+|semgrep |`scan --config=p/python --json --metrics=off --quiet --disable-version-check` |`parseSemgrep` (category from metadata; `fix` → `edits`)
+|mypy |`--output=json --no-incremental --cache-dir=/dev/null --ignore-missing-imports --check-untyped-defs [--python-version]` |`parseMypy` (one JSON line per error)
+|pyright |`--outputjson --pythonversion V` |`parsePyright` (0-based positions)
 |pylint |`--output-format=json2 --score=n --persistent=n --py-version=V --disable=…` |`parsePylint` + `pylintMap`
 |radon |`cc -j -s`, `mi -j -s` |`parseRadonCc` (`CC`, ≥ 11), `parseRadonMi` (`MI`)
 |vermin |`--no-tips --violations -t=V- --format parsable` |`parseVermin` (`VERMIN`)
-|builtin (Python) |`python3 -c <pythonFactsScript> FICHIER` |`PythonFacts.fromJson` (sinon `lexPythonFacts`) puis `runPythonRules`
+|builtin (Python) |`python3 -c <pythonFactsScript> FILE` |`PythonFacts.fromJson` (otherwise `lexPythonFacts`) then `runPythonRules`
 |===
 
-=== Classement des codes ShellCheck
+=== ShellCheck code classification
 
-`shellcheckMap` classe explicitement les codes significatifs ; sinon
-`classifyShellcheck` applique : SC3xxx → Portabilité (Medium/Low), SC1xxx
-`error` → Robustesse/High, `style` → Maintenabilité/Low, sinon Robustesse
-selon le niveau. Les bashismes qui *cassent sous dash* (SC2112/2113
-`function`, SC3010 `[[`, SC3011 `<<<`, SC3020 `&>`, SC3030/3054 tableaux,
-SC3005/3006 `((`, SC3018, SC3001) sont High — décision issue du calibrage.
+`shellcheckMap` explicitly classifies the significant codes; otherwise
+`classifyShellcheck` applies: SC3xxx → Portability (Medium/Low), SC1xxx
+`error` → Robustness/High, `style` → Maintainability/Low, otherwise Robustness
+according to the level. Bashisms that *break under dash* (SC2112/2113
+`function`, SC3010 `[[`, SC3011 `<<<`, SC3020 `&>`, SC3030/3054 arrays,
+SC3005/3006 `((`, SC3018, SC3001) are High — a decision resulting from
+calibration.
 
-=== Dédoublonnage
+=== Deduplication
 
-Deux problèmes sont doublons si l'un des `equivalents` de l'un correspond au
-`ruleId` de l'autre (exact ou préfixe `*`) et qu'ils portent sur la même
-ligne — ou que l'un est « fichier » (ligne 0) ou une erreur `SYNTAX`. Même
-outil : même ligne et (même règle ou équivalent). Le premier rencontré est
-conservé ; l'ordre de `defaultAnalyzers()` fixe la priorité.
+Two findings are duplicates if one of the `equivalents` of one matches the
+`ruleId` of the other (exact or `*` prefix) and they concern the same
+line — or one of them is a "file" finding (line 0) or a `SYNTAX` error. Same
+tool: same line and (same rule or equivalent). The first one encountered is
+kept; the order of `defaultAnalyzers()` sets the priority.
 
-=== Équivalences Python
+=== Python equivalences
 
-Ruff `Snnn` = Bandit `Bnnn` (mêmes numéros) ; Ruff `PLxnnnn` = Pylint
-`xnnnn` ; table `_ruffToPylint` pour les autres (`E722` = `W0702`, `B006` =
-`W0102`…) ; Semgrep équivaut aux codes Bandit et Ruff de sécurité de la même
-ligne ; mypy aux diagnostics Pyright (`report*`) ; les erreurs de *version*
-(`match` en 3.9) de Ruff et Pyright sont classées Portabilité et équivalent
-à `VERMIN`. Les messages Bandit B105–B107 et Semgrep « secret » sont
-caviardés, et leurs lignes masquées (`_revealsSecret`).
+Ruff `Snnn` = Bandit `Bnnn` (same numbers); Ruff `PLxnnnn` = Pylint
+`xnnnn`; `_ruffToPylint` table for the others (`E722` = `W0702`, `B006` =
+`W0102`…); Semgrep is equivalent to the Bandit and Ruff security codes on the same
+line; mypy to Pyright diagnostics (`report*`); *version* errors
+(`match` in 3.9) from Ruff and Pyright are classified as Portability and are
+equivalent to `VERMIN`. Bandit B105–B107 messages and Semgrep "secret" messages
+are redacted, and their lines masked (`_revealsSecret`).
 
-== Règles intégrées
+== Built-in rules
 
-=== Catalogue
+=== Catalog
 
-`rules/catalog.dart` décrit chaque règle : identifiant, catégorie, sévérité,
-titre et *conseil de correction* bilingues (`Tr`), contextes d'activation.
-La détection est séparée (`builtin_rules.dart`) ; `add(id, line, …)` y crée
-le `Finding` à partir du catalogue et ignore les règles dont le contexte
-n'est pas déclaré.
+`rules/catalog.dart` describes each rule: identifier, category, severity,
+bilingual title and *fix hint* (`Tr`), activation contexts.
+Detection is separate (`builtin_rules.dart`); `add(id, line, …)` creates
+the `Finding` from the catalog and ignores rules whose context
+is not declared.
 
-=== Arbre syntaxique (shfmt) et repli lexer
+=== Syntax tree (shfmt) and lexer fallback
 
-`AstFacts` (`analyzers/ast.dart`) parcourt le JSON de `shfmt --to-json` :
+`AstFacts` (`analyzers/ast.dart`) walks the JSON of `shfmt --to-json`:
 
-* `functions` : nom, lignes de début et de fin ;
-* `blocks` : structures de contrôle et profondeur (else/elif au même niveau) ;
-* `commands` : nom littéral, arguments littéraux (`null` si expansion),
-  `hasExpansion`, `checked` (condition de if/while, opérande gauche de `&&`
-  / `||` — opérateurs 10 et 11 —, commande niée), `inLoop`,
+* `functions`: name, start and end lines;
+* `blocks`: control structures and depth (else/elif at the same level);
+* `commands`: literal name, literal arguments (`null` if expansion),
+  `hasExpansion`, `checked` (if/while condition, left operand of `&&`
+  / `||` — operators 10 and 11 —, negated command), `inLoop`,
   `inSubstitution`.
 
-Avec l'arbre, les règles de commande (SEC003, SEC012, ROB005, ROB007,
-ROB011, POR004, POR005, POR007, PERF003, PERF004) et structurelles (MNT002,
-MNT003) sont exactes ; les `LineRule` marquées `astCovered` sont alors
-ignorées. Sans shfmt, `lexScript` (commentaires, chaînes masquées dans
-`bare`, heredocs) et les expressions régulières prennent le relais.
+With the tree, command rules (SEC003, SEC012, ROB005, ROB007,
+ROB011, POR004, POR005, POR007, PERF003, PERF004) and structural rules (MNT002,
+MNT003) are exact; the `LineRule`s marked `astCovered` are then
+ignored. Without shfmt, `lexScript` (comments, strings masked in
+`bare`, heredocs) and regular expressions take over.
 
-=== Ajouter une règle
+=== Adding a rule
 
-. Ajouter une `RuleInfo` dans `ruleCatalog` (titre et conseil fr/en,
-  contextes éventuels).
-. Ajouter sa détection : une `LineRule` dans `lineRules` (avec
-  `equivalents`, et `astCovered` + un cas dans `_astStructure` si elle porte
-  sur une commande), ou une règle fichier dans `runBuiltinRules`.
-. Si elle doit être relevée dans un contexte, compléter
+. Add a `RuleInfo` to `ruleCatalog` (fr/en title and hint,
+  contexts if any).
+. Add its detection: a `LineRule` in `lineRules` (with
+  `equivalents`, and `astCovered` + a case in `_astStructure` if it concerns
+  a command), or a file rule in `runBuiltinRules`.
+. If it must be raised in a context, complete
   `contextEscalations`.
-. Tests : un cas déclencheur et un cas sain (`builtin_rules_test.dart` ou
-  `new_rules_test.dart`), puis `UPDATE_GOLDEN=1 dart test test/corpus_test.dart`
-  si le corpus change — en vérifiant chaque écart.
-. Mettre à jour le tableau des règles de `doc/user.adoc`.
+. Tests: a triggering case and a clean case (`builtin_rules_test.dart` or
+  `new_rules_test.dart`), then `UPDATE_GOLDEN=1 dart test test/corpus_test.dart`
+  if the corpus changes — checking every difference.
+. Update the rules table in `doc/user.adoc`.
 
-== Directives, contextes, profils
+== Directives, contexts, profiles
 
-* `Suppressions.parse` lit `# check-script disable=` (ligne, ou ligne de code
-  suivante pour un commentaire seul), `disable-next-line=`, `disable-file=` ;
-  jokers `*` et `all`.
-* `ExecContext` (`root`, `cron`, `systemd`) : règles conditionnelles
-  (`RuleInfo.contexts`) et `contextEscalations` (sévérité seulement relevée).
-* `Profile` : `CheckConfig.forProfile` fournit la base ; `CheckConfig.parse`
-  applique le YAML par-dessus (le profil de la ligne de commande prime sur la
-  clé `profile:`).
+* `Suppressions.parse` reads `# check-script disable=` (line, or next code line
+  for a standalone comment), `disable-next-line=`, `disable-file=`;
+  wildcards `*` and `all`.
+* `ExecContext` (`root`, `cron`, `systemd`): conditional rules
+  (`RuleInfo.contexts`) and `contextEscalations` (severity only raised).
+* `Profile`: `CheckConfig.forProfile` provides the base; `CheckConfig.parse`
+  applies the YAML on top (the command-line profile takes precedence over the
+  `profile:` key).
 
-== Notation et calibrage
+== Scoring and calibration
 
 ----
-facteur(n)  = √(référence / max(référence, lignes de code))       référence = 100
-pénalité    = Σ_règles poids(sévérité) × (1 + log2 occurrences) × (facteur si Medium/Low)
-note        = clamp(10 − pénalité, 0, 10), arrondie au dixième
-globale     = min(moyenne pondérée, pire catégorie + 1,5)            maxGapToWorst
-niveau      = A ≥ 9, B ≥ 7,5, C ≥ 6, D ≥ 4, E
+factor(n)   = √(reference / max(reference, lines of code))        reference = 100
+penalty     = Σ_rules weight(severity) × (1 + log2 occurrences) × (factor if Medium/Low)
+score       = clamp(10 − penalty, 0, 10), rounded to the tenth
+global      = min(weighted average, worst category + 1.5)         maxGapToWorst
+grade       = A ≥ 9, B ≥ 7.5, C ≥ 6, D ≥ 4, E
 ----
 
-Le *corpus* `test/corpus/` réunit des copies figées de scripts de la suite
-AuditTools et des scripts typiques (installeur `curl | bash`, sauvegarde
-cron ancienne, script init POSIX avec bashismes, bibliothèque propre), et
-12 scripts Python `py_*` écrits pour le calibrage (outil propre, client
-d'API négligent, installeur dangereux, style Python 2, fonctionnalités
-3.10+…). Semgrep est écarté du contrôle des niveaux (règles téléchargées).
-`labels.yaml` donne pour chacun, *établi a priori en lisant le script*, la
-plage de niveaux attendue (avec et sans contexte), les règles obligatoires
-et interdites.
+The `test/corpus/` *corpus* gathers frozen copies of scripts from the
+AuditTools suite and typical scripts (`curl | bash` installer, old
+cron backup, POSIX init script with bashisms, clean library), and
+12 `py_*` Python scripts written for calibration (clean tool, sloppy API
+client, dangerous installer, Python 2 style, 3.10+ features…). Semgrep is left
+out of the grade checks (downloaded rules). `labels.yaml` gives for each
+script, *established a priori by reading the script*, the expected range of
+grades (with and without context), the mandatory and forbidden rules.
 
 [source,bash]
 ----
-dart run tool/calibrate.dart --details     # notes réelles vs plages attendues
+dart run tool/calibrate.dart --details     # actual scores vs expected ranges
 ----
 
-Deux ajustements en sont issus : bashismes cassant dash classés High, et
-plafond de la note globale ramené de « pire + 2,5 » à « pire + 1,5 ». Tout
-changement de poids doit laisser le corpus conforme.
+Two adjustments came out of it: dash-breaking bashisms classified High, and
+the global score cap lowered from "worst + 2.5" to "worst + 1.5". Any
+weight change must leave the corpus compliant.
 
-Le calibrage Python (0.7.0) a aligné les sévérités sur l'échelle shell sans
-toucher au modèle : secrets en dur Critical si la valeur est réaliste (comme
-SEC002), exécution de code ou de données High (comme SEC003), PYSEC001
-Medium (comme SEC022), shebang `python` High ; il a ajouté PYROB003 (cron
-sans verrou, comme ROB014) et PYROB004 (code de retour de `main()` perdu),
-et compte les docstrings comme de la documentation. Trois plages *a priori*
-jugées trop sévères au regard de l'échelle shell ont été révisées, avec leur
-justification dans `labels.yaml`.
+The Python calibration (0.7.0) aligned severities with the shell scale without
+touching the model: hardcoded secrets Critical if the value is realistic (like
+SEC002), code or data execution High (like SEC003), PYSEC001
+Medium (like SEC022), `python` shebang High; it added PYROB003 (cron
+without lock, like ROB014) and PYROB004 (lost `main()` return code),
+and counts docstrings as documentation. Three *a priori* ranges
+judged too severe with respect to the shell scale were revised, with their
+justification in `labels.yaml`.
 
-== Correction automatique
+== Automatic fixing
 
-`fixScript` enchaîne : remplacements ShellCheck (`parseShellcheckFixes`,
-`applyEdits` : positions 1-based, fin exclusive, tabulation = 1 colonne,
-éditions en conflit ignorées), corrections intégrées (`applyBuiltinFixes`,
-jamais dans un heredoc, une chaîne multi-lignes ou un commentaire ;
-`replaceBackticks` ignore les apostrophes et les backticks échappés), puis
-`shfmt -ln -i` sur l'entrée standard. Si `<shell> -n` accepte l'original mais
-refuse le résultat, `FixResult.aborted` est renseigné et rien n'est écrit.
-Pour un script Python (`_fixPython`) : `ruff check --fix` puis `ruff format`
-sur l'entrée standard (`--stdin-filename=script.py`), les corrections étant
-comptées d'après la sortie JSON ; contrôle par la compilation Python
-(`syntaxRegression` utilise `SyntaxAnalyzer.commandFor`).
-`unifiedDiff` (Myers) produit le diff de `--dry-run` et de l'interface.
+`fixScript` chains: ShellCheck replacements (`parseShellcheckFixes`,
+`applyEdits`: 1-based positions, exclusive end, tab = 1 column,
+conflicting edits ignored), built-in fixes (`applyBuiltinFixes`,
+never inside a heredoc, a multi-line string or a comment;
+`replaceBackticks` ignores apostrophes and escaped backticks), then
+`shfmt -ln -i` on standard input. If `<shell> -n` accepts the original but
+rejects the result, `FixResult.aborted` is set and nothing is written.
+For a Python script (`_fixPython`): `ruff check --fix` then `ruff format`
+on standard input (`--stdin-filename=script.py`), fixes being
+counted from the JSON output; checked by Python compilation
+(`syntaxRegression` uses `SyntaxAnalyzer.commandFor`).
+`unifiedDiff` (Myers) produces the diff of `--dry-run` and of the interface.
 
-== Référence (baseline)
+== Baseline
 
-`fingerprintAll` calcule `fnv1a64(outil|règle|ligne normalisée|rang)` : le
-numéro de ligne n'entre pas dans l'empreinte. `Baseline.parse` relit un
-rapport JSON ; `compare` apparie par empreinte (multiensemble) et renvoie
-`Comparison` (nouveaux, corrigés, inchangés, notes précédentes). Les rapports
-ne détaillent alors que les nouveaux problèmes (`detailFindings`).
+`fingerprintAll` computes `fnv1a64(tool|rule|normalized line|rank)`: the
+line number is not part of the fingerprint. `Baseline.parse` reads back a JSON
+report; `compare` matches by fingerprint (multiset) and returns
+`Comparison` (new, fixed, unchanged, previous scores). Reports
+then detail only the new findings (`detailFindings`).
 
-== Rapports
+== Reports
 
-`render(reports, format, RenderOptions)` ; `OutputFormat` : `terminal`,
-`markdown`, `asciidoc`, `json`, `sarif`, `html`, `codeclimate` (déduit de
-l'extension par `OutputFormat.fromPath`).
+`render(reports, format, RenderOptions)`; `OutputFormat`: `terminal`,
+`markdown`, `asciidoc`, `json`, `sarif`, `html`, `codeclimate` (deduced from
+the extension by `OutputFormat.fromPath`).
 
-* SARIF : une règle par couple outil/règle (`help`, `helpUri`,
-  `security-severity` pour la sécurité), résultats avec
+* SARIF: one rule per tool/rule pair (`help`, `helpUri`,
+  `security-severity` for security), results with
   `partialFingerprints`, `startLine ≥ 1`.
-* Code Quality : `check_name`, `severity` (blocker/critical/major/minor),
+* Code Quality: `check_name`, `severity` (blocker/critical/major/minor),
   `fingerprint`, `location.lines.begin`.
-* HTML : page unique sans ressource externe, thème clair/sombre, filtres,
-  source annotée (ancres `#s<i>-L<n>`).
+* HTML: single page without external resources, light/dark theme, filters,
+  annotated source (anchors `#s<i>-L<n>`).
 
-Format JSON (extrait) :
+JSON format (excerpt):
 
 [source,json]
 ----
@@ -403,168 +402,168 @@ Format JSON (extrait) :
 }
 ----
 
-== Internationalisation
+== Internationalization
 
-`Lang.fromEnvironment` (`LC_ALL` > `LC_MESSAGES` > `LANG`) ; libellés dans
-`Messages` (bibliothèque) et `S` (interface) ; règles : `Tr(fr, en)` dans le
-catalogue ; messages des outils externes non traduits ; décimales à virgule
-en français.
+`Lang.fromEnvironment` (`LC_ALL` > `LC_MESSAGES` > `LANG`); labels in
+`Messages` (library) and `S` (interface); rules: `Tr(fr, en)` in the
+catalog; messages from external tools are not translated; decimal comma
+in French.
 
 [[gui]]
-== Interface Flutter
+== Flutter interface
 
-`gui/` dépend de la bibliothèque par `path: ../`.
+`gui/` depends on the library through `path: ../`.
 
 ----
-gui/lib/main.dart                  Application, navigation, glisser-déposer, progression
-gui/lib/app_state.dart             AppState (ChangeNotifier) et GuiSettings (shared_preferences)
-gui/lib/strings.dart               Libellés propres à l'interface (fr/en)
-gui/lib/screens/analysis_screen.dart   Source + onglets Synthèse / Problèmes, correction, export
-gui/lib/screens/folder_screen.dart     Tableau triable, tendance (sortReports)
-gui/lib/screens/settings_screen.dart   Langue, thème, profil, contextes, outils, YAML
+gui/lib/main.dart                  Application, navigation, drag-and-drop, progress
+gui/lib/app_state.dart             AppState (ChangeNotifier) and GuiSettings (shared_preferences)
+gui/lib/strings.dart               Interface-specific labels (fr/en)
+gui/lib/screens/analysis_screen.dart   Source + Summary / Findings tabs, fixing, export
+gui/lib/screens/folder_screen.dart     Sortable table, trend (sortReports)
+gui/lib/screens/settings_screen.dart   Language, theme, profile, contexts, tools, YAML
 gui/lib/editor.dart                detectEditor, editorCommandLine, openInEditor
-gui/lib/code_style.dart            Police du code (JetBrains Mono embarquée, gui/fonts/, OFL),
-                                   CodeFont (InheritedWidget), couleurs des jetons,
-                                   polices mono installées (fc-list)
-gui/lib/screens/rules_screen.dart      Règles : cases à cocher (GuiSettings.disabledRules, fusionné
-                                       à rules.disabled par buildConfig ; celles de baseConfig
-                                       sont verrouillées), recherche, filtres, règles rencontrées
-                                       (AppState.seenRules, mémorisées)
+gui/lib/code_style.dart            Code font (embedded JetBrains Mono, gui/fonts/, OFL),
+                                   CodeFont (InheritedWidget), token colors,
+                                   installed mono fonts (fc-list)
+gui/lib/screens/rules_screen.dart      Rules: checkboxes (GuiSettings.disabledRules, merged
+                                       into rules.disabled by buildConfig; those from baseConfig
+                                       are locked), search, filters, encountered rules
+                                       (AppState.seenRules, remembered)
 gui/lib/widgets/                   radar_chart (RadarPainter), score_panel, source_view,
-                                   findings_list, fix_panel (code de correction), split_view
-                                   (séparateur déplaçable), common (couleurs, badges, DeltaChip)
+                                   findings_list, fix_panel (fix code), split_view
+                                   (draggable divider), common (colors, badges, DeltaChip)
 ----
 
-`AppState` construit la configuration (`buildConfig` : YAML éventuel,
-profil, contextes, outils désactivés), lance `Engine` avec `onProgress` et un
-`CancelToken`, gère la référence, `proposeFix` / `applyFix` (copie `.orig`)
-et l'export. Attention : Flutter possède un widget `Baseline` ; importer
-`package:flutter/material.dart` avec `hide Baseline` là où la classe de la
-bibliothèque est utilisée.
+`AppState` builds the configuration (`buildConfig`: optional YAML,
+profile, contexts, disabled tools), runs `Engine` with `onProgress` and a
+`CancelToken`, manages the baseline, `proposeFix` / `applyFix` (`.orig` copy)
+and the export. Beware: Flutter has a `Baseline` widget; import
+`package:flutter/material.dart` with `hide Baseline` wherever the library's
+class is used.
 
-Tests : `flutter test` (état, tri, radar, écrans). Captures hors écran avec
-les vraies polices système :
+Tests: `flutter test` (state, sorting, radar, screens). Off-screen captures with
+the real system fonts:
 
 [source,bash]
 ----
 cd gui && SCREENSHOT_DIR=/tmp/shots flutter test test/screenshot_test.dart
 ----
 
-L'interface est déclarée dans le lanceur MainGUI (`kToolSpecs`, id
-`check_script`, commande `check-script-gui`, bundle `check_script_gui`).
+The interface is declared in the MainGUI launcher (`kToolSpecs`, id
+`check_script`, command `check-script-gui`, bundle `check_script_gui`).
 
 == Tests
 
 [source,bash]
 ----
-dart test                                  # bibliothèque et CLI
-UPDATE_GOLDEN=1 dart test test/corpus_test.dart   # régénérer les instantanés (après vérification)
+dart test                                  # library and CLI
+UPDATE_GOLDEN=1 dart test test/corpus_test.dart   # regenerate snapshots (after checking)
 dart analyze --fatal-infos
 (cd gui && flutter analyze && flutter test)
 ----
 
 [cols="2,5",options="header"]
 |===
-|Fichier |Contenu
-|`builtin_rules_test.dart`, `new_rules_test.dart` |Chaque règle (déclencheur / cas sain), dialectes, contextes, profils, entropie, catalogue
-|`ast_test.dart` |Faits extraits de l'arbre shfmt réel ; règles sur l'arbre ; `loadAst`
-|`parsers_test.dart` |Parseurs sur les sorties réelles des outils
+|File |Content
+|`builtin_rules_test.dart`, `new_rules_test.dart` |Each rule (trigger / clean case), dialects, contexts, profiles, entropy, catalog
+|`ast_test.dart` |Facts extracted from the real shfmt tree; rules on the tree; `loadAst`
+|`parsers_test.dart` |Parsers on the tools' real outputs
 |`suppressions_test.dart` |Directives
-|`baseline_test.dart` |Empreintes, comparaison
-|`fixer_test.dart` |Remplacements ShellCheck, corrections intégrées, abandon, diff
-|`formats_test.dart` |SARIF, HTML, conseils, secrets externes, progression, annulation
-|`engine_test.dart`, `scoring_test.dart`, `config_test.dart` |Moteur, notation, configuration
-|`reporters_test.dart`, `cli_test.dart` |Rapports, options et codes de sortie
-|`corpus_test.dart` |Instantanés, règles obligatoires / interdites, plages de niveaux
-|`v080_test.dart` |Directives obsolètes (MNT011), explication de la note et gain rapide, SARIF `fixes`, cache des résultats, `--changed-since` (dépôt git réel), configuration de projet
-|`improvements_test.dart` |Même règle entre outils, exclusions transmises, `--fix` et règles désactivées, doublons multi-lignes, `# noqa` / `# nosec`, analyses parallèles, cache Semgrep, export YAML (aller-retour), rapport HTML de dossier, calibrage Python
-|`python_test.dart` |Parseurs des outils Python (sorties réelles de `fixtures/outputs/python/`, capturées sur `fixtures/bad.py`), dédoublonnage, secrets, règles intégrées Python (lexer et `ast` réel), `--fix`, découverte, `pythonTarget`
-|`fix_suggestions_test.dart` |Corrections par problème, exemples, rapport HTML
-|`integration_test.dart` |Vrais outils (ignorés s'ils sont absents), dont Ruff, Bandit, mypy, Radon, Vermin sur `bad.py` / `good.py`
+|`baseline_test.dart` |Fingerprints, comparison
+|`fixer_test.dart` |ShellCheck replacements, built-in fixes, abort, diff
+|`formats_test.dart` |SARIF, HTML, hints, external secrets, progress, cancellation
+|`engine_test.dart`, `scoring_test.dart`, `config_test.dart` |Engine, scoring, configuration
+|`reporters_test.dart`, `cli_test.dart` |Reports, options and exit codes
+|`corpus_test.dart` |Snapshots, mandatory / forbidden rules, grade ranges
+|`v080_test.dart` |Obsolete directives (MNT011), score explanation and quick win, SARIF `fixes`, results cache, `--changed-since` (real git repository), project configuration
+|`improvements_test.dart` |Same rule across tools, forwarded exclusions, `--fix` and disabled rules, multi-line duplicates, `# noqa` / `# nosec`, parallel analyses, Semgrep cache, YAML export (round trip), folder HTML report, Python calibration
+|`python_test.dart` |Python tool parsers (real outputs from `fixtures/outputs/python/`, captured on `fixtures/bad.py`), deduplication, secrets, built-in Python rules (lexer and real `ast`), `--fix`, discovery, `pythonTarget`
+|`fix_suggestions_test.dart` |Per-finding fixes, examples, HTML report
+|`integration_test.dart` |Real tools (skipped if absent), including Ruff, Bandit, mypy, Radon, Vermin on `bad.py` / `good.py`
 |===
 
-Toute correction de règle s'accompagne d'un test qui échoue avant la
-correction ; tout faux positif trouvé sur un script réel rejoint le corpus.
+Every rule fix comes with a test that fails before the
+fix; every false positive found on a real script joins the corpus.
 
-== Commits et publication
+== Commits and releases
 
-Les messages de commit suivent les
-https://www.conventionalcommits.org/fr/[Conventional Commits] : types et
-portées en anglais, description en français, sans point final, première
-ligne de 100 caractères au plus.
+Commit messages follow
+https://www.conventionalcommits.org/[Conventional Commits]: types and
+scopes in English, description in French (the project's convention), no
+trailing period, first line of at most 100 characters.
 
 [source]
 ----
 feat(gui): ajoute l'onglet Règles
 fix(flatpak): lance les outils par leur chemin absolu
 docs(user): précise --changed-since
-feat(engine)!: change le format JSON        ← « ! » ou « BREAKING CHANGE: » : incompatible
+feat(engine)!: change le format JSON        ← "!" or "BREAKING CHANGE:": incompatible
 ----
 
-Types : `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
-`style`, `chore`, `revert`. Portées usuelles : `engine`, `cli`, `gui`,
+Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
+`style`, `chore`, `revert`. Usual scopes: `engine`, `cli`, `gui`,
 `python`, `rules`, `reporters`, `flatpak`, `appimage`, `rpm`, `ci`, `doc`.
 
-* *Contrôle local* : `scripts/install-git-hooks.sh` active `.githooks/`
-  (`core.hooksPath`) ; le hook `commit-msg` refuse un message non conforme
-  (`git commit --no-verify` pour passer outre).
-* *Contrôle CI* : `.github/workflows/commits.yml` vérifie les nouveaux
-  commits de chaque push et pull request (`tool/commit_lint.dart --range`).
-* *Publication* : `dart run tool/release.dart --dry-run` affiche la version
-  suivante et la section du CHANGELOG ; sans `--dry-run`, synchronise les
-  fichiers de version, écrit le CHANGELOG, commite `chore(release): X.Y.Z`
-  et tague `vX.Y.Z` (`--push` pour pousser, ce qui déclenche la publication
-  GitHub). Version : `feat` → mineure, autre changement → correctif,
-  incompatible → majeure (mineure tant que la version est 0.x). Les notes
-  rédigées sous « ## Non publié » sont gardées en tête de la section.
+* *Local check*: `scripts/install-git-hooks.sh` enables `.githooks/`
+  (`core.hooksPath`); the `commit-msg` hook rejects a non-conforming message
+  (`git commit --no-verify` to bypass it).
+* *CI check*: `.github/workflows/commits.yml` checks the new
+  commits of each push and pull request (`tool/commit_lint.dart --range`).
+* *Release*: `dart run tool/release.dart --dry-run` displays the next
+  version and the CHANGELOG section; without `--dry-run`, it synchronizes the
+  version files, writes the CHANGELOG, commits `chore(release): X.Y.Z`
+  and tags `vX.Y.Z` (`--push` to push, which triggers the GitHub
+  release). Version: `feat` → minor, other change → patch,
+  incompatible → major (minor while the version is 0.x). Notes
+  written under "## Non publié" are kept at the top of the section.
 
-== Build et packaging
+== Build and packaging
 
 `scripts/build-dist.sh [VERSION] [--rpm] [--install] [--skip-tests] [--no-gui]`
-(appelé aussi par l'orchestrateur `AuditTools/scripts/build-dist.sh`) :
-analyse et tests (Dart et Flutter), binaire CLI, bundle Flutter (version
-injectée par `--build-name`), page de manuel (asciidoctor), complétions,
-documentation et exemples CI, `.desktop` et icône, SBOM et rapport CVE si
-`sbom-generator` est présent, archive, RPM (`scripts/build-rpm.sh`, depuis
-`git archive HEAD` : seul le contenu commité est empaqueté).
+(also called by the `AuditTools/scripts/build-dist.sh` orchestrator):
+analysis and tests (Dart and Flutter), CLI binary, Flutter bundle (version
+injected by `--build-name`), man page (asciidoctor), completions,
+documentation and CI examples, `.desktop` and icon, SBOM and CVE report if
+`sbom-generator` is present, archive, RPM (`scripts/build-rpm.sh`, from
+`git archive HEAD`: only committed content is packaged).
 
-`scripts/build-appimage.sh [--skip-build]` : bundle Flutter et CLI
-compilée dans un AppDir (`AppRun` : interface par défaut, CLI avec `--cli`
-ou via un lien nommé `check-script`), `.desktop`, icône et métadonnées
-AppStream communs (`packaging/linux/`), puis `appimagetool` (PATH,
-`APPIMAGETOOL`, ou téléchargé dans `build/appimage/`) → `dist/CheckScript-VERSION-ARCH.AppImage`.
+`scripts/build-appimage.sh [--skip-build]`: Flutter bundle and compiled
+CLI in an AppDir (`AppRun`: interface by default, CLI with `--cli`
+or through a link named `check-script`), shared `.desktop`, icon and AppStream
+metadata (`packaging/linux/`), then `appimagetool` (PATH,
+`APPIMAGETOOL`, or downloaded into `build/appimage/`) → `dist/CheckScript-VERSION-ARCH.AppImage`.
 
-`scripts/build-flatpak.sh [--install] [--skip-build]` : mêmes binaires,
-manifeste `packaging/flatpak/fr.chla28.check_script_gui.yml` (runtime
-GNOME 50, qui fournit GTK 3), `flatpak-builder` (ou `org.flatpak.Builder`),
-runtime et SDK installés depuis Flathub pour l'utilisateur →
-`dist/CheckScript-VERSION-ARCH.flatpak`. Dans le Flatpak,
-`ProcessCommandRunner` lance les outils sur l'hôte (`hostInvocation` :
-`flatpak-spawn --host --env=LC_ALL=C …`, présence vérifiée par `command -v`
-sur l'hôte) ; les lanceurs placent `TMPDIR` dans le cache de l'application,
-dont le chemin est identique dans le bac à sable et sur l'hôte.
+`scripts/build-flatpak.sh [--install] [--skip-build]`: same binaries,
+manifest `packaging/flatpak/fr.chla28.check_script_gui.yml` (GNOME 50
+runtime, which provides GTK 3), `flatpak-builder` (or `org.flatpak.Builder`),
+runtime and SDK installed from Flathub for the user →
+`dist/CheckScript-VERSION-ARCH.flatpak`. Inside the Flatpak,
+`ProcessCommandRunner` runs the tools on the host (`hostInvocation`:
+`flatpak-spawn --host --env=LC_ALL=C …`, presence checked with `command -v`
+on the host); the launchers put `TMPDIR` in the application cache,
+whose path is identical in the sandbox and on the host.
 
-Dans le Flatpak, le PATH de l'utilisateur sur l'hôte est lu une fois par
-un shell de connexion (`bash -lc`, pour `~/.local/bin`, `~/bin`…) et chaque
-outil est lancé par son *chemin absolu* résolu sur l'hôte : le portail
-cherche l'exécutable avec son propre PATH minimal, pas celui de `--env`.
+Inside the Flatpak, the user's PATH on the host is read once by
+a login shell (`bash -lc`, for `~/.local/bin`, `~/bin`…) and each
+tool is launched by its *absolute path* resolved on the host: the portal
+looks for the executable with its own minimal PATH, not the one from `--env`.
 
-*Publication* (`.github/workflows/release.yml`) : à chaque tag `v*`, tests
-(sans outils externes, pour des résultats indépendants des versions d'outils
-des distributions), puis archive, AppImage et Flatpak (Ubuntu 24.04), RPM
-(conteneur Fedora 44), et release GitHub avec les fichiers et l'extrait du
-CHANGELOG. Flutter est figé (`FLUTTER_VERSION`).
+*Release* (`.github/workflows/release.yml`): on each `v*` tag, tests
+(without external tools, for results independent of the tool versions
+shipped by distributions), then archive, AppImage and Flatpak (Ubuntu 24.04), RPM
+(Fedora 44 container), and GitHub release with the files and the CHANGELOG
+excerpt. Flutter is pinned (`FLUTTER_VERSION`).
 
-Les deux scripts partagent `scripts/package-common.sh` et affichent la glibc
-minimale requise par les binaires (2.34 actuellement : Rocky 9, runtimes
-Flatpak) ; pour une AppImage largement compatible, construire sur la
-distribution la plus ancienne visée.
+Both scripts share `scripts/package-common.sh` and display the minimum
+glibc required by the binaries (currently 2.34: Rocky 9, Flatpak
+runtimes); for a widely compatible AppImage, build on the oldest
+targeted distribution.
 
-Les specs neutralisent le strip et le debuginfo (ils corrompent les binaires
-AOT Dart) ; le spec de l'interface désactive le scan automatique des
-dépendances (moteur Flutter embarqué). Licence : LGPL-3.0-or-later
-(`LICENSE`), reprise par les specs et les métadonnées AppStream.
+The specs neutralize strip and debuginfo (they corrupt Dart AOT
+binaries); the interface spec disables automatic dependency
+scanning (embedded Flutter engine). License: LGPL-3.0-or-later
+(`LICENSE`), reused by the specs and the AppStream metadata.
 
-La version figure dans `pubspec.yaml`, `gui/pubspec.yaml`,
-`lib/src/version.dart` et `CHANGELOG.md` ; `build-dist.sh` signale un
-écart entre les deux premiers fichiers Dart.
+The version appears in `pubspec.yaml`, `gui/pubspec.yaml`,
+`lib/src/version.dart` and `CHANGELOG.md`; `build-dist.sh` reports a
+mismatch between the first two Dart files.

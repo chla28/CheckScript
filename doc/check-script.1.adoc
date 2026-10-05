@@ -1,211 +1,211 @@
 = check-script(1)
 :doctype: manpage
-:manmanual: Manuel de check-script
+:manmanual: check-script Manual
 :mansource: check-script
-:lang: fr
+:lang: en
 
-== NOM
+== NAME
 
-check-script - évalue la qualité et la sécurité de scripts shell et Python
+check-script - evaluates the quality and security of shell and Python scripts
 
 == SYNOPSIS
 
-*check-script* [_OPTIONS_] _SCRIPT_|_DOSSIER_|*-*...
+*check-script* [_OPTIONS_] _SCRIPT_|_FOLDER_|*-*...
 
 *check-script lsp* [*--lang* *fr*|*en*]
 
 == DESCRIPTION
 
-*check-script* note des scripts shell ou Python 3 sur cinq catégories (Sécurité,
-Robustesse, Maintenabilité, Portabilité, Performance), chacune sur 10, avec le
-nombre de problèmes par sévérité (Critical, High, Medium, Low), une note
-globale et un niveau de A à E.
+*check-script* scores shell or Python 3 scripts over five categories (Security,
+Robustness, Maintainability, Portability, Performance), each out of 10, with the
+number of issues by severity (Critical, High, Medium, Low), an overall score
+and a grade from A to E.
 
-Il exploite *shellcheck*(1), *shfmt*(1), *bashate*(1), *checkbashisms*(1), *ruff*(1),
+It makes use of *shellcheck*(1), *shfmt*(1), *bashate*(1), *checkbashisms*(1), *ruff*(1),
 *bandit*(1), *semgrep*(1), *mypy*(1), *radon*(1), *vermin*(1),
-*gitleaks*(1), *trufflehog*(1) et *bash -n* pour le shell ; *ruff*(1),
-*bandit*(1), *semgrep*(1), *mypy*(1), *radon*(1), *vermin*(1) (et, sur
-demande, *pylint*(1), *pyright*(1)) pour Python, lorsqu'ils sont installés ;
-il les complète par des règles intégrées (voir *--list-rules*).
+*gitleaks*(1), *trufflehog*(1) and *bash -n* for shell; *ruff*(1),
+*bandit*(1), *semgrep*(1), *mypy*(1), *radon*(1), *vermin*(1) (and, on
+request, *pylint*(1), *pyright*(1)) for Python, when they are installed;
+it complements them with built-in rules (see *--list-rules*).
 
-Un script est traité comme Python si son shebang désigne *python* ou, sans
-shebang, si son extension est *.py* ou *.pyw*.
+A script is treated as Python if its shebang names *python* or, without a
+shebang, if its extension is *.py* or *.pyw*.
 
-Un _DOSSIER_ est parcouru récursivement (fichiers *.sh*, *.bash*, *.ksh*,
-*.dash*, *.zsh*, *.py*, *.pyw* et fichiers sans extension dont le shebang
-désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
-*__pycache__* et *node_modules* exclus).
-*-* lit le script sur l'entrée standard.
+A _FOLDER_ is scanned recursively (*.sh*, *.bash*, *.ksh*,
+*.dash*, *.zsh*, *.py*, *.pyw* files and extensionless files whose shebang
+names a shell or Python; hidden folders, *venv*, *site-packages*,
+*__pycache__* and *node_modules* are excluded).
+*-* reads the script from standard input.
 
 == OPTIONS
 
-*-o, --output* _FICHIER_::
-  Écrit le rapport dans _FICHIER_ ; format selon l'extension (*.md*, *.adoc*,
-  *.html*, *.json*, *.sarif*, *.codeclimate.json*, *.txt*). Répétable.
+*-o, --output* _FILE_::
+  Writes the report to _FILE_; format chosen by extension (*.md*, *.adoc*,
+  *.html*, *.json*, *.sarif*, *.codeclimate.json*, *.txt*). Repeatable.
 
 *-f, --format* _FORMAT_::
   *terminal*, *md*, *adoc*, *html*, *pdf*, *json*, *sarif*, *codeclimate* (GitLab
-  Code Quality), *junit* (JUnit XML) ou *github* (annotations GitHub
-  Actions) : format de la sortie standard, et des fichiers *-o* sans
-  extension reconnue (l'extension prime).
+  Code Quality), *junit* (JUnit XML) or *github* (GitHub Actions
+  annotations): format of the standard output, and of *-o* files with no
+  recognized extension (the extension takes precedence).
 
 *-w, --watch*::
-  Réanalyse chaque script à son enregistrement (les scripts modifiés, ou
-  toutes les cibles si des fichiers *-o* sont écrits) ; Ctrl+C pour arrêter.
+  Re-analyzes each script when it is saved (the modified scripts, or
+  all targets if *-o* files are written); Ctrl+C to stop.
 
 *-l, --lang* *fr*|*en*::
-  Langue du rapport (défaut : *LC_ALL*, *LC_MESSAGES* puis *LANG*).
+  Report language (default: *LC_ALL*, *LC_MESSAGES* then *LANG*).
 
-*-s, --shell* _DIALECTE_::
-  Force le dialecte (*sh*, *bash*, *dash*, *ksh*, *zsh*, *python*).
+*-s, --shell* _DIALECT_::
+  Forces the dialect (*sh*, *bash*, *dash*, *ksh*, *zsh*, *python*).
 
 *--python-target* _VERSION_::
-  Version minimale de Python que les scripts doivent supporter (défaut :
-  *3.9*) : transmise à vermin, ruff, pylint et pyright.
+  Minimum Python version the scripts must support (default:
+  *3.9*): passed to vermin, ruff, pylint and pyright.
 
 *-p, --profile* *strict*|*default*|*legacy*::
-  Profil de notation et de seuils.
+  Scoring and threshold profile.
 
 *--context* *root*|*cron*|*systemd*|*interactive*::
-  Contexte d'exécution : active des règles dédiées et relève certaines
-  sévérités. Répétable.
+  Execution context: enables dedicated rules and raises some
+  severities. Repeatable.
 
 *--follow-source*::
-  Suit les fichiers sourcés (*shellcheck -x*).
+  Follows sourced files (*shellcheck -x*).
 
-*-c, --config* _FICHIER_::
-  Configuration YAML (défaut : *./.checkscript.yaml* puis
+*-c, --config* _FILE_::
+  YAML configuration (default: *./.checkscript.yaml* then
   *~/.config/check-script/config.yaml*).
 
-*--with* _OUTIL_::
-  Active un outil désactivé par défaut (*pylint*, *pyright*). Répétable ou
-  séparé par des virgules.
+*--with* _TOOL_::
+  Enables a tool that is disabled by default (*pylint*, *pyright*). Repeatable or
+  comma-separated.
 
-*--without* _OUTIL_::
-  Désactive un outil : *shellcheck*, *shfmt*, *bashate*, *checkbashisms*,
+*--without* _TOOL_::
+  Disables a tool: *shellcheck*, *shfmt*, *bashate*, *checkbashisms*,
   *gitleaks*, *trufflehog*, *syntax*, *ruff*, *bandit*, *semgrep*, *mypy*,
   *pyright*, *pylint*, *radon*, *vermin*, *pydeps*, *pip-audit*, *hadolint*,
-  *actionlint*, *zizmor*, *commands*, *custom* ou *builtin*. Répétable ou
-  séparé par des virgules.
+  *actionlint*, *zizmor*, *commands*, *custom* or *builtin*. Repeatable or
+  comma-separated.
 
 *--no-external*::
-  N'utilise que les règles intégrées.
+  Uses only the built-in rules.
 
-*--ref* _RÉFÉRENCE_::
-  N'affiche que les problèmes rattachés à cette référence (CWE, OWASP,
-  ANSSI ; début du nom, sans casse). Répétable.
+*--ref* _REFERENCE_::
+  Shows only the issues attached to this reference (CWE, OWASP,
+  ANSSI; start of the name, case-insensitive). Repeatable.
 
 *--no-embedded*::
-  Dans un dossier, n'analyse pas les scripts intégrés (GitHub Actions,
+  In a folder, does not analyze embedded scripts (GitHub Actions,
   GitLab CI, Dockerfile, Makefile, Ansible).
 
-*--dashboard* _FICHIER.html_::
-  Tableau de bord d'équipe (un dépôt par dossier cible, évolution).
+*--dashboard* _FILE.html_::
+  Team dashboard (one repository per target folder, trends).
 
-*--history-dir* _DOSSIER_::
-  Enregistre l'historique des dossiers analysés dans _DOSSIER_.
+*--history-dir* _FOLDER_::
+  Stores the history of analyzed folders in _FOLDER_.
 
 *--changed-since* _REF_::
-  N'analyse que les scripts modifiés depuis la référence git _REF_.
+  Analyzes only the scripts modified since the git reference _REF_.
 
 *--no-cache*::
-  Réanalyse tout, sans réutiliser les rapports des scripts inchangés
+  Re-analyzes everything, without reusing the reports of unchanged scripts
   (_~/.cache/check-script/results_).
 
 *--explain*::
-  Terminal : coût de chaque règle sur la note, et gain en la corrigeant.
+  Terminal: cost of each rule on the score, and gain from fixing it.
 
 *--sort* *category*|*impact*::
-  Terminal : problèmes par catégorie, ou par gain rapide.
+  Terminal: issues by category, or by quick gain.
 
 *-j, --jobs* _N_::
-  Scripts d'un dossier analysés simultanément (défaut : selon le nombre de
-  processeurs ; *1* : l'un après l'autre).
+  Scripts of a folder analyzed concurrently (default: depends on the number of
+  processors; *1*: one after the other).
 
-*-b, --baseline* _RAPPORT.json_::
-  Rapport JSON de référence : seuls les nouveaux problèmes sont détaillés et
-  l'évolution des notes est affichée.
+*-b, --baseline* _REPORT.json_::
+  Baseline JSON report: only new issues are detailed and
+  the evolution of the scores is shown.
 
-*--fail-on-new* _SÉVÉRITÉ_::
-  Avec *--baseline* : code de sortie 1 si un nouveau problème atteint cette
-  sévérité.
+*--fail-on-new* _SEVERITY_::
+  With *--baseline*: exit code 1 if a new issue reaches this
+  severity.
 
 *--fix*::
-  Corrige les défauts sûrs dans le fichier (corrections ShellCheck,
-  corrections intégrées, formatage shfmt). Abandonne si la syntaxe devenait
-  invalide.
+  Fixes safe defects in the file (ShellCheck fixes,
+  built-in fixes, shfmt formatting). Aborts if the syntax would become
+  invalid.
 
 *--dry-run*::
-  Avec *--fix* : affiche le diff unifié sans modifier le fichier.
+  With *--fix*: prints the unified diff without modifying the file.
 
 *--backup*::
-  Avec *--fix* : conserve l'original en _FICHIER_*.orig*.
+  With *--fix*: keeps the original as _FILE_*.orig*.
 
 *--details*, *--summary*::
-  Terminal : tous les problèmes avec leur correction / synthèse seule.
+  Terminal: all issues with their fix / summary only.
 
 *--no-source*::
-  Terminal : n'affiche pas la ligne de code (et le repère de colonne) sous
-  chaque problème.
+  Terminal: does not print the line of code (and the column marker) under
+  each issue.
 
 *--color*, *--no-color*::
-  Force ou désactive la couleur (défaut : automatique ; *NO_COLOR* respecté).
+  Forces or disables color (default: automatic; *NO_COLOR* is honored).
 
 *-q, --quiet*::
-  Aucun rapport sur la sortie standard.
+  No report on standard output.
 
-*--fail-under* _NOTE_|_CATÉGORIE_=_NOTE_::
-  Code de sortie 1 si la note globale, ou celle d'une catégorie, est
-  inférieure au seuil. Séparateur *,* ; décimales avec un point.
+*--fail-under* _SCORE_|_CATEGORY_=_SCORE_::
+  Exit code 1 if the overall score, or that of a category, is
+  below the threshold. Separator *,*; decimals with a dot.
 
 *--list-tools*, *--list-rules*::
-  Outils détectés / règles intégrées.
+  Detected tools / built-in rules.
 
 *--all*::
-  Avec *--list-rules* : aussi les codes des outils classés par check-script.
+  With *--list-rules*: also the tool codes classified by check-script.
 
 *-v, --version*, *-h, --help*::
-  Version / aide.
+  Version / help.
 
 == DIRECTIVES
 
-Dans le script :
+In the script:
 
-  # check-script disable=RÈGLE[,RÈGLE...]       (ligne courante, ou suivante si commentaire seul)
-  # check-script disable-next-line=RÈGLE[,...]
-  # check-script disable-file=RÈGLE[,...]
+  # check-script disable=RULE[,RULE...]       (current line, or next one if comment only)
+  # check-script disable-next-line=RULE[,...]
+  # check-script disable-file=RULE[,...]
 
-Jokers : *SC20\**, *all*.
+Wildcards: *SC20\**, *all*.
 
-== CODES DE SORTIE
+== EXIT STATUS
 
-*0*:: Analyse effectuée.
-*1*:: Seuil non atteint (*--fail-under*, *--fail-on-new*).
-*2*:: Erreur d'usage ou de configuration.
-*3*:: Script introuvable ou illisible, rapport impossible à écrire.
+*0*:: Analysis performed.
+*1*:: Threshold not met (*--fail-under*, *--fail-on-new*).
+*2*:: Usage or configuration error.
+*3*:: Script not found or unreadable, report cannot be written.
 
-== SERVEUR LSP
+== LSP SERVER
 
-*check-script lsp* est un serveur LSP (Language Server Protocol) sur
-l'entrée et la sortie standard, pour les éditeurs (extension VS Code, plugin
-Eclipse, greffon LSP de Geany, Neovim…) : diagnostics (analyse complète à
-l'ouverture et à l'enregistrement, règles intégrées pendant la frappe),
-corrections rapides, survol, formatage (shfmt, ruff format). Options
-d'initialisation : _lang_, _profile_, _analyzeOnType_, _typingDelay_.
+*check-script lsp* is an LSP (Language Server Protocol) server on
+standard input and output, for editors (VS Code extension, Eclipse
+plugin, Geany LSP plugin, Neovim…): diagnostics (full analysis on open
+and on save, built-in rules while typing), quick fixes, hover,
+formatting (shfmt, ruff format). Initialization options:
+_lang_, _profile_, _analyzeOnType_, _typingDelay_.
 
-== EXEMPLES
+== EXAMPLES
 
   check-script deploy.sh
-  check-script --profile strict --context root -o rapport.html deploy.sh
+  check-script --profile strict --context root -o report.html deploy.sh
   check-script --fix --dry-run scripts/
   check-script -q --fail-under 7 --fail-under security=8 -o r.sarif scripts/
-  check-script -b ancien.json --fail-on-new high scripts/
+  check-script -b old.json --fail-on-new high scripts/
 
-== FICHIERS
+== FILES
 
-_.checkscript.yaml_ (dossier du script, puis parents jusqu'à la racine git), _~/.config/check-script/config.yaml_::
-  Configuration (exemple : _/usr/share/doc/check-script/checkscript.example.yaml_).
+_.checkscript.yaml_ (script folder, then parents up to the git root), _~/.config/check-script/config.yaml_::
+  Configuration (example: _/usr/share/doc/check-script/checkscript.example.yaml_).
 
-== VOIR AUSSI
+== SEE ALSO
 
 *shellcheck*(1), *shfmt*(1), *bashate*(1), *checkbashisms*(1)

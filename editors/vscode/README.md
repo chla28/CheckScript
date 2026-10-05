@@ -1,34 +1,36 @@
-# CheckScript pour VS Code
+# CheckScript for VS Code
 
-Analyse les scripts shell et Python — et le shell des workflows GitHub
-Actions, de GitLab CI, des Dockerfile, des Makefile et des tâches Ansible —
-avec [CheckScript](https://github.com/chla28/CheckScript) :
+*[Version française](README.fr.md)*
 
-- problèmes soulignés et listés dans le panneau *Problèmes* (sévérité,
-  règle, conseil, lien vers la documentation) ; analyse complète à
-  l'ouverture et à l'enregistrement, règles intégrées pendant la frappe ;
-- corrections rapides (ampoule, Ctrl+.) : corriger un problème ou toute la
-  règle, ignorer la règle sur la ligne ou dans le fichier ;
-- survol : explication, conseil et exemple « à éviter / à écrire » ;
-- note du script dans la barre d'état (clic : réanalyser) ;
-- *Formater le document* : shfmt (shell) ou `ruff format` (Python).
+Analyzes shell and Python scripts — and the shell of GitHub Actions
+workflows, GitLab CI, Dockerfiles, Makefiles and Ansible tasks —
+with [CheckScript](https://github.com/chla28/CheckScript):
 
-## Prérequis
+- issues underlined and listed in the *Problems* panel (severity,
+  rule, advice, link to the documentation); full analysis on open and on
+  save, built-in rules while typing;
+- quick fixes (light bulb, Ctrl+.): fix one issue or the whole rule,
+  ignore the rule on the line or in the file;
+- hover: explanation, advice and a "avoid / write" example;
+- script score in the status bar (click: re-analyze);
+- *Format Document*: shfmt (shell) or `ruff format` (Python).
 
-`check-script` 0.16 ou plus récent (RPM, archive ou `~/.local/bin`), et
-de préférence ShellCheck, shfmt, Ruff… L'extension lance `check-script lsp`.
+## Requirements
 
-## Réglages
+`check-script` 0.16 or later (RPM, archive or `~/.local/bin`), and
+preferably ShellCheck, shfmt, Ruff… The extension runs `check-script lsp`.
 
-| Réglage | Défaut | Rôle |
+## Settings
+
+| Setting | Default | Purpose |
 |---|---|---|
-| `checkScript.path` | `check-script` | Exécutable (PATH ou chemin absolu) |
-| `checkScript.lang` | langue de l'environnement | `fr` ou `en` |
-| `checkScript.profile` | celui de `.checkscript.yaml` | `strict`, `default`, `legacy` |
-| `checkScript.analyzeOnType` | `true` | Règles intégrées pendant la frappe |
-| `checkScript.typingDelay` | `600` | Pause de frappe (ms) |
+| `checkScript.path` | `check-script` | Executable (PATH or absolute path) |
+| `checkScript.lang` | environment language | `fr` or `en` |
+| `checkScript.profile` | the one from `.checkscript.yaml` | `strict`, `default`, `legacy` |
+| `checkScript.analyzeOnType` | `true` | Built-in rules while typing |
+| `checkScript.typingDelay` | `600` | Typing pause (ms) |
 
-La configuration du projet (`.checkscript.yaml` le plus proche) s'applique
-comme en ligne de commande.
+The project configuration (nearest `.checkscript.yaml`) applies as on the
+command line.
 
-Installation : `code --install-extension check-script-VERSION.vsix`.
+Installation: `code --install-extension check-script-VERSION.vsix`.

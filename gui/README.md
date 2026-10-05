@@ -1,15 +1,17 @@
 # check_script_gui
 
-Interface graphique de check-script (Flutter, Linux).
+*[Version française](README.fr.md)*
+
+Graphical interface of check-script (Flutter, Linux).
 
 ```bash
 cd gui
 flutter pub get
-flutter run -d linux     # lancement en développement
+flutter run -d linux     # run in development
 flutter test             # tests
-flutter build linux      # binaire de production
+flutter build linux      # production binary
 ```
 
-L'interface s'appuie sur le paquet `check_script` du dépôt (`path: ..`) et sur
-les outils externes détectés (voir `check-script --list-tools`). Le mode
-d'emploi est dans [`doc/user.adoc`](../doc/user.adoc).
+The interface relies on the repository's `check_script` package (`path: ..`)
+and on the detected external tools (see `check-script --list-tools`). The user
+manual is in [`doc/user.adoc`](../doc/user.adoc).

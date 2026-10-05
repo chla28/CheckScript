@@ -35,21 +35,23 @@ Map<String, String Function(String, String, String)> versionFiles = {
       s.replaceFirst(RegExp(r"appVersion = '[^']*'"), "appVersion = '$v'"),
   '.pre-commit-hooks.yaml': (s, old, v) =>
       s.replaceAll('rev: v$old', 'rev: v$v'),
-  'doc/user.adoc': (s, old, v) => s
-      .replaceAll('rev: v$old', 'rev: v$v')
-      .replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
+  for (final f in ['doc/user.adoc', 'doc/user.fr.adoc'])
+    f: (s, old, v) => s
+        .replaceAll('rev: v$old', 'rev: v$v')
+        .replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
   // Exemples d'utilisation de l'action GitHub.
-  'README.md': (s, old, v) =>
-      s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
+  for (final f in ['README.md', 'README.fr.md'])
+    f: (s, old, v) => s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
   'action.yml': (s, old, v) =>
       s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
   'doc/ci/github-actions.yml': (s, old, v) =>
       s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
   // Seule la version de check-script (l'exemple contient aussi celle de
   // ShellCheck).
-  'doc/developer.adoc': (s, old, v) => s.replaceAll(
-      '"tool": "check-script", "version": "$old"',
-      '"tool": "check-script", "version": "$v"'),
+  for (final f in ['doc/developer.adoc', 'doc/developer.fr.adoc'])
+    f: (s, old, v) => s.replaceAll(
+        '"tool": "check-script", "version": "$old"',
+        '"tool": "check-script", "version": "$v"'),
   // Extensions d'éditeurs.
   'editors/vscode/package.json': (s, old, v) =>
       s.replaceFirst('"version": "$old"', '"version": "$v"'),

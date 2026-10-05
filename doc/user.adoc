@@ -1,69 +1,67 @@
-= check-script — Guide utilisateur
+= check-script — User Guide
 :toc:
-:toc-title: Table des matières
+:toc-title: Table of contents
 :toclevels: 2
-:lang: fr
+:lang: en
 :source-highlighter: rouge
 :icons: font
 :sectnums:
 
-== Présentation
+== Overview
 
-`check-script` évalue un ou plusieurs scripts *shell* ou *Python 3* et
-produit un *classement sur cinq catégories*, chacune notée sur 10 :
+`check-script` evaluates one or more *shell* or *Python 3* scripts and
+produces a *ranking across five categories*, each scored out of 10:
 
 [cols="1,3",options="header"]
 |===
-|Catégorie |Ce qui est évalué
-|Sécurité |Injection de commande, secrets en dur, téléchargements exécutés, permissions dangereuses, TLS désactivé, PATH non sûr, fichiers sensibles modifiés…
-|Robustesse |Gestion des erreurs (`set -e`, `cd` non contrôlé, codes de retour ignorés), quoting, erreurs de syntaxe, CRLF…
-|Maintenabilité |Lisibilité, style, formatage, taille des fonctions, imbrication, commentaires…
-|Portabilité |Bashismes dans un script `/bin/sh` (dont ceux qui cassent sous dash), shebang, commandes obsolètes ou propres à une distribution…
-|Performance |Processus inutiles (`cat \| grep`, `expr`, commandes externes dans les boucles…)
+|Category |What is evaluated
+|Security |Command injection, hard-coded secrets, downloaded code that gets executed, dangerous permissions, disabled TLS, unsafe PATH, modified sensitive files…
+|Robustness |Error handling (`set -e`, unchecked `cd`, ignored return codes), quoting, syntax errors, CRLF…
+|Maintainability |Readability, style, formatting, function size, nesting, comments…
+|Portability |Bashisms in a `/bin/sh` script (including those that break under dash), shebang, obsolete or distribution-specific commands…
+|Performance |Needless processes (`cat \| grep`, `expr`, external commands in loops…)
 |===
 
-Pour chaque catégorie, le rapport indique le *nombre de problèmes par
-sévérité* (Critical / High / Medium / Low) et leur *total*, puis une *note
-globale* et un niveau de A à E. Chaque problème est accompagné d'un *conseil
-de correction* et, pour les outils externes, d'un lien vers leur
-documentation.
+For each category, the report gives the *number of issues by severity*
+(Critical / High / Medium / Low) and their *total*, then an *overall score*
+and a level from A to E. Each issue comes with a *fix suggestion* and, for
+external tools, a link to their documentation.
 
-L'outil exploite les analyseurs de référence lorsqu'ils sont installés
-(ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n`
-pour le shell ; Ruff, Bandit, Semgrep, mypy, Radon, Vermin — et en option
-Pylint, Pyright — pour Python, voir <<python>>) et les complète par des
-*règles intégrées* qui fonctionnent toujours (82 pour le shell, 10 pour
-Python), et par les *règles personnalisées* du projet. Il analyse aussi le
-shell *intégré* aux workflows GitHub Actions, à GitLab CI, aux Dockerfile,
-aux Makefile et aux tâches Ansible.
-Il sait aussi *corriger* les défauts sûrs (`--fix`), *comparer* deux analyses
-(référence) et s'intègre à l'intégration continue (SARIF, GitLab Code
-Quality, hook pre-commit). Une *interface graphique* (`check-script-gui`)
-reprend le même moteur.
+The tool uses the reference analyzers when they are installed (ShellCheck,
+shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n` for shell;
+Ruff, Bandit, Semgrep, mypy, Radon, Vermin — and optionally Pylint,
+Pyright — for Python, see <<python>>) and complements them with *built-in
+rules* that always work (82 for shell, 10 for Python), and with the
+project's *custom rules*. It also analyzes the shell *embedded* in GitHub
+Actions and GitLab CI workflows, Dockerfiles, Makefiles and Ansible tasks.
+It can also *fix* safe defects (`--fix`), *compare* two analyses
+(baseline) and integrates with continuous integration (SARIF, GitLab Code
+Quality, pre-commit hook). A *graphical interface* (`check-script-gui`)
+reuses the same engine.
 
-L'interface et les rapports sont disponibles en *français* et en *anglais*.
+The interface and the reports are available in *French* and in *English*.
 
 == Installation
 
-=== Depuis l'archive
+=== From the archive
 
 [source,bash]
 ----
 tar xzf check_script-VERSION-linux-x86_64.tar.gz
 cd check_script-VERSION-linux-x86_64
-./install.sh              # installation utilisateur (~/.local)
-sudo ./install.sh         # installation système (/usr/local)
-./install.sh --prefix=/opt/outils
+./install.sh              # user installation (~/.local)
+sudo ./install.sh         # system-wide installation (/usr/local)
+./install.sh --prefix=/opt/tools
 ----
 
-L'installation dépose la commande `check-script`, l'interface
-`check-script-gui` (avec son entrée de menu), la page de manuel
-(`man check-script`), les complétions bash et zsh et la documentation.
-Désinstallation : `./uninstall.sh` (mêmes options).
+The installation puts in place the `check-script` command, the
+`check-script-gui` interface (with its menu entry), the manual page
+(`man check-script`), the bash and zsh completions and the documentation.
+To uninstall: `./uninstall.sh` (same options).
 
-Le binaire CLI est autonome ; l'interface nécessite GTK 3.
+The CLI binary is self-contained; the interface requires GTK 3.
 
-=== Paquets RPM
+=== RPM packages
 
 [source,bash]
 ----
@@ -71,27 +69,27 @@ sudo dnf install ./check-script-VERSION-1.fc44.x86_64.rpm       # CLI
 sudo dnf install ./check-script-gui-VERSION-1.fc44.x86_64.rpm   # interface
 ----
 
-Le paquet CLI recommande ShellCheck, shfmt et checkbashisms, installés
-automatiquement si les dépendances faibles sont activées.
+The CLI package recommends ShellCheck, shfmt and checkbashisms, which are
+installed automatically if weak dependencies are enabled.
 
-Chaque version publiée sur GitHub (*Releases*) fournit l'archive, les RPM,
-l'AppImage et le Flatpak.
+Each version published on GitHub (*Releases*) provides the archive, the RPMs,
+the AppImage and the Flatpak.
 
 === AppImage
 
-Un seul fichier, sans installation, pour toute distribution récente (GTK 3
-requis, présent sur tout bureau) :
+A single file, no installation, for any recent distribution (GTK 3
+required, present on any desktop):
 
 [source,bash]
 ----
 chmod +x CheckScript-VERSION-x86_64.AppImage
-./CheckScript-VERSION-x86_64.AppImage [script.sh|dossier]    # interface
-./CheckScript-VERSION-x86_64.AppImage --cli script.sh         # ligne de commande
-ln -s "$PWD/CheckScript-VERSION-x86_64.AppImage" ~/.local/bin/check-script  # CLI directe
+./CheckScript-VERSION-x86_64.AppImage [script.sh|folder]    # interface
+./CheckScript-VERSION-x86_64.AppImage --cli script.sh         # command line
+ln -s "$PWD/CheckScript-VERSION-x86_64.AppImage" ~/.local/bin/check-script  # direct CLI
 ----
 
-Sans FUSE (conteneur…), ajouter `APPIMAGE_EXTRACT_AND_RUN=1`. Les outils
-d'analyse sont ceux du système.
+Without FUSE (container…), add `APPIMAGE_EXTRACT_AND_RUN=1`. The analysis
+tools are those of the system.
 
 === Flatpak
 
@@ -102,188 +100,188 @@ flatpak run fr.chla28.check_script_gui                                # interfac
 flatpak run --command=check-script fr.chla28.check_script_gui s.sh    # CLI
 ----
 
-Le Flatpak lance les outils d'analyse *de l'hôte* (`flatpak-spawn --host`,
-permission `org.freedesktop.Flatpak`) : installer ShellCheck, shfmt, Ruff…
-sur le système comme pour la version native. Il accède à tout le système de
-fichiers (`--filesystem=host`) pour analyser et corriger les scripts où
-qu'ils soient ; ses réglages, cache et historique sont dans
+The Flatpak runs the analysis tools *of the host* (`flatpak-spawn --host`,
+`org.freedesktop.Flatpak` permission): install ShellCheck, shfmt, Ruff…
+on the system as for the native version. It has access to the whole file
+system (`--filesystem=host`) so that it can analyze and fix scripts
+wherever they are; its settings, cache and history are in
 `~/.var/app/fr.chla28.check_script_gui/`.
 
-=== Outils d'analyse (facultatifs mais recommandés)
+=== Analysis tools (optional but recommended)
 
-Sans eux, seules les règles intégrées s'appliquent et le rapport le signale.
-
-[cols="1,3,3",options="header"]
-|===
-|Outil |Apport |Installation (Fedora/RHEL — Debian/Ubuntu)
-|`shellcheck` |Référence de l'analyse statique shell (quoting, erreurs, portabilité POSIX…) ; propose des corrections |`dnf install ShellCheck` — `apt install shellcheck`
-|`shfmt` |Formatage canonique, arbre syntaxique pour des règles intégrées exactes, détection des constructions hors dialecte |`dnf install shfmt` — `apt install shfmt`
-|`bashate` |Règles de style (conventions OpenStack) |`pip install --user bashate`
-|`checkbashisms` |Bashismes dans les scripts `/bin/sh` |`dnf install devscripts-checkbashisms` — `apt install devscripts`
-|`gitleaks` |Détection de secrets (optionnel) |https://github.com/gitleaks/gitleaks/releases
-|`trufflehog` |Détection de secrets (optionnel, lancé sans vérification réseau) |https://github.com/trufflesecurity/trufflehog/releases
-|`bash` / `sh` |Contrôle syntaxique (`bash -n`) |présent sur toute distribution
-|`hadolint` |Dockerfile : bonnes pratiques et sécurité (versions épinglées, `USER`, caches…) ; les résultats ShellCheck qu'il relaie sont écartés |https://github.com/hadolint/hadolint/releases
-|`actionlint` |Workflows GitHub Actions : syntaxe, expressions, injections |https://github.com/rhysd/actionlint/releases
-|`zizmor` |Workflows GitHub Actions : audit de sécurité (actions non épinglées, déclencheurs dangereux, injections, persistance des identifiants…), sans accès réseau (`--offline`) |`pipx install zizmor`
-|===
-
-Pour les scripts Python :
+Without them, only the built-in rules apply and the report says so.
 
 [cols="1,3,3",options="header"]
 |===
-|Outil |Apport |Installation
-|`ruff` |Linter de référence (erreurs, bugs probables, sécurité, modernisation, performance) ; formatage ; propose des corrections |`pipx install ruff`
-|`bandit` |Sécurité (injections, `eval`, `pickle`, TLS désactivé, secrets…) |`pipx install bandit`
-|`semgrep` |Règles de sécurité et de correction du registre `p/python` (*accès réseau* à semgrep.dev) |`pipx install semgrep`
-|`mypy` |Typage : erreurs d'appels et d'opérandes détectées sans exécution |`pipx install mypy`
-|`radon` |Complexité cyclomatique et indice de maintenabilité |`pipx install radon`
-|`vermin` |Version minimale de Python requise (portabilité) |`pipx install vermin`
-|`pylint` |Linter complet, redondant avec Ruff : *désactivé par défaut* (`--with pylint`) |`pipx install pylint`
-|`pyright` |Typage, redondant avec mypy : *désactivé par défaut* (`--with pyright`) |`pipx install pyright`
-|`pip-audit` |Vulnérabilités connues des paquets déclarés dans les `requirements*.txt` du projet (*accès réseau* à PyPI / OSV) |`pipx install pip-audit`
-|`python3` |Contrôle syntaxique (compilation, sans rien écrire sur disque) et faits de l'arbre syntaxique pour les règles intégrées |présent sur toute distribution
+|Tool |Contribution |Installation (Fedora/RHEL — Debian/Ubuntu)
+|`shellcheck` |Reference for shell static analysis (quoting, errors, POSIX portability…); suggests fixes |`dnf install ShellCheck` — `apt install shellcheck`
+|`shfmt` |Canonical formatting, syntax tree for accurate built-in rules, detection of constructs outside the dialect |`dnf install shfmt` — `apt install shfmt`
+|`bashate` |Style rules (OpenStack conventions) |`pip install --user bashate`
+|`checkbashisms` |Bashisms in `/bin/sh` scripts |`dnf install devscripts-checkbashisms` — `apt install devscripts`
+|`gitleaks` |Secret detection (optional) |https://github.com/gitleaks/gitleaks/releases
+|`trufflehog` |Secret detection (optional, run without network verification) |https://github.com/trufflesecurity/trufflehog/releases
+|`bash` / `sh` |Syntax check (`bash -n`) |present on every distribution
+|`hadolint` |Dockerfile: best practices and security (pinned versions, `USER`, caches…); the ShellCheck results it relays are discarded |https://github.com/hadolint/hadolint/releases
+|`actionlint` |GitHub Actions workflows: syntax, expressions, injections |https://github.com/rhysd/actionlint/releases
+|`zizmor` |GitHub Actions workflows: security audit (unpinned actions, dangerous triggers, injections, credential persistence…), without network access (`--offline`) |`pipx install zizmor`
 |===
 
-Vérifier ce qui est détecté :
+For Python scripts:
+
+[cols="1,3,3",options="header"]
+|===
+|Tool |Contribution |Installation
+|`ruff` |Reference linter (errors, likely bugs, security, modernization, performance); formatting; suggests fixes |`pipx install ruff`
+|`bandit` |Security (injections, `eval`, `pickle`, disabled TLS, secrets…) |`pipx install bandit`
+|`semgrep` |Security and correctness rules from the `p/python` registry (*network access* to semgrep.dev) |`pipx install semgrep`
+|`mypy` |Typing: call and operand errors detected without running the code |`pipx install mypy`
+|`radon` |Cyclomatic complexity and maintainability index |`pipx install radon`
+|`vermin` |Minimum Python version required (portability) |`pipx install vermin`
+|`pylint` |Full linter, redundant with Ruff: *disabled by default* (`--with pylint`) |`pipx install pylint`
+|`pyright` |Typing, redundant with mypy: *disabled by default* (`--with pyright`) |`pipx install pyright`
+|`pip-audit` |Known vulnerabilities of the packages declared in the project's `requirements*.txt` (*network access* to PyPI / OSV) |`pipx install pip-audit`
+|`python3` |Syntax check (compilation, writing nothing to disk) and syntax-tree facts for the built-in rules |present on every distribution
+|===
+
+Check what is detected:
 
 [source,console]
 ----
 $ check-script --list-tools
-Outil           Langage   Statut              Version
-syntax          tous      intégré             bash -n / sh -n / python3 compile()
-shellcheck      shell     disponible          0.11.0
-bandit          python    disponible          1.9.4
-ruff            python    disponible          0.16.8
-semgrep         python    disponible          1.178.0
-mypy            python    disponible          2.3.1
-pyright         python    désactivé
-pylint          python    désactivé
-vermin          python    disponible          1.8.0
-radon           python    disponible          6.0.1
-gitleaks        tous      absent              (installer : https://github.com/gitleaks/gitleaks/releases)
-trufflehog      tous      absent              (installer : https://github.com/trufflesecurity/trufflehog/releases)
-checkbashisms   shell     disponible          2.26.5
-pydeps          python    disponible          3.14.7
-pip-audit       python    absent              (installer : pipx install pip-audit)
-custom          tous      intégré             0 règle(s) personnalisée(s)
-builtin         tous      intégré             82 + 10 règles
-shfmt           shell     disponible          ?
-bashate         shell     disponible          2.1.1
+Tool            Language  Status              Version
+syntax          all       built in            bash -n / sh -n / python3 compile()
+shellcheck      shell     available           0.11.0
+bandit          python    available           1.9.4
+ruff            python    available           0.16.8
+semgrep         python    available           1.178.0
+mypy            python    available           2.3.1
+pyright         python    disabled
+pylint          python    disabled
+vermin          python    available           1.8.0
+radon           python    available           6.0.1
+gitleaks        all       not installed       (install : https://github.com/gitleaks/gitleaks/releases)
+trufflehog      all       not installed       (install : https://github.com/trufflesecurity/trufflehog/releases)
+checkbashisms   shell     available           2.26.5
+pydeps          python    available           3.14.7
+pip-audit       python    not installed       (install : pipx install pip-audit)
+custom          all       built in            0 custom rule(s)
+builtin         all       built in            82 + 10 rules
+shfmt           shell     available           ?
+bashate         shell     available           2.1.1
 ----
 
-NOTE: `?` signifie que l'outil est présent mais n'affiche pas de numéro de
-version (cas du paquet `shfmt` de Fedora). L'absence de gitleaks et
-trufflehog n'est pas signalée dans les rapports : les règles intégrées SEC002
-et SEC022 couvrent déjà les secrets.
+NOTE: `?` means the tool is present but does not display a version number
+(the case of Fedora's `shfmt` package). The absence of gitleaks and
+trufflehog is not reported in the reports: the built-in rules SEC002
+and SEC022 already cover secrets.
 
-== Utilisation
+== Usage
 
 [source,bash]
 ----
-check-script mon_script.sh                          # rapport dans le terminal
-check-script --details mon_script.sh                # + tous les problèmes et leur correction
-check-script mon_script.sh -o rapport.html          # rapport HTML autonome
-check-script scripts/ -o dossier.html               # dossier : synthèse, règles fréquentes
-check-script -q deploy.sh -o r.md -o r.adoc         # fichiers seuls, rien à l'écran
-check-script scripts/                               # tous les scripts d'un dossier
-cat script.sh | check-script -                      # entrée standard
-check-script --lang en build.sh                     # rapport en anglais
+check-script my_script.sh                           # report in the terminal
+check-script --details my_script.sh                 # + every issue and its fix
+check-script my_script.sh -o report.html            # standalone HTML report
+check-script scripts/ -o folder.html                # folder: summary, frequent rules
+check-script -q deploy.sh -o r.md -o r.adoc         # files only, nothing on screen
+check-script scripts/                               # all the scripts of a folder
+cat script.sh | check-script -                      # standard input
+check-script --lang en build.sh                     # report in English
 check-script --profile strict --context root install.sh
-check-script --fix --dry-run deploy.sh              # corrections proposées (diff)
-check-script --fix --backup deploy.sh               # corrections appliquées
-check-script -b reference.json scripts/             # nouveaux problèmes seulement
-check-script outil.py                               # script Python
-check-script --python-target 3.6 --with pylint outil.py
-check-script Dockerfile .github/workflows/ci.yml    # scripts intégrés
-check-script --watch scripts/                       # réanalyse à chaque enregistrement
-check-script -o rapport.xml scripts/                # JUnit XML (Jenkins, GitLab)
+check-script --fix --dry-run deploy.sh              # proposed fixes (diff)
+check-script --fix --backup deploy.sh               # fixes applied
+check-script -b baseline.json scripts/              # new issues only
+check-script tool.py                                # Python script
+check-script --python-target 3.6 --with pylint tool.py
+check-script Dockerfile .github/workflows/ci.yml    # embedded scripts
+check-script --watch scripts/                       # re-analyze on every save
+check-script -o report.xml scripts/                 # JUnit XML (Jenkins, GitLab)
 ----
 
-Un *dossier* est parcouru récursivement ; y sont retenus les fichiers
-`.sh`, `.bash`, `.ksh`, `.dash`, `.zsh`, `.py`, `.pyw` et les fichiers sans
-extension dont le shebang désigne un shell ou Python. Les dossiers cachés
-(`.git`, `.venv`…) et de dépendances (`venv`, `site-packages`,
-`__pycache__`, `node_modules`) sont ignorés, sauf `.github`, `.gitlab` et
-`.gitlab-ci.yml`. S'y ajoutent les fichiers qui contiennent des scripts
-intégrés (voir <<integres>>), sauf avec `--no-embedded`.
+A *folder* is walked recursively; the files kept are `.sh`, `.bash`,
+`.ksh`, `.dash`, `.zsh`, `.py`, `.pyw` and files without an extension
+whose shebang designates a shell or Python. Hidden folders (`.git`,
+`.venv`…) and dependency folders (`venv`, `site-packages`, `__pycache__`,
+`node_modules`) are ignored, except `.github`, `.gitlab` and
+`.gitlab-ci.yml`. Files that contain embedded scripts are added (see
+<<integres>>), except with `--no-embedded`.
 
 === Options
 
 [cols="2,5",options="header"]
 |===
-|Option |Effet
-|`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension : `.md`, `.adoc`, `.html`, `.pdf` (voir <<pdf>>), `.json`, `.sarif`, `.codeclimate.json` (ou `gl-code-quality-report.json`), `.xml` (JUnit), `.txt`. Répétable.
-|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate`, `junit` (JUnit XML), `github` (annotations GitHub Actions) : format de la sortie standard, et des fichiers `-o` sans extension reconnue (l'extension prime).
-|`-l`, `--lang fr\|en` |Langue du rapport. Défaut : `LC_ALL`, `LC_MESSAGES` puis `LANG`.
-|`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Force le dialecte au lieu de le déduire du shebang (ou de l'extension `.py`).
-|`--python-target VERSION` |Version minimale de Python que les scripts doivent supporter (défaut : `3.9`, voir <<python>>).
-|`-p`, `--profile strict\|default\|legacy` |Profil de notation (voir <<profils>>).
-|`--context root\|cron\|systemd\|interactive` |Contexte d'exécution (voir <<contextes>>). Répétable.
-|`--follow-source` |Suit les fichiers sourcés (`shellcheck -x`).
-|`-c`, `--config FICHIER` |Fichier de configuration YAML (voir <<config>>).
-|`--with OUTIL` |Active un outil désactivé par défaut (`pylint`, `pyright`) ; répétable ou séparé par des virgules.
-|`--without OUTIL` |Désactive un outil (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…) ; répétable ou séparé par des virgules.
-|`--no-external` |N'utilise que les règles intégrées.
-|`--no-embedded` |Dans un dossier, ignore les scripts intégrés (voir <<integres>>).
-|`--ref RÉFÉRENCE` |N'affiche que les problèmes rattachés à cette référence normative, par début de nom et sans casse : `CWE-78`, `CWE-7` (toutes les CWE-7xx), `A08` (OWASP A08:2021), `CICD-SEC`, `ANSSI`, `ANSSI-BP-028 R59` (voir <<references>>). Répétable ; les notes restent celles de l'analyse complète.
-|`-w`, `--watch` |Après l'analyse, surveille les cibles : chaque script enregistré (ou créé) est réanalysé et son rapport affiché ; avec des fichiers `-o`, toutes les cibles sont réanalysées et les rapports réécrits (le cache rend l'opération rapide). Ctrl+C pour arrêter ; incompatible avec `--fix` et l'entrée standard.
-|`--dashboard FICHIER.html` |Tableau de bord d'équipe : chaque cible (dossier) est un dépôt ; note moyenne, évolution (courbe de l'historique), problèmes graves, niveaux, règles les plus fréquentes, scripts les plus faibles. L'historique est enregistré à chaque exécution.
-|`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
-|`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
-|`--[no-]cache` |Réutilise le rapport d'un script inchangé (défaut ; `~/.cache/check-script/results`). La clé couvre le contenu et le chemin du script, la configuration, la langue, les versions de check-script et des outils (et les règles Semgrep) ; une analyse où un outil a échoué n'est pas mise en cache ; désactivé avec `--follow-source`.
-|`--explain` |Terminal : ce que coûte chaque règle (points retirés à sa catégorie, gain sur la note globale en la corrigeant, correction automatique disponible).
-|`--sort category\|impact` |Terminal : problèmes par catégorie (défaut) ou par *gain rapide* (impact sur la note, corrections automatiques favorisées).
-|`-j`, `--jobs N` |Nombre de scripts d'un dossier analysés simultanément (défaut : selon le nombre de processeurs, au plus 4 ; `1` : l'un après l'autre). Les outils d'un même script tournent toujours en parallèle.
-|`-b`, `--baseline RAPPORT.json` |Référence : seuls les nouveaux problèmes sont détaillés, l'évolution des notes est affichée (voir <<reference>>).
-|`--fail-on-new SÉVÉRITÉ` |Avec `--baseline` : code de sortie 1 si un nouveau problème atteint cette sévérité.
-|`--fix` |Corrige les défauts sûrs dans le fichier (voir <<fix>>).
-|`--dry-run` |Avec `--fix` : affiche le diff unifié sans modifier le fichier.
-|`--backup` |Avec `--fix` : conserve l'original en `FICHIER.orig`.
-|`--details` |Terminal : tous les problèmes, avec leur conseil de correction (défaut : 10 par catégorie).
-|`--summary` |Terminal : synthèse seule.
-|`--[no-]source` |Terminal : affiche sous chaque problème la ligne de code concernée, avec un repère `^` sous la colonne signalée (défaut). Une ligne où un secret est détecté n'est jamais recopiée.
-|`--[no-]color` |Force ou désactive la couleur (défaut : automatique, `NO_COLOR` respecté).
-|`-q`, `--quiet` |Aucun rapport sur la sortie standard.
-|`--fail-under NOTE` / `--fail-under CATÉGORIE=NOTE` |Code de sortie 1 si la note globale, ou celle d'une catégorie, est inférieure au seuil. Répétable ; plusieurs seuils séparés par des virgules (`security=8,robustness=6.5`) ; décimales avec un point.
-|`--list-tools` / `--list-rules` |Outils détectés / règles intégrées.
-|`--list-rules --all` |Toutes les règles connues : règles intégrées et codes des outils classés par check-script (identifiant, outil, langage, catégorie, sévérité, titre).
-|`-v`, `--version` / `-h`, `--help` |Version / aide.
+|Option |Effect
+|`-o`, `--output FILE` |Writes the report to FILE; format according to the extension: `.md`, `.adoc`, `.html`, `.pdf` (see <<pdf>>), `.json`, `.sarif`, `.codeclimate.json` (or `gl-code-quality-report.json`), `.xml` (JUnit), `.txt`. Repeatable.
+|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate`, `junit` (JUnit XML), `github` (GitHub Actions annotations): format of the standard output, and of `-o` files without a recognized extension (the extension takes precedence).
+|`-l`, `--lang fr\|en` |Report language. Default: `LC_ALL`, `LC_MESSAGES` then `LANG`.
+|`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Forces the dialect instead of inferring it from the shebang (or from the `.py` extension).
+|`--python-target VERSION` |Minimum Python version the scripts must support (default: `3.9`, see <<python>>).
+|`-p`, `--profile strict\|default\|legacy` |Scoring profile (see <<profils>>).
+|`--context root\|cron\|systemd\|interactive` |Execution context (see <<contextes>>). Repeatable.
+|`--follow-source` |Follows sourced files (`shellcheck -x`).
+|`-c`, `--config FILE` |YAML configuration file (see <<config>>).
+|`--with TOOL` |Enables a tool disabled by default (`pylint`, `pyright`); repeatable or comma-separated.
+|`--without TOOL` |Disables a tool (`shellcheck`, `shfmt`, `bashate`, `checkbashisms`, `ruff`, `bandit`, `semgrep`, `mypy`, `radon`, `vermin`, `gitleaks`, `trufflehog`, `syntax`, `builtin`…); repeatable or comma-separated.
+|`--no-external` |Uses only the built-in rules.
+|`--no-embedded` |In a folder, ignores embedded scripts (see <<integres>>).
+|`--ref REFERENCE` |Shows only the issues attached to this normative reference, by prefix and case-insensitively: `CWE-78`, `CWE-7` (all CWE-7xx), `A08` (OWASP A08:2021), `CICD-SEC`, `ANSSI`, `ANSSI-BP-028 R59` (see <<references>>). Repeatable; the scores remain those of the full analysis.
+|`-w`, `--watch` |After the analysis, watches the targets: each script saved (or created) is re-analyzed and its report displayed; with `-o` files, all targets are re-analyzed and the reports rewritten (the cache makes this fast). Ctrl+C to stop; incompatible with `--fix` and standard input.
+|`--dashboard FILE.html` |Team dashboard: each target (folder) is a repository; average score, trend (history curve), serious issues, levels, most frequent rules, weakest scripts. The history is recorded on each run.
+|`--history-dir FOLDER` |Where to record the history of analyzed folders (default with `--dashboard`: `~/.local/share/check-script/history`); a versioned folder shares it within the team (same analysis paths, e.g. a nightly CI job).
+|`--changed-since REF` |Analyzes only the scripts modified since the git reference REF (commits, work in progress, new files), in the repository of the first target; no modified script: exit code 0. Ideal in CI (`--changed-since origin/main`) and in pre-commit.
+|`--[no-]cache` |Reuses the report of an unchanged script (default; `~/.cache/check-script/results`). The key covers the script's content and path, the configuration, the language, the versions of check-script and of the tools (and the Semgrep rules); an analysis where a tool failed is not cached; disabled with `--follow-source`.
+|`--explain` |Terminal: what each rule costs (points removed from its category, gain on the overall score if fixed, automatic fix available).
+|`--sort category\|impact` |Terminal: issues by category (default) or by *quick win* (impact on the score, automatic fixes favored).
+|`-j`, `--jobs N` |Number of scripts of a folder analyzed simultaneously (default: depends on the number of processors, at most 4; `1`: one after the other). The tools of a single script always run in parallel.
+|`-b`, `--baseline REPORT.json` |Baseline: only new issues are detailed, the evolution of the scores is displayed (see <<reference>>).
+|`--fail-on-new SEVERITY` |With `--baseline`: exit code 1 if a new issue reaches this severity.
+|`--fix` |Fixes safe defects in the file (see <<fix>>).
+|`--dry-run` |With `--fix`: prints the unified diff without modifying the file.
+|`--backup` |With `--fix`: keeps the original as `FILE.orig`.
+|`--details` |Terminal: every issue, with its fix suggestion (default: 10 per category).
+|`--summary` |Terminal: summary only.
+|`--[no-]source` |Terminal: shows under each issue the line of code concerned, with a `^` marker under the flagged column (default). A line where a secret is detected is never copied.
+|`--[no-]color` |Forces or disables color (default: automatic, `NO_COLOR` respected).
+|`-q`, `--quiet` |No report on the standard output.
+|`--fail-under SCORE` / `--fail-under CATEGORY=SCORE` |Exit code 1 if the overall score, or that of a category, is below the threshold. Repeatable; several thresholds separated by commas (`security=8,robustness=6.5`); decimals with a dot.
+|`--list-tools` / `--list-rules` |Detected tools / built-in rules.
+|`--list-rules --all` |All known rules: built-in rules and tool codes classified by check-script (identifier, tool, language, category, severity, title).
+|`-v`, `--version` / `-h`, `--help` |Version / help.
 |===
 
-=== Codes de sortie
+=== Exit codes
 
 [cols="1,4",options="header"]
 |===
-|Code |Signification
-|0 |Analyse effectuée.
-|1 |Seuil non atteint (`--fail-under`, `--fail-on-new`).
-|2 |Erreur d'usage (option invalide, aucun script, configuration ou référence invalide).
-|3 |Script introuvable ou illisible, ou fichier de rapport impossible à écrire.
+|Code |Meaning
+|0 |Analysis performed.
+|1 |Threshold not met (`--fail-under`, `--fail-on-new`).
+|2 |Usage error (invalid option, no script, invalid configuration or reference).
+|3 |Script not found or unreadable, or report file impossible to write.
 |===
 
-== Lire le rapport
+== Reading the report
 
-.Extrait de sortie terminal (`--details`)
+.Terminal output excerpt (`--details`)
 ----
-═══ Évaluation du script : deploy.sh ═══
-Dialecte : bash    Lignes : 16 (code : 15, commentaires : 0)
-Outils : syntax (exécuté), shellcheck 0.11.0 (exécuté), …
+═══ Script assessment: deploy.sh ═══
+Dialect: bash    Lines: 16 (code: 15, comments: 0)
+Tools: syntax (run), shellcheck 0.11.0 (run), …
 
-Catégorie        Note /10             Critical     High   Medium      Low   Total
-Sécurité           0,0 ░░░░░░░░░░            3        3        3        1      10
-Robustesse         1,3 █░░░░░░░░░            0        1        8        4      13
-Maintenabilité     8,8 █████████░            0        0        0        5       5
-Portabilité       10,0 ██████████            0        0        0        0       0
-Performance        9,0 █████████░            0        0        0        4       4
+Category         Score /10            Critical     High   Medium      Low   Total
+Security           0.0 ░░░░░░░░░░            3        3        3        1      10
+Robustness         1.3 █░░░░░░░░░            0        1        8        4      13
+Maintainability    8.8 █████████░            0        0        0        5       5
+Portability       10.0 ██████████            0        0        0        0       0
+Performance        9.0 █████████░            0        0        0        4       4
 
-Note globale : 1,5/10 (E)
+Overall score: 1.5/10 (E)
 
-Détail des problèmes
-▶ Sécurité (10)
-  L3       Critical SEC002 [builtin]          Secret (mot de passe, jeton, clé) écrit en dur dans le script
-        3 │ (ligne non reproduite : secret potentiel)
-                                              → Lire le secret depuis l'environnement, un fichier protégé…
+Issue details
+▶ Security (10)
+  L3       Critical SEC002 [builtin]          Hard-coded secret (password, token, key) in the script
+        3 │ (line not shown: potential secret)
+                                              → Read the secret from the environment, a protected file…
   L8       Critical SC2115 [shellcheck]       Use "${var:?}" to ensure this never expands to /* .
         8 │ rm -rf $APP_DIR/*
           │        ^
@@ -291,534 +289,529 @@ Détail des problèmes
   …
 ----
 
-Chaque problème indique sa *ligne* (`fichier` s'il concerne le script entier),
-sa *sévérité*, sa *règle*, l'*outil* qui l'a détecté, le *code de la ligne*
-(avec un repère `^` sous la colonne signalée quand l'outil la fournit ;
-`--no-source` pour le masquer) et, avec `--details`, son *conseil de
-correction* ou le lien vers la documentation de la règle. Une ligne où un
-secret est détecté n'est jamais recopiée dans le rapport.
-Les messages des outils externes restent en anglais ; ceux des règles
-intégrées suivent `--lang`. Les *secrets* détectés ne sont jamais recopiés
-dans le rapport.
+Each issue shows its *line* (`file` if it concerns the whole script), its
+*severity*, its *rule*, the *tool* that detected it, the *line of code*
+(with a `^` marker under the flagged column when the tool provides it;
+`--no-source` to hide it) and, with `--details`, its *fix suggestion* or
+the link to the rule's documentation. A line where a secret is detected is
+never copied into the report.
+The messages of external tools remain in English; those of the built-in
+rules follow `--lang`. Detected *secrets* are never copied into the
+report.
 
-=== Comprendre et améliorer la note
+=== Understanding and improving the score
 
-Le rapport indique, quand c'est possible, *comment gagner un niveau* :
-`→ Niveau B (7,6) en corrigeant : SC2164, ROB001`. Avec `--explain`
-(terminal), et toujours en Markdown, HTML, JSON (`explanation`) et dans
-l'interface, un tableau donne pour chaque règle les *points retirés* à sa
-catégorie et le *gain sur la note globale* si toutes ses occurrences sont
-corrigées. Un gain nul signifie que la note est plafonnée par une autre
-catégorie plus faible (la globale ne dépasse pas la pire + 1,5) : il faut
-d'abord corriger celle-ci. `--sort impact` (interface : *Par gain rapide*)
-classe les problèmes du plus rentable au moins rentable ; une règle
-corrigeable automatiquement compte 1,5 fois son gain.
+When possible, the report tells you *how to gain a grade*:
+`→ Grade B (7.6) by fixing: SC2164, ROB001`. With `--explain`
+(terminal), and always in Markdown, HTML, JSON (`explanation`) and in
+the interface, a table gives for each rule the *points removed* from its
+category and the *gain on the overall score* if all its occurrences are
+fixed. A zero gain means the score is capped by another, weaker category
+(the overall score does not exceed the worst + 1.5): that one has to be
+fixed first. `--sort impact` (interface: *By quick win*) ranks the issues
+from the most to the least profitable; a rule that can be fixed
+automatically counts 1.5 times its gain.
 
-=== Sévérités
+=== Severities
 
 [cols="1,4",options="header"]
 |===
-|Sévérité |Signification
-|Critical |Compromission ou destruction probable (code téléchargé exécuté, secret en dur, `rm -rf /`, script syntaxiquement invalide).
-|High |Défaut grave exploitable ou aux effets de bord importants (eval d'une variable, `chmod 777`, TLS désactivé, `cd` non contrôlé, bashisme qui casse sous dash).
-|Medium |Défaut réel au comportement limité (variable non quotée, pas de `set -e`, fichier temporaire prévisible).
-|Low |Style, lisibilité, performance, bonnes pratiques.
+|Severity |Meaning
+|Critical |Probable compromise or destruction (downloaded code executed, hard-coded secret, `rm -rf /`, syntactically invalid script).
+|High |Serious exploitable defect or one with major side effects (eval of a variable, `chmod 777`, disabled TLS, unchecked `cd`, bashism that breaks under dash).
+|Medium |Real defect with limited behavior (unquoted variable, no `set -e`, predictable temporary file).
+|Low |Style, readability, performance, good practices.
 |===
 
-=== Calcul des notes
+=== Score computation
 
-Pour chaque catégorie :
+For each category:
 
 ----
-note = 10 − Σ pénalités          (plancher 0, arrondi au dixième)
+score = 10 − Σ penalties          (floor 0, rounded to the tenth)
 
-pénalité d'une règle déclenchée n fois = poids × (1 + log2 n)
-poids (profil standard) : Critical 4 · High 2 · Medium 0,75 · Low 0,25
-Medium et Low sont multipliés par √(100 / max(100, lignes de code))
+penalty of a rule triggered n times = weight × (1 + log2 n)
+weight (standard profile): Critical 4 · High 2 · Medium 0.75 · Low 0.25
+Medium and Low are multiplied by √(100 / max(100, lines of code))
 ----
 
-* *Occurrences répétées* : une même règle déclenchée 8 fois coûte 4 fois son
-  poids, pas 8 fois — des répétitions traduisent une seule habitude.
-* *Taille du script* : au-delà de 100 lignes de code, les pénalités
-  Medium/Low sont atténuées. Critical et High ne le sont jamais.
+* *Repeated occurrences*: a rule triggered 8 times costs 4 times its
+  weight, not 8 times — repetitions reflect a single habit.
+* *Script size*: beyond 100 lines of code, Medium/Low penalties are
+  attenuated. Critical and High never are.
 
-La *note globale* est la moyenne pondérée des catégories (Sécurité 1,5 ;
-Robustesse 1,25 ; Maintenabilité 1 ; Portabilité 0,75 ; Performance 0,5),
-*plafonnée à la plus faible note de catégorie + 1,5* : une catégorie faible
-ne peut pas être masquée par les autres (principe du maillon faible).
+The *overall score* is the weighted mean of the categories (Security 1.5;
+Robustness 1.25; Maintainability 1; Portability 0.75; Performance 0.5),
+*capped at the lowest category score + 1.5*: a weak category cannot be
+hidden by the others (weakest-link principle).
 
-Niveaux : *A* ≥ 9 · *B* ≥ 7,5 · *C* ≥ 6 · *D* ≥ 4 · *E* < 4.
+Levels: *A* ≥ 9 · *B* ≥ 7.5 · *C* ≥ 6 · *D* ≥ 4 · *E* < 4.
 
-Ces réglages ont été calibrés sur un corpus de scripts réels et typiques
-(voir le guide développeur).
+These settings were calibrated on a corpus of real, typical scripts
+(see the developer guide).
 
-=== Doublons entre outils
+=== Duplicates between tools
 
-Quand plusieurs outils signalent le même défaut sur la même ligne (par
-exemple ShellCheck SC2002 et la règle intégrée PERF001), un seul problème
-est conservé, celui de l'outil le plus spécialisé : `bash -n`, ShellCheck,
-gitleaks, trufflehog, checkbashisms, règles intégrées, shfmt, bashate. En
-Python : compilation, Bandit, Ruff, Semgrep, mypy, Pyright, Pylint, Vermin,
-Radon, puis gitleaks, trufflehog et règles intégrées.
+When several tools report the same defect on the same line (for example
+ShellCheck SC2002 and the built-in rule PERF001), a single issue is kept,
+that of the most specialized tool: `bash -n`, ShellCheck, gitleaks,
+trufflehog, checkbashisms, built-in rules, shfmt, bashate. In Python:
+compilation, Bandit, Ruff, Semgrep, mypy, Pyright, Pylint, Vermin, Radon,
+then gitleaks, trufflehog and built-in rules.
 
-Une instruction répartie sur plusieurs lignes compte en entier : Bandit
-situe un appel sur sa première ligne, Ruff sur la ligne de l'argument
-fautif ; les deux signalements sont fusionnés (instructions de 6 lignes au
-plus, pour qu'une règle couvrant une fonction entière n'absorbe pas les
-problèmes qu'elle contient).
+A statement spread over several lines counts as a whole: Bandit locates a
+call on its first line, Ruff on the line of the faulty argument; both
+reports are merged (statements of at most 6 lines, so that a rule covering
+an entire function does not absorb the issues it contains).
 
-Les analyses sont parallèles (outils d'un même script, scripts d'un dossier)
-; l'ordre de priorité ci-dessus est conservé, le résultat est identique à
-une analyse séquentielle.
+Analyses run in parallel (tools of a single script, scripts of a folder);
+the priority order above is kept, and the result is identical to a
+sequential analysis.
 
 [[desactivation]]
-=== Règles désactivées
+=== Disabled rules
 
-Une règle désactivée (`rules.disabled`, onglet *Règles* de l'interface)
-l'est aussi sous le code de *la même règle dans un autre outil* : Ruff
-`S602` ↔ Bandit `B602`, Ruff `PLW0602` ↔ Pylint `W0602`, Ruff `E722` ↔
-Pylint `W0702`, ShellCheck `SC2164` ↔ `ROB005`… Elle est transmise aux
-outils qui l'acceptent sans erreur (ShellCheck, bashate, Bandit : ils ne la
-calculent plus), et `--fix` ne la corrige plus. Une *détection voisine*
-d'un autre outil (ex. la règle Semgrep `subprocess-shell-true` pour B602)
-reste signalée : la désactiver à son tour si besoin.
+A disabled rule (`rules.disabled`, *Rules* tab of the interface) is also
+disabled under the code of *the same rule in another tool*: Ruff `S602` ↔
+Bandit `B602`, Ruff `PLW0602` ↔ Pylint `W0602`, Ruff `E722` ↔ Pylint
+`W0702`, ShellCheck `SC2164` ↔ `ROB005`… It is passed on to the tools that
+accept it without error (ShellCheck, bashate, Bandit: they no longer
+compute it), and `--fix` no longer fixes it. A *neighboring detection* by
+another tool (e.g. the Semgrep rule `subprocess-shell-true` for B602)
+is still reported: disable it in turn if needed.
 
 [[profils]]
-== Profils
+== Profiles
 
 [cols="1,4",options="header"]
 |===
-|Profil |Usage
-|`strict` |Nouveaux scripts : poids Critical 5, High 3, Medium 1, Low 0,4 ; atténuation dès 50 lignes ; lignes ≤ 100, fonctions ≤ 40 lignes, imbrication ≤ 3.
-|`default` |Réglages décrits ci-dessus.
-|`legacy` |Existant ancien : High 1,5, Medium 0,5, Low 0,1 ; seuils relâchés ; règles de pur style désactivées (MNT001, MNT004, MNT005, MNT010, formatage shfmt et Ruff, E001–E006 de bashate ; en Python PYMNT001, E501, W291, W293, C0301, C0303).
+|Profile |Usage
+|`strict` |New scripts: weights Critical 5, High 3, Medium 1, Low 0.4; attenuation from 50 lines; lines ≤ 100, functions ≤ 40 lines, nesting ≤ 3.
+|`default` |Settings described above.
+|`legacy` |Old existing code: High 1.5, Medium 0.5, Low 0.1; relaxed thresholds; pure style rules disabled (MNT001, MNT004, MNT005, MNT010, shfmt and Ruff formatting, bashate's E001–E006; in Python PYMNT001, E501, W291, W293, C0301, C0303).
 |===
 
-Le profil se choisit par `--profile` ou par la clé `profile:` de la
-configuration ; les autres clés de la configuration s'appliquent par-dessus.
+The profile is chosen with `--profile` or with the `profile:` key of the
+configuration; the other configuration keys apply on top of it.
 
 [[contextes]]
-== Contextes d'exécution
+== Execution contexts
 
-Déclarer comment le script est lancé active des règles spécifiques et
-relève certaines sévérités (elles ne sont jamais abaissées) :
+Declaring how the script is run enables specific rules and raises some
+severities (they are never lowered):
 
 [cols="1,3,3",options="header"]
 |===
-|Contexte |Règles activées |Sévérités relevées
-|`root` |SEC017 (PATH non fixé) |fichier temporaire prévisible, téléchargement en clair, `source` non fiable, archive non vérifiée → High ; `chmod 777`, `rm -rf "$VAR/"`, `cd` non contrôlé → Critical ; pas de `set -e` → High
-|`cron` |ROB014 (pas de verrou), ROB015 (saisie interactive), ROB016 (PATH non fixé) |pas de `set -e`, fichier temporaire prévisible → High ; `set -x` → Medium
-|`systemd` |SEC017, ROB015 |pas de `set -e` → High ; `set -x` → Medium
+|Context |Rules enabled |Severities raised
+|`root` |SEC017 (PATH not set) |predictable temporary file, cleartext download, untrusted `source`, unverified archive → High; `chmod 777`, `rm -rf "$VAR/"`, unchecked `cd` → Critical; no `set -e` → High
+|`cron` |ROB014 (no lock), ROB015 (interactive input), ROB016 (PATH not set) |no `set -e`, predictable temporary file → High; `set -x` → Medium
+|`systemd` |SEC017, ROB015 |no `set -e` → High; `set -x` → Medium
 |===
 
 [[directives]]
-== Directives dans le script
+== Directives in the script
 
-Un faux positif ou un choix assumé se neutralise dans le script lui-même :
+A false positive or a deliberate choice can be neutralized in the script
+itself:
 
 [source,bash]
 ----
 #!/bin/bash
-# check-script disable-file=MNT005,E003        # tout le fichier
+# check-script disable-file=MNT005,E003        # the whole file
 
-# check-script disable=SEC005                  # commentaire seul : ligne de code suivante
-curl -k "$URL_INTERNE"
+# check-script disable=SEC005                  # comment alone: next line of code
+curl -k "$INTERNAL_URL"
 
-eval "$SAFE_CMD"  # check-script disable=SEC003   # cette ligne
+eval "$SAFE_CMD"  # check-script disable=SEC003   # this line
 # check-script disable-next-line=SEC022
-CLE_PUBLIQUE="AAAAC3NzaC1lZDI1NTE5AAAAI…"
+PUBLIC_KEY="AAAAC3NzaC1lZDI1NTE5AAAAI…"
 ----
 
-Les identifiants acceptent le joker final (`SC20*`) et `all`. Le nombre de
-problèmes neutralisés figure dans le rapport. Les directives
-`# shellcheck disable=…` restent traitées par ShellCheck.
+Identifiers accept a trailing wildcard (`SC20*`) and `all`. The number of
+neutralized issues appears in the report. `# shellcheck disable=…`
+directives are still handled by ShellCheck.
 
-Une directive `# check-script` qui ne neutralise plus rien (problème corrigé,
-règle changée) est signalée par *MNT011* à sa ligne, pour être retirée. Par
-prudence, elle ne l'est pas si un outil visé est absent ou en échec (rien ne
-prouve alors qu'elle soit inutile). Les `# noqa` inutiles relèvent de la
-règle Ruff RUF100.
+A `# check-script` directive that no longer neutralizes anything (issue
+fixed, rule changed) is reported by *MNT011* at its line, so that it can be
+removed. As a precaution, it is not reported if a targeted tool is absent
+or failed (nothing then proves that it is useless). Useless `# noqa`
+comments are covered by the Ruff rule RUF100.
 
-Dans un script Python, les directives natives valent pour *tous* les
-outils, et un code vise aussi la même règle dans les autres outils :
+In a Python script, the native directives apply to *all* tools, and a
+code also targets the same rule in the other tools:
 
 [source,python]
 ----
-import os  # noqa                          # toute la ligne
+import os  # noqa                          # the whole line
 x = eval(expr)  # noqa: S307               # S307 (Ruff), B307 (Bandit), W0123 (Pylint)
-subprocess.call(cmd, shell=True)  # nosec  # problèmes de sécurité de la ligne
+subprocess.call(cmd, shell=True)  # nosec  # security issues of the line
 subprocess.call(cmd, shell=True)  # nosec B602
 ----
 
 [[fix]]
-== Correction automatique
+== Automatic fix
 
-`--fix` applique uniquement des transformations *sûres* :
+`--fix` applies only *safe* transformations:
 
-. les corrections proposées par ShellCheck (quoting de variables,
-  `cd … || exit`, backticks…) ;
-. les corrections intégrées : fins de ligne CRLF, espaces finaux, backticks
+. the fixes proposed by ShellCheck (variable quoting,
+  `cd … || exit`, backticks…);
+. the built-in fixes: CRLF line endings, trailing spaces, backticks
   → `$(…)`, `egrep`/`fgrep` → `grep -E`/`-F`, `which` → `command -v`,
-  `read` → `read -r` (jamais dans un heredoc, une chaîne ou un commentaire) ;
-. le formatage shfmt, dans le style d'indentation du script.
+  `read` → `read -r` (never in a heredoc, a string or a comment);
+. shfmt formatting, in the script's indentation style.
 
-Le résultat est contrôlé par `bash -n` (ou `sh -n`) : si le script était
-valide et ne le serait plus, *aucune* correction n'est écrite. Le rapport
-affiché ensuite porte sur la version corrigée.
+The result is checked with `bash -n` (or `sh -n`): if the script was
+valid and would no longer be, *no* fix is written. The report displayed
+afterwards covers the fixed version.
 
 [source,bash]
 ----
-check-script --fix --dry-run deploy.sh       # diff sur la sortie standard, rien n'est écrit
-check-script --fix --backup deploy.sh        # écrit deploy.sh, garde deploy.sh.orig
+check-script --fix --dry-run deploy.sh       # diff on standard output, nothing is written
+check-script --fix --backup deploy.sh        # writes deploy.sh, keeps deploy.sh.orig
 ----
 
 [[code-correction]]
-=== Code de correction par problème
+=== Fix code for each issue
 
-Pour chaque problème, l'interface graphique (en dépliant le problème) et le
-rapport HTML montrent le code à écrire :
+For each issue, the graphical interface (by expanding the issue) and the
+HTML report show the code to write:
 
-* *Correction proposée* : les lignes concernées avant et après correction,
-  quand une correction sûre existe pour ce problème précis (proposition de
-  ShellCheck, ou correction intégrée limitée à la ligne) ; dans l'interface,
-  *Appliquer cette correction* modifie uniquement ces lignes (contrôle
-  `bash -n`, refus si le fichier a changé depuis l'analyse) ;
-* sinon, *Exemple de correction* : un exemple générique « à éviter / à
-  écrire » de la règle (toutes les règles intégrées et les codes ShellCheck
-  les plus courants).
+* *Suggested fix*: the lines concerned before and after the fix, when a
+  safe fix exists for this precise issue (ShellCheck suggestion, or
+  built-in fix limited to the line); in the interface, *Apply this fix*
+  modifies only those lines (`bash -n` check, refused if the file has
+  changed since the analysis);
+* otherwise, *Fix example*: a generic "avoid / write" example for the
+  rule (all built-in rules and the most common ShellCheck codes).
 
-Toute correction depuis l'interface (*Corriger…* ou *Appliquer cette
-correction*) sauvegarde le script en `.orig` à la première correction depuis
-le lancement ; les corrections suivantes conservent cette copie, qui reste
-donc le script d'avant la première correction.
+Any fix from the interface (*Fix…* or *Apply this fix*) saves the script
+as `.orig` on the first fix since launch; later fixes keep this copy, which
+therefore remains the script as it was before the first fix.
 
-Le bouton *Copier* place le code corrigé dans le presse-papiers. Une ligne
-où un secret est détecté ne reçoit jamais de correction concrète (son
-aperçu recopierait le secret).
+The *Copy* button puts the fixed code on the clipboard. A line where a
+secret is detected never receives a concrete fix (its preview would copy
+the secret).
 
 [[reference]]
-== Référence et évolution
+== Baseline and evolution
 
-Un rapport JSON antérieur sert de *référence* : seuls les problèmes
-nouveaux sont détaillés, et l'évolution des notes est affichée
-(`nouveaux : 1 · corrigés : 2 · inchangés : 30`, `Note globale : 6,1 → 7,4
-(+1,3)`). Les problèmes sont appariés par une empreinte indépendante du
-numéro de ligne : ajouter du code au-dessus d'un problème connu ne le fait
-pas passer pour nouveau.
+A previous JSON report serves as a *baseline*: only new issues are
+detailed, and the evolution of the scores is displayed
+(`new: 1 · fixed: 2 · unchanged: 30`, `Overall score: 6.1 → 7.4
+(+1.3)`). Issues are matched by a fingerprint independent of the line
+number: adding code above a known issue does not make it look new.
 
 [source,bash]
 ----
-check-script -q -o reference.json scripts/          # sur la branche principale
-check-script -b reference.json --fail-on-new high scripts/
+check-script -q -o baseline.json scripts/           # on the main branch
+check-script -b baseline.json --fail-on-new high scripts/
 ----
 
-C'est la manière d'adopter l'outil sur un existant : la dette actuelle est
-tolérée, toute nouvelle dette bloque.
+This is the way to adopt the tool on existing code: the current debt is
+tolerated, any new debt blocks.
 
-== Outils externes : ce qui est exploité
+== External tools: what is used
 
 ShellCheck::
-JSON avec les vérifications optionnelles `add-default-case`,
+JSON with the optional checks `add-default-case`,
 `avoid-nullary-conditions`, `check-set-e-suppressed`,
 `check-unassigned-uppercase`, `deprecate-which`, `useless-use-of-cat`.
-Chaque code SCxxxx est classé (SC2115 → Sécurité/Critical, SC2164 →
-Robustesse/High, SC3xxx → Portabilité, bashismes qui cassent sous dash →
-High…). `SC1091` est exclu par défaut. Ses corrections alimentent `--fix`.
+Each SCxxxx code is classified (SC2115 → Security/Critical, SC2164 →
+Robustness/High, SC3xxx → Portability, bashisms that break under dash →
+High…). `SC1091` is excluded by default. Its fixes feed `--fix`.
 
 shfmt::
-Formatage contrôlé dans le style d'indentation du script (le choix du style
-n'est pas pénalisé, ses incohérences le sont). Son *arbre syntaxique*
-(`--to-json`) rend exactes les règles intégrées qui portent sur des
-commandes (un `which` dans une chaîne n'est pas une commande ; un `mkdir`
-dans la condition d'un `if` est contrôlé).
+Formatting checked in the script's indentation style (the choice of style
+is not penalized, its inconsistencies are). Its *syntax tree*
+(`--to-json`) makes the built-in rules about commands accurate (a `which`
+in a string is not a command; a `mkdir` in the condition of an `if` is
+checked).
 
 bashate::
-Style ; E003 ignoré pour un script indenté autrement que par 4 espaces.
+Style; E003 ignored for a script indented otherwise than with 4 spaces.
 
 checkbashisms::
-Scripts `/bin/sh` (ou sans shebang) uniquement.
+`/bin/sh` scripts (or without a shebang) only.
 
 gitleaks, trufflehog::
-Détection de secrets ; trufflehog est lancé avec `--no-verification` pour
-qu'aucun secret ne soit envoyé sur le réseau.
+Secret detection; trufflehog is run with `--no-verification` so that no
+secret is sent over the network.
 
 bash -n::
-Contrôle syntaxique avec l'interpréteur du dialecte : toute erreur est
-Critical.
+Syntax check with the dialect's interpreter: any error is Critical.
 
-== Règles intégrées
+== Built-in rules
 
-Liste complète : `check-script --list-rules`. Chaque règle a un conseil de
-correction (affiché avec `--details` et dans les rapports fichiers). Entre
-crochets : règle active seulement dans ce contexte.
+Full list: `check-script --list-rules`. Each rule has a fix suggestion
+(displayed with `--details` and in the report files). In square brackets:
+rule active only in that context.
 
 [cols="1,2,1,6",options="header"]
 |===
-|Règle |Catégorie |Sévérité |Description
-|SEC001 |Sécurité |Critical |Contenu téléchargé exécuté directement par un shell (`curl \| sh`, `bash <(curl …)`)
-|SEC002 |Sécurité |Critical |Secret écrit en dur (mot de passe, jeton, clé AWS/GitHub, clé privée)
-|SEC003 |Sécurité |High |`eval` appliqué à une expansion : risque d'injection
-|SEC004 |Sécurité |High |Permissions en écriture pour tous (`chmod 777/666`, `o+w`)
-|SEC005 |Sécurité |High |Vérification TLS / clé d'hôte désactivée
-|SEC006 |Sécurité |Medium |Téléchargement en clair (`http://`)
-|SEC007 |Sécurité |High |`rm -r` sur un chemin construit avec une variable non protégée
-|SEC008 |Sécurité |Critical |Suppression récursive de `/` ou d'un répertoire système
-|SEC009 |Sécurité |Medium |Fichier temporaire au nom prévisible dans `/tmp`
-|SEC010 |Sécurité |High |Mot de passe en ligne de commande (`sudo -S`, `sshpass -p`, `mysql -pXXX`…)
-|SEC011 |Sécurité |Medium |`source` d'un fichier depuis `/tmp` ou une URL
-|SEC012 |Sécurité |Low |`set -x` : secrets dans les journaux
-|SEC013 |Sécurité |High |Bit setuid/setgid
-|SEC014 |Sécurité |Medium |Saisie d'un secret sans masquage (`read` sans `-s`)
-|SEC015 |Sécurité |Low |`sudo` avec une commande relative, PATH non fixé
-|SEC016 |Sécurité |High |PATH contenant `.` ou une entrée vide
-|SEC017 |Sécurité |Medium |Script privilégié sans PATH fixé [root, systemd]
-|SEC018 |Sécurité |High |Modification de sudoers, authorized_keys, passwd, shadow ou cron
-|SEC019 |Sécurité |Medium |Archive téléchargée extraite sans vérification (`curl \| tar`)
-|SEC020 |Sécurité |Medium |Option SSH risquée (`-A`, `ForwardAgent=yes`, `PermitLocalCommand`)
-|SEC021 |Sécurité |Low |Secret exporté dans l'environnement
-|SEC022 |Sécurité |Medium |Chaîne à forte entropie (secret potentiel ; sommes de contrôle exclues)
-|SEC023 |Sécurité |Critical |Workflow GitHub : expression non fiable (`${{ github.event.issue.title }}`, `github.head_ref`…) insérée dans un `run:` — injection de commande
-|SEC024 |Sécurité |Medium |Paquet installé sans version épinglée : `pip`/`pipx install paquet`, `npm install -g`, `go install …@latest`, `gem install` sans `-v`, `cargo install` sans `--version` (pas une installation depuis un fichier de dépendances, un chemin ou une URL)
-|SEC025 |Sécurité |High |Dépôt ou paquet sans vérification de signature : `[trusted=yes]`, `--allow-unauthenticated`, `gpgcheck=0`, `--nogpgcheck`, `rpm --nosignature`, `apk --allow-untrusted`
-|SEC026 |Sécurité |Low |`git clone` sans révision épinglée (ni `--branch v1.2`, ni `git checkout <sha>` ensuite)
-|ROB001 |Robustesse |Medium |Pas d'arrêt sur erreur (`set -e`)
-|ROB002 |Robustesse |Low |Pipelines sans `set -o pipefail`
-|ROB003 |Robustesse |Low |Pas de `set -u`
-|ROB004 |Robustesse |Low |`mktemp` sans `trap` de nettoyage
-|ROB005 |Robustesse |Medium |`cd` sans contrôle d'échec (sans `set -e`)
-|ROB006 |Robustesse |Medium |Variable non quotée dans `[ ]`
-|ROB007 |Robustesse |Low |`read` sans `-r`
-|ROB008 |Robustesse |Medium |Boucle sur la sortie de `ls`
-|ROB009 |Robustesse |High |Fins de ligne CRLF
-|ROB010 |Robustesse |Medium |`$@` / `$*` non quoté
-|ROB011 |Robustesse |Low |Code de retour d'une commande critique ignoré (sans `set -e`)
-|ROB012 |Robustesse |Low |IFS modifié globalement sans restauration
-|ROB013 |Robustesse |Low |`trap` de nettoyage sans EXIT
-|ROB014 |Robustesse |Medium |Tâche planifiée sans verrou (`flock`) [cron]
-|ROB015 |Robustesse |Medium |Saisie interactive sans terminal [cron, systemd]
-|ROB016 |Robustesse |Medium |Tâche cron sans PATH fixé [cron]
-|ROB017 |Robustesse |Medium |Commande externe introuvable sur la machine d'analyse, que le script ne vérifie pas (`command -v`, `type`, `hash`) ; paquets dnf / apt indiqués (voir <<commandes>>)
-|MNT001 |Maintenabilité |Low |Ligne trop longue
-|MNT002 |Maintenabilité |Low/Medium |Fonction trop longue
-|MNT003 |Maintenabilité |Medium |Imbrication trop profonde
-|MNT004 |Maintenabilité |Low |Pas de commentaire d'en-tête
-|MNT005 |Maintenabilité |Low |Très peu de commentaires
-|MNT006 |Maintenabilité |Low |Marqueur TODO/FIXME/XXX/HACK
-|MNT007 |Maintenabilité |Low |Backticks au lieu de `$(…)`
-|MNT008 |Maintenabilité |Medium |Script long sans fonction
-|MNT009 |Maintenabilité |Low |Indentation mélangeant tabulations et espaces
-|MNT010 |Maintenabilité |Low |Espaces en fin de ligne
-|POR001 |Portabilité |Medium |Pas de shebang
-|POR002 |Portabilité |Low |Interpréteur hors `/bin`, `/usr/bin` (ou `env`)
-|POR003 |Portabilité |Medium |Construction bash dans un script `/bin/sh`
-|POR004 |Portabilité |Low |`which` au lieu de `command -v`
-|POR005 |Portabilité |Low |`egrep` / `fgrep` obsolètes
-|POR006 |Portabilité |Low |Un seul gestionnaire de paquets sans alternative
-|POR007 |Portabilité |Low |Outils net-tools obsolètes
-|PERF001 |Performance |Low |`cat` inutile
+|Rule |Category |Severity |Description
+|SEC001 |Security |Critical |Downloaded content executed directly by a shell (`curl \| sh`, `bash <(curl …)`)
+|SEC002 |Security |Critical |Hard-coded secret (password, token, AWS/GitHub key, private key)
+|SEC003 |Security |High |`eval` applied to an expansion: injection risk
+|SEC004 |Security |High |World-writable permissions (`chmod 777/666`, `o+w`)
+|SEC005 |Security |High |TLS / host key verification disabled
+|SEC006 |Security |Medium |Cleartext download (`http://`)
+|SEC007 |Security |High |`rm -r` on a path built with an unguarded variable
+|SEC008 |Security |Critical |Recursive deletion of `/` or of a system directory
+|SEC009 |Security |Medium |Temporary file with a predictable name in `/tmp`
+|SEC010 |Security |High |Password on the command line (`sudo -S`, `sshpass -p`, `mysql -pXXX`…)
+|SEC011 |Security |Medium |`source` of a file from `/tmp` or a URL
+|SEC012 |Security |Low |`set -x`: secrets in the logs
+|SEC013 |Security |High |setuid/setgid bit
+|SEC014 |Security |Medium |Secret typed without masking (`read` without `-s`)
+|SEC015 |Security |Low |`sudo` with a relative command, PATH not set
+|SEC016 |Security |High |PATH containing `.` or an empty entry
+|SEC017 |Security |Medium |Privileged script without a fixed PATH [root, systemd]
+|SEC018 |Security |High |Modification of sudoers, authorized_keys, passwd, shadow or cron
+|SEC019 |Security |Medium |Downloaded archive extracted without verification (`curl \| tar`)
+|SEC020 |Security |Medium |Risky SSH option (`-A`, `ForwardAgent=yes`, `PermitLocalCommand`)
+|SEC021 |Security |Low |Secret exported to the environment
+|SEC022 |Security |Medium |High-entropy string (potential secret; checksums excluded)
+|SEC023 |Security |Critical |GitHub workflow: untrusted expression (`${{ github.event.issue.title }}`, `github.head_ref`…) inserted in a `run:` — command injection
+|SEC024 |Security |Medium |Package installed without a pinned version: `pip`/`pipx install package`, `npm install -g`, `go install …@latest`, `gem install` without `-v`, `cargo install` without `--version` (not an installation from a dependency file, a path or a URL)
+|SEC025 |Security |High |Repository or package without signature verification: `[trusted=yes]`, `--allow-unauthenticated`, `gpgcheck=0`, `--nogpgcheck`, `rpm --nosignature`, `apk --allow-untrusted`
+|SEC026 |Security |Low |`git clone` without a pinned revision (neither `--branch v1.2`, nor `git checkout <sha>` afterwards)
+|ROB001 |Robustness |Medium |No stop on error (`set -e`)
+|ROB002 |Robustness |Low |Pipelines without `set -o pipefail`
+|ROB003 |Robustness |Low |No `set -u`
+|ROB004 |Robustness |Low |`mktemp` without a cleanup `trap`
+|ROB005 |Robustness |Medium |`cd` without failure check (without `set -e`)
+|ROB006 |Robustness |Medium |Unquoted variable in `[ ]`
+|ROB007 |Robustness |Low |`read` without `-r`
+|ROB008 |Robustness |Medium |Loop over the output of `ls`
+|ROB009 |Robustness |High |CRLF line endings
+|ROB010 |Robustness |Medium |Unquoted `$@` / `$*`
+|ROB011 |Robustness |Low |Return code of a critical command ignored (without `set -e`)
+|ROB012 |Robustness |Low |IFS modified globally without restoration
+|ROB013 |Robustness |Low |Cleanup `trap` without EXIT
+|ROB014 |Robustness |Medium |Scheduled task without a lock (`flock`) [cron]
+|ROB015 |Robustness |Medium |Interactive input without a terminal [cron, systemd]
+|ROB016 |Robustness |Medium |Cron task without a fixed PATH [cron]
+|ROB017 |Robustness |Medium |External command not found on the analysis machine, which the script does not check (`command -v`, `type`, `hash`); dnf / apt packages indicated (see <<commandes>>)
+|MNT001 |Maintainability |Low |Line too long
+|MNT002 |Maintainability |Low/Medium |Function too long
+|MNT003 |Maintainability |Medium |Nesting too deep
+|MNT004 |Maintainability |Low |No header comment
+|MNT005 |Maintainability |Low |Very few comments
+|MNT006 |Maintainability |Low |TODO/FIXME/XXX/HACK marker
+|MNT007 |Maintainability |Low |Backticks instead of `$(…)`
+|MNT008 |Maintainability |Medium |Long script without a function
+|MNT009 |Maintainability |Low |Indentation mixing tabs and spaces
+|MNT010 |Maintainability |Low |Trailing whitespace
+|POR001 |Portability |Medium |No shebang
+|POR002 |Portability |Low |Interpreter outside `/bin`, `/usr/bin` (or `env`)
+|POR003 |Portability |Medium |Bash construct in a `/bin/sh` script
+|POR004 |Portability |Low |`which` instead of `command -v`
+|POR005 |Portability |Low |Obsolete `egrep` / `fgrep`
+|POR006 |Portability |Low |A single package manager without an alternative
+|POR007 |Portability |Low |Obsolete net-tools utilities
+|PERF001 |Performance |Low |Useless `cat`
 |PERF002 |Performance |Low |`grep \| wc -l`
 |PERF003 |Performance |Low |`expr`
-|PERF004 |Performance |Low |Commande externe à chaque tour de boucle
-|PERF005 |Performance |Low |Filtres enchaînés réductibles
+|PERF004 |Performance |Low |External command on every loop iteration
+|PERF005 |Performance |Low |Chained filters that can be reduced
 |PERF006 |Performance |Low |`ps \| grep`
 |PERF007 |Performance |Low |`for … in $(seq …)` (bash)
-|PERF008 |Performance |Low |`echo` inutile dans une substitution
-|PERF009 |Performance |Low |`$(cat f)` au lieu de `$(< f)` (bash)
+|PERF008 |Performance |Low |Useless `echo` in a substitution
+|PERF009 |Performance |Low |`$(cat f)` instead of `$(< f)` (bash)
 |===
 
-IMPORTANT: Les règles intégrées restent *heuristiques* quand shfmt est
-absent (expressions régulières sur un découpage léger du script). Un faux
-positif se neutralise par une directive (<<directives>>) ou par
+IMPORTANT: The built-in rules remain *heuristic* when shfmt is absent
+(regular expressions on a light splitting of the script). A false positive
+is neutralized with a directive (<<directives>>) or through the
 configuration (`rules.disabled`).
 
 [[config]]
 [[python]]
-== Scripts Python
+== Python scripts
 
-Un script est traité comme *Python 3* quand son shebang désigne `python`,
-`python3` ou `python3.N` (y compris via `env`), ou, sans shebang, quand son
-extension est `.py` / `.pyw` ; `--shell python` le force. Les outils shell
-ne sont alors pas lancés, et inversement : le rapport ne liste que les
-outils du langage du script (plus gitleaks, trufflehog et les règles
-intégrées, communs aux deux).
+A script is handled as *Python 3* when its shebang designates `python`,
+`python3` or `python3.N` (including through `env`), or, without a shebang,
+when its extension is `.py` / `.pyw`; `--shell python` forces it. The shell
+tools are then not run, and vice versa: the report lists only the tools of
+the script's language (plus gitleaks, trufflehog and the built-in rules,
+common to both).
 
-=== Outils et classement
+=== Tools and classification
 
 Ruff::
-`tools.ruff.config: project` suit la configuration Ruff du projet du script
-(`ruff.toml`, `.ruff.toml` ou `pyproject.toml` avec `[tool.ruff]`, jusqu'à la
-racine git ; réglage de l'interface) ; un chemin désigne un fichier de
-configuration. Sinon, familles retenues : `E4`, `E7`, `E9`, `E501`, `W`, `F`, `B`, `S`, `UP`,
+`tools.ruff.config: project` follows the Ruff configuration of the script's
+project (`ruff.toml`, `.ruff.toml` or `pyproject.toml` with `[tool.ruff]`,
+up to the git root; interface setting); a path designates a configuration
+file. Otherwise, families retained: `E4`, `E7`, `E9`, `E501`, `W`, `F`, `B`, `S`, `UP`,
 `PERF`, `C4`, `SIM`, `BLE`, `PLE`, `PLW`, `PLR`, `PIE`, `RUF`, `EXE`,
-`T10`, `ISC`, `A`, `ASYNC` (les familles de pur style — docstrings,
-annotations, nommage — sont écartées). `PLR2004` (constantes « magiques ») et
-`S603` sont exclus par défaut. Lancé avec `--isolated` : la configuration
-Ruff du projet n'influence pas la note. Chaque famille est classée (`S` →
-Sécurité, `F` → Robustesse, `PERF` / `C4` → Performance, `EXE` →
-Portabilité…), avec des reclassements (`F821` nom non défini → High, `S602`
-`shell=True` → High…). `ruff format --diff` signale les écarts de
-formatage. Seules les corrections qualifiées de *sûres* par Ruff sont
-proposées.
+`T10`, `ISC`, `A`, `ASYNC` (pure style families — docstrings,
+annotations, naming — are discarded). `PLR2004` ("magic" constants) and
+`S603` are excluded by default. Run with `--isolated`: the project's Ruff
+configuration does not influence the score. Each family is classified (`S` →
+Security, `F` → Robustness, `PERF` / `C4` → Performance, `EXE` →
+Portability…), with reclassifications (`F821` undefined name → High, `S602`
+`shell=True` → High…). `ruff format --diff` reports formatting
+deviations. Only the fixes that Ruff qualifies as *safe* are
+proposed.
 
 Bandit::
-Sévérité de Bandit, abaissée d'un cran si sa confiance est faible, avec des
-reclassements alignés sur Ruff et sur les règles shell : secrets en dur
-(`B105`–`B107`) en High, et en *Critical* quand la valeur ressemble à un
-vrai secret (8 caractères au moins, pas un exemple ni un gabarit), comme
-SEC002 ; exécution de code ou de données (`eval`, `exec`, `pickle`,
-`yaml.load` non sûr, SQL construit par concaténation) en High, comme SEC003.
-La valeur d'un secret n'est jamais recopiée dans le rapport. `B404` et
-`B603` (tout import ou appel de subprocess) sont exclus par défaut.
+Bandit's severity, lowered by one notch if its confidence is low, with
+reclassifications aligned with Ruff and with the shell rules: hard-coded
+secrets (`B105`–`B107`) as High, and as *Critical* when the value looks
+like a real secret (at least 8 characters, not an example or a template),
+like SEC002; execution of code or data (`eval`, `exec`, `pickle`, unsafe
+`yaml.load`, SQL built by concatenation) as High, like SEC003.
+A secret's value is never copied into the report. `B404` and
+`B603` (any import or call of subprocess) are excluded by default.
 
 Semgrep::
-Règles `p/python`, lancées avec `--metrics=off`. Elles sont téléchargées au
-premier accès dans `${XDG_CACHE_HOME:-~/.cache}/check-script/`, rafraîchies
-chaque semaine, et la copie locale sert *hors ligne* (rapport : `p/python
-(cache)` ou `(cache ancien)`). Sans copie ni réseau, l'outil est marqué
-« échec » et l'analyse continue sans lui. Sur un poste isolé, fournir un
-fichier ou un dossier de règles : `tools.semgrep.config: /opt/regles/python.yml`.
+`p/python` rules, run with `--metrics=off`. They are downloaded on first
+access to `${XDG_CACHE_HOME:-~/.cache}/check-script/`, refreshed every
+week, and the local copy is used *offline* (report: `p/python
+(cache)` or `(stale cache)`). With neither a copy nor a network, the tool
+is marked "failed" and the analysis continues without it. On an isolated
+machine, provide a rules file or folder: `tools.semgrep.config: /opt/rules/python.yml`.
 
 mypy::
-Lancé avec `--check-untyped-defs` (les fonctions non annotées sont aussi
-vérifiées) et `--ignore-missing-imports`, sans cache sur disque. Les erreurs
-de typage sont classées Robustesse / Medium. mypy 2 n'accepte plus de cible
-inférieure à 3.10 : il vérifie alors avec la version de l'interpréteur,
-Vermin couvrant la portabilité.
+Run with `--check-untyped-defs` (unannotated functions are checked too)
+and `--ignore-missing-imports`, without a disk cache. Typing errors are
+classified Robustness / Medium. mypy 2 no longer accepts a target below
+3.10: it then checks with the interpreter's version, Vermin covering
+portability.
 
 Radon::
-Fonctions de complexité cyclomatique ≥ 11 (rang C → Low, D → Medium, E-F →
-High) ; indice de maintenabilité de rang B (Low) ou C (Medium).
+Functions with cyclomatic complexity ≥ 11 (rank C → Low, D → Medium, E-F →
+High); maintainability index of rank B (Low) or C (Medium).
 
 Vermin::
-Chaque construction qui exige une version de Python supérieure à la cible
-(ex. `match` → 3.10) : Portabilité / High, le script ne s'exécuterait pas.
+Each construct that requires a Python version higher than the target
+(e.g. `match` → 3.10): Portability / High, the script would not run.
 
 Pylint, Pyright::
-Désactivés par défaut car redondants avec Ruff et mypy ; `--with pylint`,
-`--with pyright`, la configuration YAML ou les réglages de l'interface les
-activent. `C0103` et `C0114`–`C0116` (nommage, docstrings) sont exclus de
-Pylint par défaut.
+Disabled by default because they are redundant with Ruff and mypy;
+`--with pylint`, `--with pyright`, the YAML configuration or the interface
+settings enable them. `C0103` and `C0114`–`C0116` (naming, docstrings) are
+excluded from Pylint by default.
 
-Les doublons entre outils sont fusionnés sur une même ligne : `S602` (Ruff)
+Duplicates between tools are merged on the same line: `S602` (Ruff)
 = `B602` (Bandit) = `subprocess-shell-true` (Semgrep), `PLW0602` (Ruff) =
-`W0602` (Pylint), erreurs mypy = erreurs Pyright…
+`W0602` (Pylint), mypy errors = Pyright errors…
 
-=== Version cible
+=== Target version
 
-`pythonTarget` (défaut `3.9`, le Python de RHEL / Rocky 9 ; option
-`--python-target`, réglage de l'interface) est transmis à Vermin, Ruff
-(`--target-version`), Pylint et Pyright. Dans le YAML, la version s'écrit
-entre guillemets : `3.10` sans guillemets serait lu comme le nombre 3.1.
+`pythonTarget` (default `3.9`, the Python of RHEL / Rocky 9; option
+`--python-target`, interface setting) is passed to Vermin, Ruff
+(`--target-version`), Pylint and Pyright. In the YAML, the version is
+written in quotes: `3.10` without quotes would be read as the number 3.1.
 
-=== Règles intégrées Python
+=== Python built-in rules
 
 [cols="1,2,1,6",options="header"]
 |===
-|Règle |Catégorie |Sévérité |Description
-|PYSEC001 |Sécurité |Medium |Chaîne à forte entropie : secret potentiel (ligne jamais recopiée), comme SEC022
-|PYROB001 |Robustesse |Low |Appel `subprocess.run/call/check_call/check_output` sans `timeout` (Medium en `cron` / `systemd`)
-|PYROB002 |Robustesse |Medium |`input()` dans un script sans terminal [cron, systemd]
-|PYROB003 |Robustesse |Medium |Tâche planifiée sans verrou (`fcntl.flock`…) : exécutions concurrentes possibles [cron]
-|PYROB004 |Robustesse |Medium |Code de retour de `main()` ignoré (appel sans `sys.exit(...)`) : le script sort toujours avec 0
-|PYROB005 |Robustesse |High |Module importé introuvable : ni installé, ni déclaré dans les dépendances (voir <<dependances>>)
-|PYMNT001 |Maintenabilité |Low |Ni docstring ni commentaire d'en-tête décrivant le script
-|PYMNT002 |Maintenabilité |Low |Code exécuté au chargement du module, sans garde `if __name__ == "__main__":`
-|PYPOR001 |Portabilité |High |Shebang `python` / `python2` : absent de RHEL 8+ et Debian 11+ (le script ne démarre pas) ; utiliser `python3`
-|PYPOR002 |Portabilité |Medium |Paquet tiers installé mais absent des dépendances déclarées du projet
+|Rule |Category |Severity |Description
+|PYSEC001 |Security |Medium |High-entropy string: potential secret (line never copied), like SEC022
+|PYROB001 |Robustness |Low |Call to `subprocess.run/call/check_call/check_output` without `timeout` (Medium in `cron` / `systemd`)
+|PYROB002 |Robustness |Medium |`input()` in a script without a terminal [cron, systemd]
+|PYROB003 |Robustness |Medium |Scheduled task without a lock (`fcntl.flock`…): concurrent runs possible [cron]
+|PYROB004 |Robustness |Medium |Return code of `main()` ignored (call without `sys.exit(...)`): the script always exits with 0
+|PYROB005 |Robustness |High |Imported module not found: neither installed nor declared in the dependencies (see <<dependances>>)
+|PYMNT001 |Maintainability |Low |Neither a docstring nor a header comment describing the script
+|PYMNT002 |Maintainability |Low |Code executed at module load, without an `if __name__ == "__main__":` guard
+|PYPOR001 |Portability |High |`python` / `python2` shebang: absent from RHEL 8+ and Debian 11+ (the script does not start); use `python3`
+|PYPOR002 |Portability |Medium |Third-party package installed but missing from the project's declared dependencies
 |===
 
-Elles s'appuient sur le module `ast` de Python (appels répartis sur
-plusieurs lignes, imports `from subprocess import run` compris) ; sans
-`python3`, un découpage ligne à ligne prend le relais (PYROB004 n'est alors
-pas évaluée).
+They rely on Python's `ast` module (calls spread over several lines,
+`from subprocess import run` imports included); without `python3`, a
+line-by-line splitting takes over (PYROB004 is then not evaluated).
 
-Les docstrings comptent comme de la documentation, pas comme du code : un
-script bien documenté n'est pas traité comme un script plus long.
+Docstrings count as documentation, not as code: a well-documented script is
+not treated as a longer script.
 
-La notation Python est calibrée sur un corpus de 12 scripts
-(`test/corpus/scripts/py_*`, voir le guide développeur).
+Python scoring is calibrated on a corpus of 12 scripts
+(`test/corpus/scripts/py_*`, see the developer guide).
 
 [[dependances]]
-=== Dépendances
+=== Dependencies
 
-L'analyseur `pydeps` fait classer chaque import par l'interpréteur, sans
-l'exécuter (`importlib.util.find_spec`) : bibliothèque standard, module local
-(à côté du script), paquet installé ou introuvable. Il le compare aux
-dépendances *déclarées* : l'en-tête PEP 723 du script (`# /// script`) s'il
-existe, sinon les fichiers du projet le plus proche (en remontant jusqu'à la
-racine git) : `requirements*.txt` (et `requirements/*.txt`, `-r` suivis),
+The `pydeps` analyzer has the interpreter classify each import, without
+running it (`importlib.util.find_spec`): standard library, local module
+(next to the script), installed package or not found. It compares it with
+the *declared* dependencies: the script's PEP 723 header (`# /// script`) if
+it exists, otherwise the files of the nearest project (going up to the git
+root): `requirements*.txt` (and `requirements/*.txt`, `-r` followed),
 `pyproject.toml` (`[project]`, extras, `[dependency-groups]`, Poetry),
 `setup.cfg`, `Pipfile`.
 
-* *PYROB005* : module introuvable et non déclaré (faute de frappe, dépendance
-  oubliée). Un import placé dans `try: … except ImportError:` est facultatif
-  et n'est pas signalé ; un module déclaré mais absent de l'environnement
-  d'analyse non plus (ce n'est pas un défaut du script).
-* *PYPOR002* : paquet installé mais non déclaré (le script ne fonctionnera
-  pas ailleurs). Sans aucun fichier de dépendances, rien n'est signalé.
+* *PYROB005*: module not found and not declared (typo, forgotten
+  dependency). An import placed in `try: … except ImportError:` is optional
+  and is not reported; neither is a module declared but absent from the
+  analysis environment (that is not a defect of the script).
+* *PYPOR002*: package installed but not declared (the script will not work
+  elsewhere). Without any dependency file, nothing is reported.
 
-Les noms de module et de paquet sont rapprochés par les métadonnées des
-paquets installés, une table des cas courants (`yaml` → PyYAML, `PIL` →
-Pillow, `cv2` → opencv-python…) et les variantes (`psycopg2` couvert par
+Module and package names are matched through the metadata of installed
+packages, a table of common cases (`yaml` → PyYAML, `PIL` →
+Pillow, `cv2` → opencv-python…) and variants (`psycopg2` covered by
 `psycopg2-binary`).
 
-L'interpréteur utilisé est celui de l'environnement virtuel *actif*
-(`VIRTUAL_ENV`), sinon `python3`, ou `tools.pydeps.path` de la
-configuration. Celui d'un `.venv` du projet analysé n'est jamais lancé
-d'office (le dépôt peut être étranger) : activer l'environnement avant
-l'analyse.
+The interpreter used is that of the *active* virtual environment
+(`VIRTUAL_ENV`), otherwise `python3`, or `tools.pydeps.path` from the
+configuration. The one of a `.venv` in the analyzed project is never run
+by default (the repository may be foreign): activate the environment before
+the analysis.
 
-*pip-audit* (facultatif) audite les `requirements*.txt` du projet, une seule
-fois pour tous ses scripts : directement si les versions sont épinglées
-(`==`), sinon après résolution par pip dans un environnement temporaire
-(plus lent). Chaque vulnérabilité est signalée (High, Sécurité, lien OSV)
-sur l'import du paquet concerné, avec la version corrigée. Les paquets que
-le script n'importe pas sont ignorés.
+*pip-audit* (optional) audits the project's `requirements*.txt`, once for
+all its scripts: directly if the versions are pinned (`==`), otherwise
+after resolution by pip in a temporary environment (slower). Each
+vulnerability is reported (High, Security, OSV link) on the import of the
+package concerned, with the fixed version. Packages the script does not
+import are ignored.
 
-=== Correction
+=== Fix
 
-`--fix` (et *Corriger…* dans l'interface) applique les corrections sûres de
-`ruff check --fix` puis `ruff format` ; le résultat est contrôlé par la
-compilation Python ; une règle désactivée n'est pas corrigée. Les directives
-`# check-script disable=…`, `# noqa` et `# nosec` s'utilisent comme décrit
-dans <<directives>>.
+`--fix` (and *Fix…* in the interface) applies the safe fixes of
+`ruff check --fix` then `ruff format`; the result is checked by Python
+compilation; a disabled rule is not fixed. The directives
+`# check-script disable=…`, `# noqa` and `# nosec` are used as described
+in <<directives>>.
 
 == Configuration
 
-Fichier YAML lu, dans l'ordre : `--config FICHIER` ; sinon, pour chaque
-script, le `.checkscript.yaml` le plus proche (son dossier, puis les dossiers
-parents jusqu'à la racine du dépôt git) — des réglages par sous-projet dans
-un monodépôt ; sinon `./.checkscript.yaml`, puis
-`${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml`. Les options de la
-ligne de commande s'appliquent par-dessus. Toutes les clés sont
-facultatives ; exemple commenté : `doc/checkscript.example.yaml`.
-L'interface graphique sait l'*exporter* avec ses propres choix (règles,
-outils, version de Python) : la CLI et la CI notent alors comme elle.
+YAML file read, in order: `--config FILE`; otherwise, for each
+script, the nearest `.checkscript.yaml` (its folder, then the parent folders
+up to the root of the git repository) — per-subproject settings in a
+monorepo; otherwise `./.checkscript.yaml`, then
+`${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml`. Command-line
+options apply on top. All keys are optional; commented example:
+`doc/checkscript.example.yaml`. The graphical interface can *export* it
+with its own choices (rules, tools, Python version): the CLI and the CI
+then score as it does.
 
 [source,yaml]
 ----
-profile: strict                        # base : strict | default | legacy
-context: [root]                        # contextes d'exécution
+profile: strict                        # base: strict | default | legacy
+context: [root]                        # execution contexts
 followSource: true                     # shellcheck -x
-pythonTarget: "3.11"                   # Python minimal (entre guillemets)
+pythonTarget: "3.11"                   # minimum Python (in quotes)
 tools:
   shellcheck:
     path: /opt/shellcheck/shellcheck
     exclude: [SC1091, SC2034]
-  bashate: false                       # désactive l'outil
-  semgrep: false                       # poste sans accès réseau
-  pylint: true                         # active un outil désactivé par défaut
+  bashate: false                       # disables the tool
+  semgrep: false                       # machine without network access
+  pylint: true                         # enables a tool disabled by default
   ruff:
-    exclude: [PLR2004, S603, E501]     # transmis à ruff --ignore
+    exclude: [PLR2004, S603, E501]     # passed to ruff --ignore
 rules:
-  disabled: [MNT005, E006]             # règles ignorées, tout outil confondu
+  disabled: [MNT005, E006]             # rules ignored, whatever the tool
   overrides:
     SC2086: { category: security, severity: medium }
-  custom:                              # règles personnalisées (voir ci-dessous)
+  custom:                              # custom rules (see below)
     - id: ACME001
       pattern: 'set -euo pipefail'
       absent: true
-      message: Toujours set -euo pipefail
+      message: Always set -euo pipefail
 scoring:
   weights: { critical: 4, high: 2, medium: 0.75, low: 0.25 }
   referenceLines: 100
@@ -831,273 +824,273 @@ thresholds:
 ----
 
 [[personnalisees]]
-=== Règles personnalisées
+=== Custom rules
 
-`rules.custom` déclare des règles propres au projet (conventions maison),
-vérifiées ligne par ligne par expression régulière (syntaxe Dart, proche de
-PCRE). Elles apparaissent dans les rapports (outil `custom`), dans l'onglet
-*Règles* de l'interface et dans `--list-rules`, se désactivent et se
-neutralisent (`# check-script disable=ACME001`) comme les autres.
+`rules.custom` declares project-specific rules (house conventions),
+checked line by line with a regular expression (Dart syntax, close to
+PCRE). They appear in the reports (tool `custom`), in the *Rules* tab of
+the interface and in `--list-rules`, and can be disabled and neutralized
+(`# check-script disable=ACME001`) like the others.
 
 [source,yaml]
 ----
 rules:
   custom:
-    - id: ACME001                      # majuscules, chiffres, _ et - ; pas un code intégré
+    - id: ACME001                      # uppercase, digits, _ and -; not a built-in code
       pattern: '\bcurl\b[^|]*\|\s*(ba)?sh\b'
-      message: Pas de curl | sh dans nos scripts
-      severity: critical               # critical, high, medium (défaut), low
-      category: security               # défaut : maintainability
-      fix: Télécharger, vérifier la signature, puis exécuter.
+      message: No curl | sh in our scripts
+      severity: critical               # critical, high, medium (default), low
+      category: security               # default: maintainability
+      fix: Download, verify the signature, then run.
       url: https://wiki.example.com/scripts#curl
     - id: ACME002
       pattern: 'set -euo pipefail'
-      absent: true                     # signalé (ligne 0) si le motif n'apparaît nulle part
-      language: shell                  # shell, python ou any (défaut)
+      absent: true                     # reported (line 0) if the pattern appears nowhere
+      language: shell                  # shell, python or any (default)
       message: {fr: Toujours set -euo pipefail, en: Always set -euo pipefail}
     - id: ACME003
       pattern: 'mkdir (?!-p )(\S+)'
-      replace: 'mkdir -p $1'           # correction automatique ($0, $1… : groupes)
-      message: mkdir sans -p
-      ignoreCase: false                # défaut : sensible à la casse
-      comments: false                  # défaut : lignes de commentaire ignorées
+      replace: 'mkdir -p $1'           # automatic fix ($0, $1… : groups)
+      message: mkdir without -p
+      ignoreCase: false                # default: case-sensitive
+      comments: false                  # default: comment lines ignored
 ----
 
-`message` et `fix` acceptent un texte unique ou `{fr: …, en: …}`. Avec
-`replace`, la correction est proposée dans l'interface et appliquée par
-`--fix` (après les autres corrections, avec le même contrôle de syntaxe).
-Une règle invalide (identifiant, expression, sévérité…) arrête l'analyse
-avec un message explicite, comme toute erreur de configuration.
+`message` and `fix` accept a single text or `{fr: …, en: …}`. With
+`replace`, the fix is offered in the interface and applied by
+`--fix` (after the other fixes, with the same syntax check).
+An invalid rule (identifier, expression, severity…) stops the analysis
+with an explicit message, like any configuration error.
 
 [[integres]]
-== Scripts intégrés (CI, Dockerfile, Makefile, Ansible)
+== Embedded scripts (CI, Dockerfile, Makefile, Ansible)
 
-Le shell écrit dans d'autres fichiers est analysé comme un script, avec les
-mêmes outils ; les problèmes désignent les lignes du fichier d'origine.
+Shell written in other files is analyzed as a script, with the same
+tools; the issues point to the lines of the original file.
 
 [cols="2,3,4",options="header"]
 |===
-|Fichier |Reconnu par |Shell extrait
-|GitHub Actions |`.github/workflows/*.yml`, `action.yml` |`run:` des étapes (bash par défaut, `shell: sh` ; `pwsh`, `python` et jobs Windows ignorés)
-|GitLab CI |`.gitlab-ci.yml`, `*.gitlab-ci.yml`, `.gitlab/**.yml` |`before_script`, `script`, `after_script` (`!reference` ignoré)
-|Dockerfile |`Dockerfile`, `Containerfile`, `*.dockerfile`, `Dockerfile.*` |`RUN` (continuations, options `--mount`…, heredoc ; forme exec ignorée ; `SHELL` respecté)
-|Makefile |`Makefile`, `GNUmakefile`, `*.mk` |Recettes (préfixes `@ - +`, `$$` → `$`, `SHELL` respecté ; `define` ignoré)
-|Ansible |YAML contenant une tâche `shell:` |`shell:` / `ansible.builtin.shell:` (chaîne ou `cmd:`, `executable`)
+|File |Recognized by |Shell extracted
+|GitHub Actions |`.github/workflows/*.yml`, `action.yml` |`run:` of the steps (bash by default, `shell: sh`; `pwsh`, `python` and Windows jobs ignored)
+|GitLab CI |`.gitlab-ci.yml`, `*.gitlab-ci.yml`, `.gitlab/**.yml` |`before_script`, `script`, `after_script` (`!reference` ignored)
+|Dockerfile |`Dockerfile`, `Containerfile`, `*.dockerfile`, `Dockerfile.*` |`RUN` (continuations, `--mount`… options, heredoc; exec form ignored; `SHELL` respected)
+|Makefile |`Makefile`, `GNUmakefile`, `*.mk` |Recipes (`@ - +` prefixes, `$$` → `$`, `SHELL` respected; `define` ignored)
+|Ansible |YAML containing a `shell:` task |`shell:` / `ansible.builtin.shell:` (string or `cmd:`, `executable`)
 |===
 
-Les expressions du fichier hôte (`${{ … }}`, `{{ … }}` de Jinja, `$(VAR)` de
-make) sont remplacées par un mot neutre. Règles propres :
+The host file's expressions (`${{ … }}`, Jinja's `{{ … }}`, make's `$(VAR)`)
+are replaced by a neutral word. Specific rules:
 
-* *SEC023* (Critical) : dans un workflow GitHub, une expression contrôlable
-  par un tiers (titre ou corps d'issue ou de pull request, commentaire,
-  message de commit, nom de branche…) insérée telle quelle dans `run:` :
-  injection de commande. La passer par `env:` et utiliser `"$VAR"`.
-* *SEC007* : `rm -r` sur un chemin qui commence par une variable de make
-  (`rm -rf $(BUILD)/*` vise la racine si elle est vide).
+* *SEC023* (Critical): in a GitHub workflow, an expression controllable
+  by a third party (issue or pull request title or body, comment,
+  commit message, branch name…) inserted as is in `run:`:
+  command injection. Pass it through `env:` and use `"$VAR"`.
+* *SEC007*: `rm -r` on a path that starts with a make variable
+  (`rm -rf $(BUILD)/*` targets the root if it is empty).
 
-Ne s'appliquent pas aux scripts intégrés : shebang (POR001/002), options
-`set -e/-u` (ROB001/003, fournies ou non par l'hôte), `pipefail` quand
-l'hôte l'active (GitHub Actions, `SHELL [… "pipefail" …]`), PATH et verrou
-(SEC015/017, ROB014/016), en-tête et commentaires (MNT004/005/008/009),
-ROB011, POR006, formatage (shfmt, Bashate), et SC2148, SC2154, SC2317 (les
-blocs sont indépendants et l'hôte définit des variables : `ENV`, `env:`,
-`variables:`). Les détecteurs de secrets parcourent tout le fichier.
+The following do not apply to embedded scripts: shebang (POR001/002),
+`set -e/-u` options (ROB001/003, supplied or not by the host), `pipefail`
+when the host enables it (GitHub Actions, `SHELL [… "pipefail" …]`), PATH
+and lock (SEC015/017, ROB014/016), header and comments (MNT004/005/008/009),
+ROB011, POR006, formatting (shfmt, Bashate), and SC2148, SC2154, SC2317
+(blocks are independent and the host defines variables: `ENV`, `env:`,
+`variables:`). Secret detectors scan the whole file.
 
-Règles propres aux fichiers hôtes (en plus du shell qu'ils contiennent) :
+Rules specific to host files (in addition to the shell they contain):
 
 [cols="1,2,1,6",options="header"]
 |===
-|Règle |Catégorie |Sévérité |Description
-|DKR001 |Sécurité |Medium |Dockerfile : image de base `latest` ou sans version (les étapes nommées et `scratch` sont exclues)
-|DKR002 |Sécurité |High |Dockerfile : pas d'instruction `USER` non privilégiée dans l'étape finale (ou `USER root`)
-|DKR003 |Sécurité |Medium |Dockerfile : `ADD` d'une URL sans `--checksum`
-|DKR004 |Maintenabilité |Low |Dockerfile : `ADD` d'un fichier local (hors archive tar) : préférer `COPY`
-|DKR005 |Sécurité |Critical |Dockerfile : secret dans `ENV` ou `ARG` (Medium pour un `ARG` sans valeur, qui reste dans l'historique)
-|DKR006 |Sécurité |Low |Dockerfile : `apt-get install` sans `--no-install-recommends`
-|DKR007 |Performance |Low |Dockerfile : cache apt, dnf/yum ou apk laissé dans l'image
-|CI001 |Sécurité |Medium |GitHub Actions : action non épinglée par son SHA (Low pour `actions/*` et `github/*`)
-|CI002 |Sécurité |Low/High |GitHub Actions : pas de `permissions:` (Low) ; `permissions: write-all` (High)
-|CI003 |Sécurité |Critical |GitHub Actions : `pull_request_target` ou `workflow_run` qui extrait le code de la pull request (Poisoned Pipeline Execution)
-|CI004 |Sécurité |Critical |Secret en clair dans `env:` (GitHub) ou `variables:` (GitLab)
-|CI005 |Sécurité |Medium |Image de conteneur de CI non épinglée (`container:`, `services:`, `docker://` ; `image:` et `services:` de GitLab)
+|Rule |Category |Severity |Description
+|DKR001 |Security |Medium |Dockerfile: `latest` or unversioned base image (named stages and `scratch` are excluded)
+|DKR002 |Security |High |Dockerfile: no unprivileged `USER` instruction in the final stage (or `USER root`)
+|DKR003 |Security |Medium |Dockerfile: `ADD` of a URL without `--checksum`
+|DKR004 |Maintainability |Low |Dockerfile: `ADD` of a local file (other than a tar archive): prefer `COPY`
+|DKR005 |Security |Critical |Dockerfile: secret in `ENV` or `ARG` (Medium for an `ARG` without a value, which remains in the history)
+|DKR006 |Security |Low |Dockerfile: `apt-get install` without `--no-install-recommends`
+|DKR007 |Performance |Low |Dockerfile: apt, dnf/yum or apk cache left in the image
+|CI001 |Security |Medium |GitHub Actions: action not pinned by its SHA (Low for `actions/*` and `github/*`)
+|CI002 |Security |Low/High |GitHub Actions: no `permissions:` (Low); `permissions: write-all` (High)
+|CI003 |Security |Critical |GitHub Actions: `pull_request_target` or `workflow_run` that checks out the pull request's code (Poisoned Pipeline Execution)
+|CI004 |Security |Critical |Cleartext secret in `env:` (GitHub) or `variables:` (GitLab)
+|CI005 |Security |Medium |CI container image not pinned (`container:`, `services:`, `docker://`; GitLab's `image:` and `services:`)
 |===
 
-hadolint, actionlint et zizmor, s'ils sont installés, complètent ces règles ;
-un problème qu'ils partagent avec une règle intégrée n'est compté qu'une
-fois (la règle intégrée est conservée, avec son conseil et ses références).
+hadolint, actionlint and zizmor, if installed, complement these rules;
+an issue they share with a built-in rule is counted only once (the built-in
+rule is kept, with its suggestion and references).
 
-Une directive `# check-script disable=…` s'écrit dans le shell ou en
-commentaire du fichier hôte, sur la ligne précédente. Il n'y a pas de
-correction automatique dans un fichier hôte : `--fix` le laisse intact.
+A `# check-script disable=…` directive is written in the shell or as a
+comment of the host file, on the preceding line. There is no automatic fix
+in a host file: `--fix` leaves it untouched.
 
 [[pdf]]
-== Rapport PDF
+== PDF report
 
-`-o audit.pdf` (ou *Exporter…* dans l'interface) produit un livrable
-d'audit :
+`-o audit.pdf` (or *Export…* in the interface) produces an audit
+deliverable:
 
-* page de garde : date, version de check-script, nombre de scripts, profil
-  et contextes, note moyenne et niveau, problèmes par sévérité ;
-* synthèse : scripts du plus faible au meilleur (note, niveau, problèmes par
-  sévérité) ;
-* référentiels : chaque référence CWE, OWASP ou ANSSI avec son intitulé, le
-  nombre de problèmes, la sévérité la plus haute et le nombre de scripts
-  (voir <<references>>) ;
-* paquets à installer (dnf, apt) pour les commandes externes des scripts ;
-* une section par script : notes par catégorie, commandes externes, puis
-  chaque problème avec sa ligne, sa sévérité, sa règle, le code concerné
-  (jamais une ligne contenant un secret), le conseil de correction et ses
-  références.
+* cover page: date, check-script version, number of scripts, profile
+  and contexts, average score and level, issues by severity;
+* summary: scripts from the weakest to the best (score, level, issues by
+  severity);
+* frameworks: each CWE, OWASP or ANSSI reference with its title, the
+  number of issues, the highest severity and the number of scripts
+  (see <<references>>);
+* packages to install (dnf, apt) for the scripts' external commands;
+* one section per script: scores by category, external commands, then
+  each issue with its line, severity, rule, the code concerned
+  (never a line containing a secret), the fix suggestion and its
+  references.
 
-Le PDF utilise une police TrueType du système (Noto Sans, DejaVu Sans,
-Liberation Sans ou Bitstream Vera, et leur variante à chasse fixe pour le
-code) ; sans aucune d'elles, les polices standard du PDF, les caractères
-non latins étant remplacés.
+The PDF uses a system TrueType font (Noto Sans, DejaVu Sans,
+Liberation Sans or Bitstream Vera, and their monospaced variant for
+code); without any of them, the standard PDF fonts, with non-Latin
+characters replaced.
 
 [[commandes]]
-== Commandes externes
+== External commands
 
-Pour chaque script shell, check-script dresse l'inventaire des commandes
-externes qu'il lance (`jq`, `rsync`, `curl`… ; commandes internes du shell
-et fonctions du script exclues ; la commande lancée par `sudo`, `env`,
-`timeout`, `xargs`… est retenue aussi), avec les lignes, leur présence sur
-la machine d'analyse (chemin) et, pour les commandes courantes, le paquet
-qui les fournit sous Fedora/RHEL (dnf) et Debian/Ubuntu (apt).
+For each shell script, check-script draws up the inventory of the external
+commands it runs (`jq`, `rsync`, `curl`… ; shell built-ins
+and the script's functions excluded; the command run by `sudo`, `env`,
+`timeout`, `xargs`… is retained too), with the lines, their presence on
+the analysis machine (path) and, for common commands, the package
+that provides them on Fedora/RHEL (dnf) and Debian/Ubuntu (apt).
 
-* terminal : ligne *Commandes externes*, `✗` pour une commande introuvable ;
-* Markdown, AsciiDoc : liste, paquets des commandes manquantes ;
-* HTML, PDF : tableau par script, et pour un dossier la ligne `dnf install
-  …` / `apt install …` des paquets nécessaires ;
-* JSON : `commands` (`name`, `lines`, `found`, `path`, `dnf`, `apt`,
+* terminal: *External commands* line, `✗` for a command not found;
+* Markdown, AsciiDoc: list, packages of the missing commands;
+* HTML, PDF: table per script, and for a folder the `dnf install
+  …` / `apt install …` line of the packages needed;
+* JSON: `commands` (`name`, `lines`, `found`, `path`, `dnf`, `apt`,
   `checked`).
 
-La règle ROB017 signale une commande introuvable que le script ne vérifie
-pas lui-même ; les commandes de base (coreutils, `grep`, `sed`, `awk`,
-`find`, `tar`…) n'en font pas l'objet. La machine d'analyse n'est pas
-forcément la machine cible : ROB017 se désactive comme toute règle. Les
-scripts intégrés (Dockerfile, CI) n'ont pas d'inventaire : leurs commandes
-s'exécutent ailleurs.
+The ROB017 rule reports a command not found that the script does not check
+itself; basic commands (coreutils, `grep`, `sed`, `awk`,
+`find`, `tar`…) are not subject to it. The analysis machine is not
+necessarily the target machine: ROB017 can be disabled like any rule.
+Embedded scripts (Dockerfile, CI) have no inventory: their commands
+run elsewhere.
 
 [[references]]
-== Référentiels : CWE, OWASP, ANSSI
+== Frameworks: CWE, OWASP, ANSSI
 
-Chaque problème porte ses références normatives, quand la correspondance
-est directe :
+Each issue carries its normative references, when the correspondence
+is direct:
 
-* *CWE* (MITRE), ex. `CWE-494` Download of Code Without Integrity Check ;
-* *OWASP Top 10 2021*, ex. `OWASP A08:2021` Software and Data Integrity
-  Failures, et *OWASP Top 10 CI/CD* pour les workflows, ex. `OWASP
-  CICD-SEC-4` Poisoned Pipeline Execution ;
-* *ANSSI* : `ANSSI-BP-028 Rnn` (Recommandations de configuration d'un
-  système GNU/Linux, v2.0), `ANSSI-FT-082 Rnn` (déploiement de conteneurs
-  Docker), `ANSSI OpenSSH Rnn` (usage sécurisé d'OpenSSH).
+* *CWE* (MITRE), e.g. `CWE-494` Download of Code Without Integrity Check;
+* *OWASP Top 10 2021*, e.g. `OWASP A08:2021` Software and Data Integrity
+  Failures, and *OWASP Top 10 CI/CD* for workflows, e.g. `OWASP
+  CICD-SEC-4` Poisoned Pipeline Execution;
+* *ANSSI*: `ANSSI-BP-028 Rnn` (configuration recommendations for a
+  GNU/Linux system, v2.0), `ANSSI-FT-082 Rnn` (Docker container
+  deployment), `ANSSI OpenSSH Rnn` (secure use of OpenSSH).
 
-Les règles intégrées ont leurs références ; celles de Bandit (CWE) et de
-Semgrep (CWE, OWASP 2021) viennent de l'outil ; une règle d'un autre outil
-reçoit celles de la règle intégrée équivalente (ShellCheck SC2164 ↔
-ROB005, hadolint DL3007 ↔ DKR001, zizmor unpinned-uses ↔ CI001…). Les règles
-de style ou de performance n'ont en général pas de référence.
+The built-in rules have their references; those of Bandit (CWE) and of
+Semgrep (CWE, OWASP 2021) come from the tool; a rule of another tool
+receives those of the equivalent built-in rule (ShellCheck SC2164 ↔
+ROB005, hadolint DL3007 ↔ DKR001, zizmor unpinned-uses ↔ CI001…). Style
+or performance rules generally have no reference.
 
 [cols="1,4",options="header"]
 |===
-|Règle |Références
-|SEC001, SEC019 |CWE-494, OWASP A08:2021, ANSSI-BP-028 R59 (dépôts de confiance)
+|Rule |References
+|SEC001, SEC019 |CWE-494, OWASP A08:2021, ANSSI-BP-028 R59 (trusted repositories)
 |SEC002, SEC022, PYSEC001 |CWE-798, OWASP A07:2021
 |SEC003 |CWE-95, CWE-78, OWASP A03:2021
-|SEC004 |CWE-732, OWASP A01:2021, ANSSI-BP-028 R50 et R54
-|SEC005 |CWE-295, OWASP A07:2021, ANSSI OpenSSH R6 (légitimité du serveur)
-|SEC009 |CWE-377, CWE-59, ANSSI-BP-028 R55 (répertoires temporaires)
+|SEC004 |CWE-732, OWASP A01:2021, ANSSI-BP-028 R50 and R54
+|SEC005 |CWE-295, OWASP A07:2021, ANSSI OpenSSH R6 (server legitimacy)
+|SEC009 |CWE-377, CWE-59, ANSSI-BP-028 R55 (temporary directories)
 |SEC012 |CWE-532, OWASP A09:2021
 |SEC013 |CWE-250, ANSSI-BP-028 R56 (setuid / setgid)
-|SEC015, SEC016 |CWE-426 / CWE-427, ANSSI-BP-028 R39 (directives sudo)
-|SEC020 |CWE-668, ANSSI OpenSSH R20 (relais de confiance)
+|SEC015, SEC016 |CWE-426 / CWE-427, ANSSI-BP-028 R39 (sudo directives)
+|SEC020 |CWE-668, ANSSI OpenSSH R20 (trusted relays)
 |SEC023 |CWE-78, CWE-94, OWASP A03:2021, OWASP CICD-SEC-4
-|SEC024, SEC026, DKR001, CI001, CI005 |CWE-1357 ou CWE-829, OWASP A08:2021, OWASP CICD-SEC-3
+|SEC024, SEC026, DKR001, CI001, CI005 |CWE-1357 or CWE-829, OWASP A08:2021, OWASP CICD-SEC-3
 |SEC025 |CWE-347, CWE-494, OWASP A08:2021, OWASP CICD-SEC-3, ANSSI-BP-028 R59
 |DKR002 |CWE-250, OWASP A05:2021, ANSSI-FT-082 R7
 |DKR005, CI004 |CWE-798, OWASP A07:2021, OWASP CICD-SEC-6
-|DKR006 |ANSSI-BP-028 R58 (paquets strictement nécessaires)
+|DKR006 |ANSSI-BP-028 R58 (strictly necessary packages)
 |CI002 |CWE-250, CWE-272, OWASP A01:2021, OWASP CICD-SEC-5
 |CI003 |CWE-829, CWE-94, OWASP A08:2021, OWASP CICD-SEC-4
 |===
 
-La liste complète est donnée par `check-script --list-rules`. Les références
-apparaissent dans tous les rapports : terminal (`--details`), Markdown,
-AsciiDoc, JSON (`refs`), JUnit, SARIF (étiquettes `external/cwe/cwe-NNN`,
-reconnues par GitHub Code Scanning) et HTML, qui ajoute une vue *Référentiels*
-: chaque référence avec son intitulé, le nombre de problèmes, la sévérité la
-plus haute et le nombre de scripts concernés — la base d'un rapport d'audit
-de conformité. `--ref` restreint l'affichage à une référence ou une famille ;
-l'onglet *Règles* de l'interface cherche aussi dans les références, et le
-survol dans un éditeur (LSP) les affiche en liens.
+The full list is given by `check-script --list-rules`. The references
+appear in all reports: terminal (`--details`), Markdown,
+AsciiDoc, JSON (`refs`), JUnit, SARIF (`external/cwe/cwe-NNN` tags,
+recognized by GitHub Code Scanning) and HTML, which adds a *Frameworks*
+view: each reference with its title, the number of issues, the highest
+severity and the number of scripts concerned — the basis of a compliance
+audit report. `--ref` restricts the display to one reference or family;
+the *Rules* tab of the interface also searches in the references, and the
+hover in an editor (LSP) shows them as links.
 
 [[editeurs]]
-== Éditeurs (VS Code, Eclipse, Geany…)
+== Editors (VS Code, Eclipse, Geany…)
 
-`check-script lsp` est un serveur LSP : l'analyse apparaît directement dans
-l'éditeur, avec la configuration du projet (`.checkscript.yaml` le plus
-proche), comme en ligne de commande.
+`check-script lsp` is an LSP server: the analysis appears directly in the
+editor, with the project's configuration (nearest `.checkscript.yaml`),
+as on the command line.
 
-* *Diagnostics* : problèmes soulignés et listés (sévérité, règle, conseil,
-  lien vers la documentation). Analyse complète (ShellCheck, Ruff…) à
-  l'ouverture et à l'enregistrement ; pendant la frappe, après une pause,
-  les règles intégrées, la syntaxe et les règles personnalisées sur le texte
-  en cours (les résultats des outils restent affichés tant que leur ligne
-  n'a pas changé).
-* *Corrections rapides* : corriger le problème ou toutes les occurrences de
-  la règle, ignorer la règle sur la ligne (`# check-script disable=…` au-dessus)
-  ou dans tout le fichier (`disable-file`).
-* *Survol* : message, conseil, exemple « à éviter / à écrire », lien.
-* *Formater le document* : shfmt (shell) ou `ruff format` (Python).
-* *Note* du script dans la barre d'état (VS Code) ou la ligne d'état
+* *Diagnostics*: issues underlined and listed (severity, rule, suggestion,
+  link to the documentation). Full analysis (ShellCheck, Ruff…) on open
+  and on save; while typing, after a pause, the built-in rules, syntax and
+  custom rules on the current text (the tools' results remain displayed as
+  long as their line has not changed).
+* *Quick fixes*: fix the issue or all occurrences of the rule, ignore the
+  rule on the line (`# check-script disable=…` above) or in the whole file
+  (`disable-file`).
+* *Hover*: message, suggestion, "avoid / write" example, link.
+* *Format document*: shfmt (shell) or `ruff format` (Python).
+* Script *score* in the status bar (VS Code) or the status line
   (Eclipse).
 
-Scripts shell et Python, et scripts intégrés (Dockerfile, Makefile, CI,
-Ansible, voir <<integres>>). Les extensions utilisent le `check-script`
-installé (PATH, ou chemin réglable) : la version 0.16 ou plus récente.
+Shell and Python scripts, and embedded scripts (Dockerfile, Makefile, CI,
+Ansible, see <<integres>>). The extensions use the installed `check-script`
+(PATH, or configurable path): version 0.16 or newer.
 
 VS Code::
-Fichier `check-script-VERSION.vsix` de la release :
+`check-script-VERSION.vsix` file from the release:
 +
 [source,bash]
 ----
 code --install-extension check-script-VERSION.vsix
 ----
 +
-Réglages (`checkScript.*`) : `path` (exécutable), `lang`, `profile`,
-`analyzeOnType`, `typingDelay`, `trace.server`. Commandes : *CheckScript :
-Analyser le fichier* (aussi en cliquant sur la note), *CheckScript :
-Redémarrer le serveur*.
+Settings (`checkScript.*`): `path` (executable), `lang`, `profile`,
+`analyzeOnType`, `typingDelay`, `trace.server`. Commands (their labels are
+in French): *CheckScript: Analyser le fichier* (analyze the file; also by
+clicking the score), *CheckScript: Redémarrer le serveur* (restart the
+server).
 
-Eclipse (version récente, lancée avec Java 21 ou plus)::
-Fichier `check-script-eclipse-VERSION.zip` de la release : *Help → Install
-New Software… → Add… → Archive…*, puis cocher *CheckScript* (LSP4E et
-l'éditeur générique, présents dans les paquets Eclipse IDE, sont installés
-si besoin). Les scripts (`.sh`, `.bash`, `.ksh`, `.zsh`, `.py`),
-`Dockerfile`, `Makefile`/`*.mk` et `.gitlab-ci.yml` s'ouvrent dans
-l'éditeur générique ; pour un fichier sans extension, *Open With → Generic
-Text Editor*. Réglages : *Window → Preferences → CheckScript* (exécutable,
-langue, profil, analyse pendant la frappe). Si un autre plugin (PyDev…)
-déclare déjà les fichiers `.py`, Eclipse peut lui donner la priorité.
+Eclipse (recent version, run with Java 21 or newer)::
+`check-script-eclipse-VERSION.zip` file from the release: *Help → Install
+New Software… → Add… → Archive…*, then tick *CheckScript* (LSP4E and
+the generic editor, present in the Eclipse IDE packages, are installed
+if needed). Scripts (`.sh`, `.bash`, `.ksh`, `.zsh`, `.py`),
+`Dockerfile`, `Makefile`/`*.mk` and `.gitlab-ci.yml` open in the generic
+editor; for a file without an extension, *Open With → Generic
+Text Editor*. Settings: *Window → Preferences → CheckScript* (executable,
+language, profile, analysis while typing). If another plugin (PyDev…)
+already claims `.py` files, Eclipse may give it priority.
 
-Geany (2.1 ou plus récent)::
-Avec le greffon *LSP Client* (geany-plugins) : *Outils → LSP Client →
-Configuration utilisateur*, puis coller les sections de
-`editors/geany/lsp.conf` (Sh, Python, Dockerfile, Make, YAML). Geany n'a
-qu'un serveur par type de fichier : pour Python, CheckScript remplace alors
-pyright ou pylsp.
+Geany (2.1 or newer)::
+With the *LSP Client* plugin (geany-plugins): *Tools → LSP Client →
+User configuration*, then paste the sections of
+`editors/geany/lsp.conf` (Sh, Python, Dockerfile, Make, YAML). Geany has
+only one server per file type: for Python, CheckScript then replaces
+pyright or pylsp.
 
-Autres éditeurs::
-Tout client LSP : commande `check-script lsp`, options d'initialisation
-`lang`, `profile`, `analyzeOnType`, `typingDelay` (ms) ; notification
-`checkScript/score` (`uri`, `score`, `grade`, `findings`) après chaque
-analyse complète.
+Other editors::
+Any LSP client: command `check-script lsp`, initialization options
+`lang`, `profile`, `analyzeOnType`, `typingDelay` (ms); notification
+`checkScript/score` (`uri`, `score`, `grade`, `findings`) after each
+full analysis.
 
-== Intégration continue
+== Continuous integration
 
 GitLab::
-Le format « Code Quality » s'affiche dans le widget des merge requests.
-Exemple complet : `doc/ci/gitlab-ci.yml`.
+The "Code Quality" format is displayed in the merge request widget.
+Complete example: `doc/ci/gitlab-ci.yml`.
 +
 [source,bash]
 ----
@@ -1106,10 +1099,10 @@ check-script --summary -o gl-code-quality-report.json -o check-script.html \
 ----
 
 GitHub::
-L'action du dépôt compile check-script, installe ShellCheck et shfmt,
-*annote* les lignes concernées (visibles dans les pull requests), ajoute le
-rapport au résumé du job et produit un SARIF pour « Security → Code
-scanning ». Exemple complet : `doc/ci/github-actions.yml`.
+The repository's action builds check-script, installs ShellCheck and shfmt,
+*annotates* the lines concerned (visible in pull requests), adds the
+report to the job summary and produces a SARIF for "Security → Code
+scanning". Complete example: `doc/ci/github-actions.yml`.
 +
 [source,yaml]
 ----
@@ -1117,31 +1110,31 @@ scanning ». Exemple complet : `doc/ci/github-actions.yml`.
 - id: cs
   uses: chla28/CheckScript@v0.18.4
   with:
-    paths: scripts .github          # défaut : .
-    fail-under: '6'                 # ou security=8,global=6 ; défaut : aucun seuil
-    changed-since: ''               # ex. origin/main (checkout avec fetch-depth: 0)
-    args: --profile strict          # options supplémentaires
-    lang: fr                        # fr (défaut) ou en
+    paths: scripts .github          # default: .
+    fail-under: '6'                 # or security=8,global=6; default: no threshold
+    changed-since: ''               # e.g. origin/main (checkout with fetch-depth: 0)
+    args: --profile strict          # additional options
+    lang: en                        # fr (default) or en
     annotations: 'true'
     summary: 'true'
-    sarif: check-script.sarif       # vide : pas de SARIF
-    install-tools: 'true'           # ShellCheck et shfmt par apt
+    sarif: check-script.sarif       # empty: no SARIF
+    install-tools: 'true'           # ShellCheck and shfmt through apt
 - uses: github/codeql-action/upload-sarif@v4
   if: always()
   with:
     sarif_file: check-script.sarif
-- run: echo "Note moyenne ${{ steps.cs.outputs.score }} (${{ steps.cs.outputs.grade }})"
+- run: echo "Average score ${{ steps.cs.outputs.score }} (${{ steps.cs.outputs.grade }})"
 ----
 +
-Sorties : `score` (note moyenne), `grade` (niveau le plus bas), `scripts`
-(nombre analysé), `sarif` (chemin). Le dépôt de l'action doit être
-accessible au dépôt qui l'utilise (public, ou même organisation avec
-l'accès aux actions autorisé). Sans l'action : `--format github` écrit les
-annotations sur la sortie standard.
+Outputs: `score` (average score), `grade` (lowest level), `scripts`
+(number analyzed), `sarif` (path). The action's repository must be
+accessible to the repository that uses it (public, or same organization
+with access to actions allowed). Without the action: `--format github`
+writes the annotations to the standard output.
 
-Jenkins, GitLab (onglet Tests)::
-`-o rapport.xml` (ou `--format junit`) écrit un rapport JUnit XML : une
-suite par script, un cas en échec par problème (type : sévérité).
+Jenkins, GitLab (Tests tab)::
+`-o report.xml` (or `--format junit`) writes a JUnit XML report: one
+suite per script, one failed case per issue (type: severity).
 +
 [source,yaml]
 ----
@@ -1155,7 +1148,7 @@ check-script:
 ----
 
 pre-commit::
-Avec le framework https://pre-commit.com, dans `.pre-commit-config.yaml` :
+With the https://pre-commit.com framework, in `.pre-commit-config.yaml`:
 +
 [source,yaml]
 ----
@@ -1163,127 +1156,122 @@ repos:
   - repo: https://github.com/chla28/CheckScript
     rev: v0.18.4
     hooks:
-      - id: check-script        # ou check-script-fix pour corriger
+      - id: check-script        # or check-script-fix to fix
 ----
 +
-Sans le framework, le hook autonome contrôle la version *indexée* des
-scripts modifiés :
+Without the framework, the standalone hook checks the *staged* version of
+the modified scripts:
 +
 [source,bash]
 ----
-ln -s /chemin/vers/CheckScript/scripts/pre-commit-hook.sh .git/hooks/pre-commit
-# variables : CHECK_SCRIPT_MIN (défaut 6), CHECK_SCRIPT_ARGS, CHECK_SCRIPT_SKIP=1
+ln -s /path/to/CheckScript/scripts/pre-commit-hook.sh .git/hooks/pre-commit
+# variables: CHECK_SCRIPT_MIN (default 6), CHECK_SCRIPT_ARGS, CHECK_SCRIPT_SKIP=1
 ----
 
-Le format JSON (`-o rapport.json`) est stable : notes par catégorie,
-compteurs, problèmes avec empreinte, conseil et lien, outils et versions,
-comparaison avec la référence.
+The JSON format (`-o report.json`) is stable: scores by category,
+counters, issues with fingerprint, suggestion and link, tools and versions,
+comparison with the baseline.
 
-== Interface graphique
+== Graphical interface
 
-`check-script-gui` (menu « CheckScript », ou lanceur MainGUI de la suite
-AuditTools) reprend le même moteur, les mêmes règles et les mêmes rapports :
+`check-script-gui` ("CheckScript" menu, or the MainGUI launcher of the
+AuditTools suite) reuses the same engine, the same rules and the same
+reports:
 
-* *Analyse* : ouvrir ou déposer un script ; source annoté (marque de
-  sévérité en marge, info-bulle des problèmes, coloration syntaxique du
-  shell, de Python et des fichiers hôtes — YAML, Dockerfile, Makefile), en
-  police à chasse fixe : JetBrains Mono, embarquée, ou toute police à
-  chasse fixe installée (*Réglages → Police du code*, liste de fontconfig
-  ou nom saisi) ; taille du texte par les boutons A− / A+ au-dessus du
-  code (clic sur la taille : 13 pt), Ctrl+plus / Ctrl+moins / Ctrl+0,
-  Ctrl+molette sur le code ou le curseur des réglages ; police et taille
-  valent aussi pour les diffs et les exemples de correction, et sont
-  mémorisées ; onglet *Synthèse* (note
-  globale, radar des cinq catégories, compteurs par sévérité) et onglet
-  *Problèmes* (filtres par catégorie et sévérité, conseil, lien vers la
-  documentation ; un clic place le source sur la ligne et déplie le code à
-  écrire, voir <<code-correction>>) ; la barre entre le code et les
-  résultats se déplace à la souris (double-clic : répartition par défaut),
-  ses flèches replient l'un ou l'autre panneau ; la répartition est
-  mémorisée, séparément pour une fenêtre large (côte à côte) et étroite
-  (l'un au-dessus de l'autre) ;
-* *Corriger…* : aperçu du diff puis application ; depuis un problème
-  déplié, *Appliquer cette correction* (cette occurrence) ou *Corriger les
-  N occurrences* (toute la règle, s'il y en a plusieurs) ; dans l'onglet
-  *Problèmes*, les problèmes corrigeables ont une case à cocher (et
-  *Corrigeables affichés* les coche tous, selon les filtres) : *Corriger la
-  sélection* montre le diff global avant d'appliquer ;
-* *Règles* : toutes les règles de détection — règles intégrées, codes des
-  outils classés par l'outil (ShellCheck, Ruff, Bandit, Pylint…) et codes
-  rencontrés lors des analyses —, chacune avec une case à cocher : une règle
-  décochée n'est plus signalée *à partir de l'analyse suivante* (bouton
-  *Relancer l'analyse*). Recherche par code, texte ou outil ; filtres par
-  langage, outil et catégorie ; champ pour désactiver n'importe quel autre
-  code (ex. `SC2317`) ; *Tout réactiver*. Les règles désactivées par le
-  profil ou le fichier YAML apparaissent décochées et grisées. Dans la liste
-  des problèmes, un problème déplié propose aussi *Ne plus signaler* sa
-  règle. Une règle est désactivée par son identifiant, tout outil confondu,
-  comme `rules.disabled` de la configuration ; le choix est mémorisé ;
-* *Dossier* : tableau triable de tous les scripts d'un dossier ; avec une
-  référence chargée, colonne *Tendance* (évolution de la note) ; les
-  scripts enregistrés ou créés dans le dossier sont réanalysés (même
-  réglage que la surveillance du script ouvert) ;
-* *Récents* (icône d'horloge sous les onglets) : les 10 derniers scripts et
-  dossiers analysés ; un glisser-déposer d'un script ou d'un dossier sur la
-  fenêtre l'analyse aussi ;
-* *Exporter…* : HTML, Markdown, AsciiDoc, JSON, SARIF ; le rapport HTML
-  d'un dossier commence par une synthèse (note moyenne, niveaux,
-  problèmes par sévérité), un tableau des scripts triable et les règles les
-  plus fréquentes ;
-* *Réglages* : langue, thème, profil, contextes, outils groupés par langage
-  (avec détection des versions ; Pylint et Pyright activables), version
-  minimale de Python, suivi des fichiers sourcés, fichier de configuration
-  YAML : *Importer…* (le fichier devient la référence : son profil et ses
-  contextes sont repris, les choix de l'interface remis à zéro) et
-  *Exporter…* (écrit la configuration effective — fichier et choix de
-  l'interface — dans un `.checkscript.yaml` utilisable par la CLI et la CI).
+* *Analysis*: open or drop a script; annotated source (severity mark in
+  the margin, tooltip of the issues, syntax highlighting of shell, Python
+  and host files — YAML, Dockerfile, Makefile), in a monospaced font:
+  JetBrains Mono, embedded, or any installed monospaced font
+  (*Settings → Code font*, fontconfig list or typed name); text size
+  through the A− / A+ buttons above the code (click on the size: 13 pt),
+  Ctrl+plus / Ctrl+minus / Ctrl+0, Ctrl+wheel on the code or the settings
+  slider; font and size also apply to the diffs and the fix examples, and
+  are remembered; *Summary* tab (overall score, radar of the five
+  categories, counters by severity) and *Issues* tab (filters by category
+  and severity, suggestion, link to the documentation; a click moves the
+  source to the line and expands the code to write, see
+  <<code-correction>>); the bar between the code and the results can be
+  moved with the mouse (double-click: default split), its arrows collapse
+  either panel; the split is remembered, separately for a wide window
+  (side by side) and a narrow one (one above the other);
+* *Fix…*: diff preview then application; from an expanded issue,
+  *Apply this fix* (this occurrence) or *Fix the N occurrences* (the whole
+  rule, if there are several); in the *Issues* tab, fixable issues have a
+  checkbox (and *Fixable shown* ticks them all, according to the filters):
+  *Fix selection* shows the global diff before applying;
+* *Rules*: all detection rules — built-in rules, tool codes classified by
+  the tool (ShellCheck, Ruff, Bandit, Pylint…) and codes encountered during
+  analyses —, each with a checkbox: an unticked rule is no longer reported
+  *from the next analysis* (*Re-run analysis* button). Search by code, text
+  or tool; filters by language, tool and category; field to disable any
+  other code (e.g. `SC2317`); *Enable all*. Rules disabled by the profile
+  or the YAML file appear unticked and greyed out. In the list of issues,
+  an expanded issue also offers *Stop reporting* its rule. A rule is
+  disabled by its identifier, whatever the tool, like `rules.disabled` in
+  the configuration; the choice is remembered;
+* *Folder*: sortable table of all the scripts of a folder; with a baseline
+  loaded, *Trend* column (evolution of the score); scripts saved or
+  created in the folder are re-analyzed (same setting as the watching of
+  the open script);
+* *Recent* (clock icon under the tabs): the last 10 scripts and folders
+  analyzed; dragging and dropping a script or a folder onto the window
+  also analyzes it;
+* *Export…*: HTML, Markdown, AsciiDoc, JSON, SARIF; a folder's HTML report
+  starts with a summary (average score, levels, issues by severity), a
+  sortable table of scripts and the most frequent rules;
+* *Settings*: language, theme, profile, contexts, tools grouped by language
+  (with version detection; Pylint and Pyright can be enabled), minimum
+  Python version, following of sourced files, YAML configuration file:
+  *Import…* (the file becomes the reference: its profile and contexts are
+  taken over, the interface's choices reset) and *Export…* (writes the
+  effective configuration — file and interface choices — to a
+  `.checkscript.yaml` usable by the CLI and the CI).
 
-Les analyses de dossier traitent plusieurs scripts à la fois.
+Folder analyses process several scripts at once.
 
-Également dans l'interface :
+Also in the interface:
 
-* *Synthèse* : « Ce qui pèse sur la note » (règles les plus coûteuses, gain
-  en les corrigeant, niveau atteignable) ; *Problèmes* : tri *Par
-  catégorie* ou *Par gain rapide* ;
-* *Ouvrir dans l'éditeur* (barre d'outils, ou depuis un problème déplié à
-  sa ligne) : éditeur détecté (VS Code, VSCodium, GNOME Text Editor, gedit,
-  Kate, KWrite, Xed, Geany) ou commande des *Réglages*, avec `{file}` et
-  `{line}` (ex. `code -g {file}:{line}`) ;
-* le script ouvert est *surveillé* : à chaque enregistrement, l'analyse est
-  relancée (réglage *Relancer l'analyse quand un script est enregistré*) ;
-* *Dossier* : *Historique* des analyses du dossier (courbe de la note
-  moyenne ; `~/.local/share/check-script/history`, 200 analyses par
-  dossier) ;
-* *Signaler un faux positif* (problème déplié) : le cas est enregistré sur
-  le poste, *anonymisé* (contenu des chaînes et jetons longs masqués, ligne à
-  secret jamais recopiée), avec un commentaire, dans
-  `~/.local/share/check-script/false-positives.jsonl` ;
-  `dart run tool/false_positives.dart --details` en fait la synthèse par
-  règle pour enrichir le corpus ;
-* sans fichier de configuration choisi, le `.checkscript.yaml` de projet du
-  script ou du dossier analysé s'applique ; *Réutiliser les résultats d'un
-  script inchangé* active le cache, comme la CLI.
+* *Summary*: "What weighs on the score" (most costly rules, gain by fixing
+  them, attainable level); *Issues*: sorting *By category* or *By quick
+  win*;
+* *Open in editor* (toolbar, or from an expanded issue at its line):
+  detected editor (VS Code, VSCodium, GNOME Text Editor, gedit, Kate,
+  KWrite, Xed, Geany) or command from the *Settings*, with `{file}` and
+  `{line}` (e.g. `code -g {file}:{line}`);
+* the open script is *watched*: on each save, the analysis is re-run
+  (setting *Re-run the analysis when a script is saved*);
+* *Folder*: *History* of the folder's analyses (average score curve;
+  `~/.local/share/check-script/history`, 200 analyses per folder);
+* *Report a false positive* (expanded issue): the case is recorded on the
+  machine, *anonymized* (string contents and long tokens masked, secret
+  line never copied), with a comment, in
+  `~/.local/share/check-script/false-positives.jsonl`;
+  `dart run tool/false_positives.dart --details` summarizes it by rule to
+  enrich the corpus;
+* with no configuration file chosen, the project's `.checkscript.yaml` of
+  the script or folder analyzed applies; *Reuse the results of an unchanged
+  script* enables the cache, like the CLI.
 
-La progression outil par outil s'affiche pendant l'analyse, qui peut être
-annulée. Un chemin passé en argument (`check-script-gui deploy.sh` ou un
-dossier) est analysé au démarrage.
+Tool-by-tool progress is displayed during the analysis, which can be
+cancelled. A path passed as an argument (`check-script-gui deploy.sh` or a
+folder) is analyzed at startup.
 
-== Questions fréquentes
+== Frequently asked questions
 
-Le rapport dit « Outils absents » ::
-L'analyse s'est limitée aux règles intégrées pour ces outils ; installez-les
-pour un résultat complet (`check-script --list-tools` donne les commandes).
+The report says "Missing tools" ::
+The analysis was limited to the built-in rules for these tools; install
+them for a complete result (`check-script --list-tools` gives the commands).
 
-Mon script est en bash mais n'a pas de shebang ::
-Utilisez `--shell bash` ; sans shebang, le dialecte est inconnu, POR001 est
-signalé et checkbashisms est exécuté en mode forcé.
+My script is bash but has no shebang ::
+Use `--shell bash`; without a shebang, the dialect is unknown, POR001 is
+reported and checkbashisms is run in forced mode.
 
-Comment ignorer une règle pour un seul script ? ::
-Par une directive `# check-script disable=…` / `disable-file=…` (voir
-<<directives>>), ou `# shellcheck disable=…` pour les codes ShellCheck.
+How do I ignore a rule for a single script? ::
+With a `# check-script disable=…` / `disable-file=…` directive (see
+<<directives>>), or `# shellcheck disable=…` for ShellCheck codes.
 
-Pourquoi un script POSIX avec quelques bashismes est-il noté si bas ? ::
-Parce qu'il échouera réellement sur les systèmes où `/bin/sh` est dash
-(Debian, Ubuntu) : `function`, `[[`, `&>`, `<<<` ou les tableaux y sont des
-erreurs, pas des détails de style. Déclarez `#!/usr/bin/env bash` si le
-script est écrit pour bash.
+Why is a POSIX script with a few bashisms scored so low? ::
+Because it will really fail on systems where `/bin/sh` is dash
+(Debian, Ubuntu): `function`, `[[`, `&>`, `<<<` or arrays are errors there,
+not style details. Declare `#!/usr/bin/env bash` if the script is written
+for bash.

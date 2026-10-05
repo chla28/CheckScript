@@ -1,58 +1,58 @@
-# Exemple de configuration de check-script.
+# check-script configuration example.
 #
-# Emplacements lus (le premier trouvé) :
-#   1. --config FICHIER
+# Locations read (the first one found):
+#   1. --config FILE
 #   2. ./.checkscript.yaml
 #   3. ${XDG_CONFIG_HOME:-~/.config}/check-script/config.yaml
-# Toutes les clés sont facultatives : une clé absente garde la valeur du profil.
+# All keys are optional: a missing key keeps the profile's value.
 
-profile: default                # strict | default | legacy (--profile prime)
-context: []                     # [root, cron, systemd] : règles et sévérités dédiées
-followSource: false             # shellcheck -x (fichiers sourcés)
-pythonTarget: "3.9"             # Python minimal à supporter (entre guillemets)
+profile: default                # strict | default | legacy (--profile takes precedence)
+context: []                     # [root, cron, systemd] : dedicated rules and severities
+followSource: false             # shellcheck -x (sourced files)
+pythonTarget: "3.9"             # minimum Python to support (quoted)
 
 tools:
   shellcheck:
     enabled: true
-    path: shellcheck            # nom dans le PATH ou chemin absolu
-    exclude: [SC1091]           # transmis à shellcheck --exclude
+    path: shellcheck            # name in PATH or absolute path
+    exclude: [SC1091]           # passed to shellcheck --exclude
   shfmt:
     enabled: true
   bashate:
     enabled: true
-    exclude: [E006]             # transmis à bashate --ignore
-  checkbashisms: true           # forme courte : activé / désactivé
-  gitleaks: true                # secrets (si installé)
-  trufflehog: true              # secrets, sans vérification réseau (si installé)
-  syntax: true                  # contrôle bash -n / sh -n / compilation Python
-  builtin: true                 # règles intégrées
-  # ── Scripts Python ──
+    exclude: [E006]             # passed to bashate --ignore
+  checkbashisms: true           # short form: enabled / disabled
+  gitleaks: true                # secrets (if installed)
+  trufflehog: true              # secrets, without network verification (if installed)
+  syntax: true                  # bash -n / sh -n / Python compilation check
+  builtin: true                 # built-in rules
+  # ── Python scripts ──
   ruff:
-    exclude: [PLR2004, S603]    # transmis à ruff --ignore
+    exclude: [PLR2004, S603]    # passed to ruff --ignore
   bandit:
-    exclude: [B404, B603]       # transmis à bandit -s
+    exclude: [B404, B603]       # passed to bandit -s
   semgrep:
     enabled: true
-    # Règles : p/python par défaut (téléchargées, gardées en cache une
-    # semaine) ; sur un poste isolé, un fichier ou un dossier local.
+    # Rules: p/python by default (downloaded, cached for one
+    # week); on an isolated machine, a local file or folder.
     # config: /opt/regles/python.yml
   mypy: true
-  radon: true                   # complexité, indice de maintenabilité
-  vermin: true                  # version minimale de Python requise
-  pylint: false                 # redondant avec ruff (activable)
-  pyright: false                # redondant avec mypy (activable)
+  radon: true                   # complexity, maintainability index
+  vermin: true                  # minimum Python version required
+  pylint: false                 # redundant with ruff (can be enabled)
+  pyright: false                # redundant with mypy (can be enabled)
 
 rules:
-  # Règles ignorées, tout outil confondu (SCxxxx, Exxx, SECxxx…).
+  # Ignored rules, regardless of tool (SCxxxx, Exxx, SECxxx…).
   disabled: [MNT005]
-  # Reclassement d'une règle (catégorie et/ou sévérité).
+  # Reclassification of a rule (category and/or severity).
   overrides:
     SC2086: { category: security, severity: medium }
 
 scoring:
   weights: { critical: 4, high: 2, medium: 0.75, low: 0.25 }
-  referenceLines: 100           # au-delà, Medium/Low sont atténués (√(100/n))
-  categoryWeights:              # poids dans la note globale
+  referenceLines: 100           # beyond that, Medium/Low are attenuated (√(100/n))
+  categoryWeights:              # weight in the overall score
     security: 1.5
     robustness: 1.25
     maintainability: 1
@@ -60,7 +60,7 @@ scoring:
     performance: 0.5
 
 thresholds:
-  maxLineLength: 120            # MNT001 (et bashate --max-line-length)
-  maxFunctionLines: 60          # MNT002 (Medium au-delà du double)
+  maxLineLength: 120            # MNT001 (and bashate --max-line-length)
+  maxFunctionLines: 60          # MNT002 (Medium beyond double)
   maxNesting: 4                 # MNT003
   maxLinesWithoutFunction: 150  # MNT008
