@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.7 — 2026-10-05
+
+### Documentation
+
+- add SECURITY.md and ignore personal dotfiles (20e2186)
+
 ## 0.18.6 — 2026-10-05
 
 ### Bug fixes
