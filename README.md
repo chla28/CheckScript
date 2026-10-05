@@ -58,15 +58,15 @@ Overall score: 1.5/10 (E)
 
 ## Graphical interface
 
-![Analysis of a shell script: highlighted code, radar chart and scores per category](doc/screenshots/analyse-clair.png)
+![Analysis of a shell script: highlighted code, radar chart and scores per category](doc/screenshots/en/analyse-clair.png)
 
-![Issues of a Python script (dark theme): filters, CWE / OWASP references, fixes](doc/screenshots/problemes-python.png)
+![Issues of a Python script (dark theme): filters, CWE / OWASP references, fixes](doc/screenshots/en/problemes-python.png)
 
-![Analysis of a folder: scores per script and history](doc/screenshots/dossier.png)
+![Analysis of a folder: scores per script and history](doc/screenshots/en/dossier.png)
 
-![Rule catalog: enabling and disabling each rule](doc/screenshots/regles.png)
+![Rule catalog: enabling and disabling each rule](doc/screenshots/en/regles.png)
 
-These screenshots (French interface) are regenerated with `SCREENSHOT_DIR=../doc/screenshots flutter test test/screenshot_test.dart`
+These screenshots (English in `doc/screenshots/en/`, French in `doc/screenshots/`) are regenerated with `SCREENSHOT_DIR=../doc/screenshots flutter test test/screenshot_test.dart`
 (from `gui/`, see the developer guide).
 
 ## Standards
@@ -131,7 +131,9 @@ Target platform: Linux. The Flutter interface (`gui/`) reuses the
 
 ## Contributing
 
-Commit messages follow the *Conventional Commits* format (`feat(gui): …`,
+Issues and pull requests are welcome in English or French; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Commit messages follow the *Conventional Commits* format, in English (`feat(gui): …`,
 `fix: …`), checked by a hook (`scripts/install-git-hooks.sh`) and by
 CI; `dart run tool/release.dart` publishes a version (number and CHANGELOG
 derived from the commits). See the developer guide.

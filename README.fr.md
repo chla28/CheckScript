@@ -66,7 +66,7 @@ Note globale : 1,5/10 (E)
 
 ![Catalogue des règles : activation et désactivation de chacune](doc/screenshots/regles.png)
 
-Ces captures sont régénérées par `SCREENSHOT_DIR=../doc/screenshots flutter test test/screenshot_test.dart`
+Ces captures (françaises ici, anglaises dans `doc/screenshots/en/`) sont régénérées par `SCREENSHOT_DIR=../doc/screenshots flutter test test/screenshot_test.dart`
 (depuis `gui/`, voir le guide développeur).
 
 ## Référentiels
@@ -130,7 +130,9 @@ bibliothèque `lib/` ; elle est aussi lancée depuis MainGUI.
 
 ## Contribuer
 
-Messages de commit au format *Conventional Commits* (`feat(gui): …`,
+Les issues et pull requests sont bienvenues en français ou en anglais ; voir [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Messages de commit au format *Conventional Commits*, en anglais (`feat(gui): …`,
 `fix: …`), contrôlés par un hook (`scripts/install-git-hooks.sh`) et par la
 CI ; `dart run tool/release.dart` publie une version (numéro et CHANGELOG
 déduits des commits). Voir le guide développeur.

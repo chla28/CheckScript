@@ -449,6 +449,8 @@ the real system fonts:
 cd gui && SCREENSHOT_DIR=/tmp/shots flutter test test/screenshot_test.dart
 ----
 
+French captures are written to `SCREENSHOT_DIR`, English ones to `SCREENSHOT_DIR/en`.
+
 The interface is declared in the MainGUI launcher (`kToolSpecs`, id
 `check_script`, command `check-script-gui`, bundle `check_script_gui`).
 
@@ -489,8 +491,8 @@ fix; every false positive found on a real script joins the corpus.
 
 Commit messages follow
 https://www.conventionalcommits.org/[Conventional Commits]: types and
-scopes in English, description in French (the project's convention), no
-trailing period, first line of at most 100 characters.
+scopes and description in English (the history up to 0.18.5 is in
+French), no trailing period, first line of at most 100 characters.
 
 [source]
 ----
@@ -515,7 +517,7 @@ Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
   and tags `vX.Y.Z` (`--push` to push, which triggers the GitHub
   release). Version: `feat` → minor, other change → patch,
   incompatible → major (minor while the version is 0.x). Notes
-  written under "## Non publié" are kept at the top of the section.
+  written under "## Unreleased" are kept at the top of the section.
 
 == Build and packaging
 

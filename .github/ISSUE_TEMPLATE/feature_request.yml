@@ -1,0 +1,20 @@
+name: Feature request / Proposer une amélioration
+description: A new rule, option or integration / Nouvelle règle, option ou intégration
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        English or French, as you prefer. / En anglais ou en français, au choix.
+  - type: textarea
+    id: need
+    attributes:
+      label: Need / Besoin
+      description: What problem would it solve? / Quel problème cela résoudrait-il ?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal / Proposition
+      description: Expected behavior, example script / Comportement souhaité, exemple de script

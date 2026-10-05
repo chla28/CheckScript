@@ -1,11 +1,11 @@
-# Exemple de job GitLab CI pour check-script.
+# Example GitLab CI job for check-script.
 #
-# - Le rapport Code Quality s'affiche dans le widget des merge requests.
-# - Le rapport HTML est conservé comme artefact.
-# - Le job échoue si un script passe sous 6/10, ou sous 8/10 en sécurité.
+# - The Code Quality report is shown in the merge request widget.
+# - The HTML report is kept as an artifact.
+# - The job fails if a script scores below 6/10, or below 8/10 in security.
 #
-# Variable à définir : CHECK_SCRIPT_URL (URL de l'archive
-# check_script-VERSION-linux-x86_64.tar.gz, ex. un package registry GitLab).
+# Variable to define: CHECK_SCRIPT_URL (URL of the archive
+# check_script-VERSION-linux-x86_64.tar.gz, e.g. a GitLab package registry).
 
 check-script:
   stage: test
@@ -34,6 +34,6 @@ check-script:
         - "**/*.sh"
         - "**/*.bash"
 
-# Variante « nouveaux problèmes seulement » (dette existante tolérée) :
-# conserver un rapport JSON de référence sur la branche principale, puis
+# "New issues only" variant (existing debt tolerated):
+# keep a baseline JSON report on the main branch, then
 #   check-script -b reference.json --fail-on-new high -o gl-code-quality-report.json .

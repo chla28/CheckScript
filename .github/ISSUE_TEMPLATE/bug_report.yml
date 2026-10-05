@@ -1,0 +1,36 @@
+name: Bug report / Signaler un bug
+description: Something does not work as expected / Quelque chose ne fonctionne pas comme prévu
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        English or French, as you prefer. / En anglais ou en français, au choix.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / Que s'est-il passé ?
+      description: Expected vs. observed behavior / Comportement attendu et observé
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce / Pour reproduire
+      description: Command line or a minimal script / Ligne de commande ou script minimal
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `check-script --version` / Résultat de `check-script --version`
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment / Environnement
+      description: OS, `check-script --list-tools` output
+      render: text

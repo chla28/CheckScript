@@ -1,6 +1,6 @@
-# Exemple de workflow GitHub Actions avec l'action CheckScript : annotations
-# sur les lignes des pull requests, résumé du job, SARIF dans l'onglet
-# « Security → Code scanning » (gratuit pour les dépôts publics).
+# Example GitHub Actions workflow using the CheckScript action: annotations
+# on pull request lines, job summary, SARIF in the
+# "Security → Code scanning" tab (free for public repositories).
 name: check-script
 on: [push, pull_request]
 permissions:

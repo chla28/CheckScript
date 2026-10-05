@@ -450,6 +450,8 @@ les vraies polices système :
 cd gui && SCREENSHOT_DIR=/tmp/shots flutter test test/screenshot_test.dart
 ----
 
+Les captures françaises sont écrites dans `SCREENSHOT_DIR`, les anglaises dans `SCREENSHOT_DIR/en`.
+
 L'interface est déclarée dans le lanceur MainGUI (`kToolSpecs`, id
 `check_script`, commande `check-script-gui`, bundle `check_script_gui`).
 
@@ -489,8 +491,9 @@ correction ; tout faux positif trouvé sur un script réel rejoint le corpus.
 == Commits et publication
 
 Les messages de commit suivent les
-https://www.conventionalcommits.org/fr/[Conventional Commits] : types et
-portées en anglais, description en français, sans point final, première
+https://www.conventionalcommits.org/fr/[Conventional Commits] : types,
+portées et description en anglais (l'historique jusqu'à 0.18.5 est en
+français), sans point final, première
 ligne de 100 caractères au plus.
 
 [source]
@@ -516,7 +519,7 @@ Types : `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
   et tague `vX.Y.Z` (`--push` pour pousser, ce qui déclenche la publication
   GitHub). Version : `feat` → mineure, autre changement → correctif,
   incompatible → majeure (mineure tant que la version est 0.x). Les notes
-  rédigées sous « ## Non publié » sont gardées en tête de la section.
+  rédigées sous « ## Unreleased » sont gardées en tête de la section.
 
 == Build et packaging
 
