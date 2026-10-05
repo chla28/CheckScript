@@ -3,7 +3,7 @@ description: >-
   Evaluates a shell script (Security, Robustness, Maintainability,
   Portability, Performance) using shellcheck, shfmt, bashate, checkbashisms
   and built-in rules.
-version: 0.18.7
+version: 0.18.8
 publish_to: none
 
 environment:

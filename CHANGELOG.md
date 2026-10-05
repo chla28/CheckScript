@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.8 — 2026-10-05
+
+### Build and packaging
+
+- exclude Specifications from static analysis (56ef76c)
+
 ## 0.18.7 — 2026-10-05
 
 ### Documentation
