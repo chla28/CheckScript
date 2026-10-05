@@ -1264,6 +1264,16 @@ Les analyses de dossier traitent plusieurs scripts à la fois.
   script ou du dossier analysé s'applique ; *Réutiliser les résultats d'un
   script inchangé* active le cache, comme la CLI.
 
+* *Aide* : le dernier onglet est une aide en ligne — premiers pas, chaque
+  écran, calcul de la note, corrections, référence, règles, réglages,
+  profils et contextes, outils, fichier YAML, directives, faux positifs,
+  exports, raccourcis —, avec un champ de recherche, en français et en
+  anglais. *F1* ouvre l'aide de l'écran affiché, et les icônes *?* à côté
+  des barres d'outils, de la synthèse, des filtres de problèmes et de chaque
+  groupe de réglages montrent un court résumé du sujet avec un lien vers la
+  page complète. Chaque bouton, filtre, en-tête de colonne, outil et réglage
+  a aussi une info-bulle (survolez-le) ;
+
 La progression outil par outil s'affiche pendant l'analyse, qui peut être
 annulée. Un chemin passé en argument (`check-script-gui deploy.sh` ou un
 dossier) est analysé au démarrage.

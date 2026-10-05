@@ -1252,6 +1252,16 @@ Also in the interface:
   the script or folder analyzed applies; *Reuse the results of an unchanged
   script* enables the cache, like the CLI.
 
+* *Help*: the last tab is an online help — getting started, each screen,
+  how the score is computed, fixes, baseline, rules, settings, profiles and
+  contexts, tools, YAML file, directives, false positives, exports,
+  shortcuts —, with a search field and the same content in French and in
+  English. *F1* opens the help of the screen being displayed, and the *?*
+  icons next to the toolbars, the summary, the issue filters and each group
+  of settings show a short summary of their topic with a link to the full
+  page. Every button, filter, column header, tool and setting also has a
+  tooltip (hover it);
+
 Tool-by-tool progress is displayed during the analysis, which can be
 cancelled. A path passed as an argument (`check-script-gui deploy.sh` or a
 folder) is analyzed at startup.
