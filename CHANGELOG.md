@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.18.6 — 2026-10-05
+
+### Bug fixes
+
+- **i18n**: English by default for single-language texts (ba10e21)
+
+### Documentation
+
+- bilingual repository with English screenshots and CONTRIBUTING (2c76a8c)
+
+### Build and packaging
+
+- **release**: English CHANGELOG sections and commit descriptions (ad0ae49)
+
 ## 0.18.5 — 2026-10-05
 
 ### Documentation
