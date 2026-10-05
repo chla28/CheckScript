@@ -1,6 +1,6 @@
 # L'action CheckScript appliquée au dépôt lui-même (scripts, workflows,
 # empaquetage) : vérifie que l'action fonctionne et annote les pull requests.
-name: Auto-analyse
+name: Self-check
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
         with:
           paths: scripts packaging .github .githooks
           sarif: ''
-      - name: Résultat
+      - name: Result
         env:
           SCORE: ${{ steps.cs.outputs.score }}
           GRADE: ${{ steps.cs.outputs.grade }}

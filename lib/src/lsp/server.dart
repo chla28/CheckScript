@@ -160,7 +160,7 @@ class LspServer {
       if (id != null) {
         _send({
           'id': id,
-          'error': {'code': -32601, 'message': 'Méthode inconnue : $method'}
+          'error': {'code': -32601, 'message': 'Unknown method: $method'}
         });
       }
     } catch (e, st) {

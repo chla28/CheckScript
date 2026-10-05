@@ -159,7 +159,7 @@ class ShfmtAnalyzer extends Analyzer {
     final s = ctx.script;
     if (s.dialect == Dialect.zsh) {
       return AnalyzerResult(
-          ToolRun(name, ToolStatus.skipped, detail: 'zsh non supporté'));
+          ToolRun(name, ToolStatus.skipped, detail: 'zsh not supported'));
     }
     // On évalue la cohérence du formatage dans le style d'indentation du
     // script lui-même (espaces ou tabulations) : le choix du style n'est pas

@@ -19,9 +19,9 @@ Future<ChangedFiles> changedSince(String ref,
     CommandRunner runner = const ProcessCommandRunner()}) async {
   final top =
       await runner.run('git', ['-C', dir, 'rev-parse', '--show-toplevel']);
-  if (top == null) return (files: null, error: 'git introuvable');
+  if (top == null) return (files: null, error: 'git not found');
   if (top.exitCode != 0) {
-    return (files: null, error: 'pas un dépôt git : ${p.absolute(dir)}');
+    return (files: null, error: 'not a git repository: ${p.absolute(dir)}');
   }
   final root = top.stdout.trim();
   final diff = await runner.run('git', [
@@ -36,7 +36,7 @@ Future<ChangedFiles> changedSince(String ref,
   if (diff == null || diff.exitCode != 0) {
     return (
       files: null,
-      error: 'référence git inconnue : $ref'
+      error: 'unknown git reference: $ref'
           '${diff == null ? '' : ' (${diff.stderr.trim().split('\n').first})'}'
     );
   }

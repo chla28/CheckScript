@@ -4,16 +4,26 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>LGPL-3.0-or-later AND OFL-1.1</project_license>
   <name>CheckScript</name>
-  <summary>Évalue la qualité et la sécurité de scripts shell et Python</summary>
-  <summary xml:lang="en">Rates the quality and security of shell and Python scripts</summary>
+  <summary>Rates the quality and security of shell and Python scripts</summary>
+  <summary xml:lang="fr">Évalue la qualité et la sécurité de scripts shell et Python</summary>
   <description>
     <p>
+      CheckScript scores shell and Python scripts over five categories
+      (security, robustness, maintainability, portability, performance) using
+      ShellCheck, shfmt, Ruff, Bandit, mypy and other analyzers, complemented
+      by built-in rules.
+    </p>
+    <p xml:lang="fr">
       CheckScript note des scripts shell et Python sur cinq catégories
       (sécurité, robustesse, maintenabilité, portabilité, performance) en
       s'appuyant sur ShellCheck, shfmt, Ruff, Bandit, mypy et d'autres
       analyseurs, complétés par des règles intégrées.
     </p>
     <p>
+      It explains the score, suggests the code to write for each issue,
+      applies safe fixes and tracks the evolution of a folder.
+    </p>
+    <p xml:lang="fr">
       Il explique la note, propose le code à écrire pour chaque problème,
       applique les corrections sûres et suit l'évolution d'un dossier.
     </p>

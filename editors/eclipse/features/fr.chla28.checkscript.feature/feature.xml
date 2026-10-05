@@ -2,13 +2,13 @@
 <feature id="fr.chla28.checkscript.feature" label="CheckScript" version="0.18.5"
       provider-name="Christophe Lafaille">
    <description url="https://github.com/chla28/CheckScript">
-Analyse des scripts shell et Python (et du shell des Dockerfile, Makefile, GitLab CI) par
-« check-script lsp » : problèmes soulignés, corrections rapides, survol, formatage,
-note dans la ligne d'état. Nécessite check-script 0.16 ou plus récent.
+Analysis of shell and Python scripts (and of the shell in Dockerfiles, Makefiles, GitLab CI)
+by "check-script lsp": underlined issues, quick fixes, hover, formatting,
+score in the status line. Requires check-script 0.16 or later.
    </description>
    <copyright>Copyright (C) 2026 Christophe Lafaille</copyright>
    <license url="https://www.gnu.org/licenses/lgpl-3.0.html">
-GNU Lesser General Public License, version 3 ou ultérieure (LGPL-3.0-or-later).
+GNU Lesser General Public License, version 3 or later (LGPL-3.0-or-later).
    </license>
    <requires>
       <import plugin="org.eclipse.lsp4e"/>

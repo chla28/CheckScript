@@ -6,7 +6,7 @@
 #
 #           dist/rpm/<distrib>/*.rpm  (avec --rpm)
 #
-# Contenu de l'archive :
+# Archive contents:
 #   bin/check-script        CLI (Dart, binaire autonome)
 #   gui/                    interface Flutter (bundle release, check_script_gui)
 #   man/check-script.1      page de manuel (si asciidoctor est présent)
@@ -49,10 +49,10 @@ for _arg in "$@"; do
   --no-gui) BUILD_GUI=false ;;
   --help | -h)
     echo "Usage: $0 [VERSION] [--rpm] [--install] [--skip-tests] [--no-gui]"
-    echo "  VERSION       numéro de version (défaut: ${DEFAULT_VERSION}, lu depuis pubspec.yaml)"
-    echo "  --rpm         génère aussi les RPM (scripts/build-rpm.sh)"
-    echo "  --install     après le build, installe le livrable dans ~/.local (dist/<paquet>/install.sh)"
-    echo "  --skip-tests  ne lance pas l'analyse statique et les tests avant la compilation"
+    echo "  VERSION       version number (default: ${DEFAULT_VERSION}, read from pubspec.yaml)"
+    echo "  --rpm         also builds the RPMs (scripts/build-rpm.sh)"
+    echo "  --install     after the build, installs the package into ~/.local (dist/<package>/install.sh)"
+    echo "  --skip-tests  skips static analysis and tests before compiling"
     echo "  --no-gui      ne construit pas l'interface Flutter"
     exit 0
     ;;
@@ -88,13 +88,13 @@ run_scan_report() {
   local sbom="$1" pdf="$2"
   [[ "$HAVE_SBOM_GENERATOR" == true ]] || return 0
   if [[ ! -f "$sbom" ]]; then
-    echo "  ⚠  SBOM introuvable ($sbom) — scan sauté." >&2
+    echo "  ⚠  SBOM not found ($sbom) — scan skipped." >&2
     return 0
   fi
   if ! command -v grype &>/dev/null &&
     ! command -v osv-scanner &>/dev/null &&
     ! command -v trivy &>/dev/null; then
-    echo "  ⚠  Aucun scanner (grype / osv-scanner / trivy) — scan CVE sauté." >&2
+    echo "  ⚠  No scanner (grype / osv-scanner / trivy) — CVE scan skipped." >&2
     return 0
   fi
   local color=never
@@ -104,7 +104,7 @@ run_scan_report() {
     --color "$color" 2>&1 | sed 's/^/  /'; then
     [[ -f "$pdf" ]] && echo "  ✓ $(realpath --relative-to="${PROJECT_DIR}" "$pdf")"
   else
-    echo "  ⚠  Échec du scan CVE — le packaging continue sans rapport." >&2
+    echo "  ⚠  CVE scan failed — packaging continues without a report." >&2
   fi
 }
 
@@ -113,7 +113,7 @@ echo "╔═══════════════════════�
 echo "║  CheckScript — Build distribution        ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
-echo "Version : ${VERSION}"
+echo "Version: ${VERSION}"
 echo "Arch    : ${ARCH}"
 echo "Sortie  : dist/${DIST_NAME}.tar.gz"
 [[ "$BUILD_GUI" == true ]] && echo "GUI     : oui (flutter build linux)"
@@ -122,9 +122,9 @@ echo "Sortie  : dist/${DIST_NAME}.tar.gz"
 HAVE_SBOM_GENERATOR=false
 if command -v sbom-generator &>/dev/null; then
   HAVE_SBOM_GENERATOR=true
-  echo "SBOM    : oui (sbom-generator détecté, CycloneDX)"
+  echo "SBOM    : yes (sbom-generator detected, CycloneDX)"
 else
-  echo "SBOM    : non ('sbom-generator' introuvable dans PATH)"
+  echo "SBOM    : no ('sbom-generator' not found in PATH)"
 fi
 echo ""
 
@@ -133,13 +133,13 @@ _required_tools=(dart tar)
 [[ "$BUILD_RPM" == true ]] && _required_tools+=(rpmbuild)
 for tool in "${_required_tools[@]}"; do
   if ! command -v "$tool" &>/dev/null; then
-    echo "Erreur : '$tool' introuvable dans PATH." >&2
+    echo "Error: '$tool' not found in PATH." >&2
     exit 1
   fi
 done
 unset _required_tools
 
-echo "Outils : dart $(dart --version 2>&1 | head -1 | awk '{print $4}')"
+echo "Tools: dart $(dart --version 2>&1 | head -1 | awk '{print $4}')"
 echo ""
 
 # Contrôle de cohérence : la version affichée par --version doit suivre
@@ -150,15 +150,15 @@ if [[ "$CODE_VERSION" != "$DEFAULT_VERSION" ]]; then
 fi
 
 # ── Dépendances, analyse statique et tests ───────────────────────────────────
-echo "▶ Dépendances (dart pub get)…"
+echo "▶ Dependencies (dart pub get)…"
 dart pub get 2>&1 | tail -1 | sed 's/^/  /'
 if [[ "$RUN_TESTS" == true ]]; then
-  echo "▶ Analyse statique (dart analyze)…"
+  echo "▶ Static analysis (dart analyze)…"
   dart analyze --fatal-infos 2>&1 | tail -1 | sed 's/^/  /'
   echo "▶ Tests (dart test)…"
   dart test 2>&1 | tail -1 | sed 's/^/  /'
   if [[ "$BUILD_GUI" == true ]]; then
-    echo "▶ Interface : analyse et tests (flutter)…"
+    echo "▶ Interface: analysis and tests (flutter)…"
     (cd gui && flutter pub get >/dev/null && flutter analyze --no-fatal-infos 2>&1 | tail -1 &&
       flutter test 2>&1 | tail -1) | sed 's/^/  /'
   fi
@@ -170,7 +170,7 @@ rm -rf "${DIST_DIR:?}"
 mkdir -p "${DIST_DIR}/bin" "${DIST_DIR}/doc" "${DIST_DIR}/completions"
 
 # ── CLI : dart compile exe ───────────────────────────────────────────────────
-echo "▶ Compilation du CLI (dart compile exe)…"
+echo "▶ Compiling the CLI (dart compile exe)…"
 dart compile exe bin/check_script.dart -o "${DIST_DIR}/bin/check-script" 2>&1 |
   grep -v "^$" | sed 's/^/  /'
 chmod +x "${DIST_DIR}/bin/check-script"
@@ -180,7 +180,7 @@ echo ""
 
 # ── GUI : flutter build linux --release ─────────────────────────────────────
 if [[ "$BUILD_GUI" == true ]]; then
-  echo "▶ Build de l'interface Flutter (release)…"
+  echo "▶ Building the Flutter interface (release)…"
   mkdir -p "${DIST_DIR}/gui"
   (
     cd gui || exit 1
@@ -196,8 +196,10 @@ if [[ "$BUILD_GUI" == true ]]; then
 [Desktop Entry]
 Type=Application
 Name=CheckScript
-GenericName=Évaluation de scripts shell et Python
-Comment=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell et Python
+GenericName=Shell and Python script assessment
+GenericName[fr]=Évaluation de scripts shell et Python
+Comment=Rates the security, robustness and maintainability of shell and Python scripts
+Comment[fr]=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell et Python
 Exec=check-script-gui %F
 Icon=check_script
 Categories=Development;Security;Utility;
@@ -211,7 +213,7 @@ DESKTOP
 fi
 
 # ── Ressources ───────────────────────────────────────────────────────────────
-echo "▶ Ajout des ressources…"
+echo "▶ Adding resources…"
 cp doc/user.adoc doc/developer.adoc doc/user.fr.adoc doc/developer.fr.adoc \
   doc/checkscript.example.yaml "${DIST_DIR}/doc/"
 cp -r doc/ci "${DIST_DIR}/doc/"
@@ -223,7 +225,7 @@ if command -v asciidoctor &>/dev/null; then
   asciidoctor -b manpage doc/check-script.1.adoc -o "${DIST_DIR}/man/check-script.1"
   echo "  ✓ man/check-script.1"
 else
-  echo "  ⚠  asciidoctor absent : page de manuel non générée." >&2
+  echo "  ⚠  asciidoctor missing: man page not generated." >&2
 fi
 cp README.md README.fr.md CHANGELOG.md LICENSE "${DIST_DIR}/"
 echo "  ✓ README.md / CHANGELOG.md / LICENSE"
@@ -243,21 +245,21 @@ if [[ "$HAVE_SBOM_GENERATOR" == true ]]; then
   if sbom-generator -i "$SBOM_REFS" -f cyclonedx \
     -o "${DIST_DIR}/sbom.cdx.json" \
     -n "${DIST_NAME}-sbom" 2>&1 | sed 's/^/  /'; then
-    echo "  ✓ sbom.cdx.json (SBOM CycloneDX : arbre pub)"
+    echo "  ✓ sbom.cdx.json (CycloneDX SBOM: pub tree)"
   else
-    echo "  ⚠  Échec de la génération du SBOM — le packaging continue sans." >&2
+    echo "  ⚠  SBOM generation failed — packaging continues without it." >&2
   fi
 fi
 echo ""
 
 # ── Scan CVE du SBOM + PDF de synthèse ───────────────────────────────────────
-echo "▶ Scan CVE du SBOM (Grype + OSV-Scanner + Trivy)…"
+echo "▶ CVE scan of the SBOM (Grype + OSV-Scanner + Trivy)…"
 SCAN_PDF="${PROJECT_DIR}/dist/${DIST_NAME}-scan-report.pdf"
 run_scan_report "${DIST_DIR}/sbom.cdx.json" "$SCAN_PDF"
 echo ""
 
 # ── Archive ──────────────────────────────────────────────────────────────────
-echo "▶ Création de l'archive…"
+echo "▶ Creating the archive…"
 tar czf "$ARCHIVE" -C "${PROJECT_DIR}/dist" "${DIST_NAME}"
 TOTAL_SIZE=$(du -sh "$ARCHIVE" | cut -f1)
 echo "  ✓ ${ARCHIVE} (${TOTAL_SIZE})"
@@ -274,33 +276,33 @@ fi
 
 # ── Installation locale (--install) ──────────────────────────────────────────
 if [[ "$DO_INSTALL" == true ]]; then
-  echo "▶ Installation locale (~/.local)…"
+  echo "▶ Local installation (~/.local)…"
   bash "${DIST_DIR}/install.sh"
   echo ""
 fi
 
 # ── Résumé ───────────────────────────────────────────────────────────────────
-echo "✅ Distribution prête !"
+echo "✅ Distribution ready!"
 echo ""
 echo "  dist/${DIST_NAME}.tar.gz (${TOTAL_SIZE})"
 if [[ -f "$SCAN_PDF" ]]; then
-  echo "  dist/${DIST_NAME}-scan-report.pdf (synthèse CVE Grype + OSV-Scanner + Trivy)"
+  echo "  dist/${DIST_NAME}-scan-report.pdf (CVE summary Grype + OSV-Scanner + Trivy)"
 elif [[ -f "${SCAN_PDF%.pdf}.adoc" ]]; then
-  echo "  dist/${DIST_NAME}-scan-report.adoc (synthèse CVE — PDF non généré, asciidoctor-pdf absent)"
+  echo "  dist/${DIST_NAME}-scan-report.adoc (CVE summary — PDF not generated, asciidoctor-pdf missing)"
 fi
 if [[ -f "${DIST_DIR}/sbom.cdx.json" ]]; then
-  echo "    └─ inclut sbom.cdx.json (SBOM CycloneDX : arbre pub)"
+  echo "    └─ inclut sbom.cdx.json (CycloneDX SBOM: pub tree)"
 fi
 if [[ "$BUILD_RPM" == true ]]; then
   find "${PROJECT_DIR}/dist/rpm" -name '*.rpm' 2>/dev/null | sort |
     while IFS= read -r r; do echo "  ${r#"${PROJECT_DIR}"/}"; done
 fi
 echo ""
-echo "Contenu de l'archive :"
+echo "Archive contents:"
 tar tf "$ARCHIVE" | grep -v '/gui/.\+/' | sed 's/^/  /'
 echo ""
-echo "Pour installer sur la machine cible :"
+echo "To install on the target machine:"
 echo "  tar xzf ${DIST_NAME}.tar.gz"
 echo "  cd ${DIST_NAME}"
-echo "  ./install.sh              # installation utilisateur (~/.local)"
-echo "  sudo ./install.sh         # installation système (/usr/local)"
+echo "  ./install.sh              # user installation (~/.local)"
+echo "  sudo ./install.sh         # system installation (/usr/local)"

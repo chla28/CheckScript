@@ -66,13 +66,13 @@ List<Finding> parseGitleaks(String output) {
   final start = output.indexOf('[');
   if (start < 0) {
     if (output.trim().isEmpty) return const [];
-    throw const FormatException('sortie gitleaks inattendue');
+    throw const FormatException('unexpected gitleaks output');
   }
   final Object? doc;
   try {
     doc = jsonDecode(output.substring(start, output.lastIndexOf(']') + 1));
   } on FormatException {
-    throw const FormatException('JSON gitleaks invalide');
+    throw const FormatException('invalid gitleaks JSON');
   }
   return [
     for (final l in (doc as List).whereType<Map>())

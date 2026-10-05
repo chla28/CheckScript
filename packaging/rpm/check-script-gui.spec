@@ -10,7 +10,8 @@
 Name:           check-script-gui
 Version:        %{version}
 Release:        1%{?dist}
-Summary:        Interface graphique de check-script (evaluation de scripts shell)
+Summary:        Graphical interface of check-script (shell and Python script evaluation)
+Summary(fr):    Interface graphique de check-script (évaluation de scripts shell et Python)
 
 # À confirmer : aucune licence n'est encore choisie pour CheckScript.
 License:        LGPL-3.0-or-later AND OFL-1.1
@@ -36,17 +37,23 @@ Recommends:     shfmt
 Recommends:     ruff
 
 %description
-Interface graphique de check-script : source annote, notes par categorie
-(radar), liste filtrable des problemes avec conseils de correction,
-corrections automatiques avec apercu du diff, analyse d'un dossier et
-tendance par rapport a une reference, export Markdown/AsciiDoc/HTML/JSON/SARIF.
+Graphical interface of check-script: annotated source, scores by category
+(radar chart), filterable list of issues with fix advice, automatic fixes
+with diff preview, folder analysis and trend against a baseline,
+Markdown/AsciiDoc/HTML/JSON/SARIF export.
+
+%description -l fr
+Interface graphique de check-script : source annoté, notes par catégorie
+(radar), liste filtrable des problèmes avec conseils de correction,
+corrections automatiques avec aperçu du diff, analyse d'un dossier et
+tendance par rapport à une référence, export Markdown/AsciiDoc/HTML/JSON/SARIF.
 
 %prep
 %autosetup -n check_script-%{version}
 
 %build
 command -v flutter >/dev/null 2>&1 || {
-  echo "Erreur : 'flutter' introuvable dans PATH (SDK Flutter requis)." >&2
+  echo "Error: 'flutter' not found in PATH (Flutter SDK required)." >&2
   exit 1
 }
 # Les *FLAGS de redhat-rpm-config cassent le build clang de l'embedder.

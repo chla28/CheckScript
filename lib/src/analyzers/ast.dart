@@ -71,7 +71,7 @@ class AstFacts {
   /// Lève [FormatException] si le JSON est invalide.
   factory AstFacts.fromJson(String json) {
     final doc = jsonDecode(json);
-    if (doc is! Map) throw const FormatException('arbre shfmt inattendu');
+    if (doc is! Map) throw const FormatException('unexpected shfmt tree');
     final w = _Walker()..node(doc, const _Ctx());
     return AstFacts(w.functions, w.commands, w.blocks);
   }

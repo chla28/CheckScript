@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=CheckScript
-GenericName=Évaluation de scripts shell et Python
-GenericName[en]=Shell and Python script assessment
-Comment=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell et Python
-Comment[en]=Rates the security, robustness and maintainability of shell and Python scripts
+GenericName=Shell and Python script assessment
+GenericName[fr]=Évaluation de scripts shell et Python
+Comment=Rates the security, robustness and maintainability of shell and Python scripts
+Comment[fr]=Évalue la sécurité, la robustesse et la maintenabilité de scripts shell et Python
 Exec=check-script-gui %F
 Icon=fr.chla28.check_script_gui
 Categories=Development;

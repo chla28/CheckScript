@@ -26,24 +26,24 @@ build_binaries() {
   local dest="$1"
   mkdir -p "$dest"
   command -v dart >/dev/null || {
-    echo "dart introuvable" >&2
+    echo "dart not found" >&2
     exit 1
   }
   if [[ "${SKIP_BUILD:-0}" != 1 ]]; then
     command -v flutter >/dev/null || {
-      echo "flutter introuvable" >&2
+      echo "flutter not found" >&2
       exit 1
     }
-    echo "→ interface : flutter build linux --release"
+    echo "→ interface: flutter build linux --release"
     (cd "$PROJECT_DIR/gui" && flutter build linux --release --build-name="$VERSION" >/dev/null)
   fi
   # La CLI est toujours recompilée (quelques secondes) : --skip-build ne
   # réutilise que le bundle Flutter, long à construire.
-  echo "→ ligne de commande : dart compile exe"
+  echo "→ command line: dart compile exe"
   (cd "$PROJECT_DIR" && dart compile exe bin/check_script.dart -o "$dest/check-script-cli" >/dev/null)
   local bundle="$PROJECT_DIR/gui/build/linux/x64/release/bundle"
   [[ -x "$bundle/check_script_gui" ]] || {
-    echo "bundle Flutter absent : $bundle" >&2
+    echo "Flutter bundle missing: $bundle" >&2
     exit 1
   }
   rm -rf "${dest:?}/bundle"
@@ -61,5 +61,5 @@ glibc_report() {
     find "$1" -type f \( -name '*.so' -o -perm -u+x \) -print0 |
       xargs -0 objdump -T 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
   )"
-  echo "  glibc minimale requise : ${max:-inconnue} (système hôte : $(ldd --version | head -1 | awk '{print $NF}'))"
+  echo "  minimum glibc required: ${max:-unknown} (host system: $(ldd --version | head -1 | awk '{print $NF}'))"
 }

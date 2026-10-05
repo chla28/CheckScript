@@ -17,8 +17,8 @@ for arg in "$@"; do
   --help | -h)
     echo "Usage: $0 [--system] [--prefix=DIR]"
     echo ""
-    echo "  --system        Installation système (requiert root, /usr/local)"
-    echo "  --prefix=DIR    Préfixe personnalisé (défaut: /usr/local ou ~/.local)"
+    echo "  --system        System installation (requires root, /usr/local)"
+    echo "  --prefix=DIR    Custom prefix (default: /usr/local or ~/.local)"
     exit 0
     ;;
   *)
@@ -49,7 +49,7 @@ CLI_BIN="${SCRIPT_DIR}/bin/check-script"
 GUI_BIN="${SCRIPT_DIR}/gui/check_script_gui"
 
 if [[ ! -f "$CLI_BIN" ]]; then
-  echo "Erreur : binaire CLI introuvable : $CLI_BIN" >&2
+  echo "Error: CLI binary not found: $CLI_BIN" >&2
   exit 1
 fi
 
@@ -57,11 +57,11 @@ echo "╔═══════════════════════�
 echo "║     CheckScript — Installateur       ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
-echo "Préfixe : ${PREFIX}"
+echo "Prefix: ${PREFIX}"
 echo ""
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
-echo "▶ Installation du CLI…"
+echo "▶ Installing the CLI…"
 mkdir -p "${BIN_DIR}"
 install -m755 "${CLI_BIN}" "${BIN_DIR}/check-script"
 echo "  ✓ ${BIN_DIR}/check-script"
@@ -79,13 +79,13 @@ fi
 if [[ -d "${SCRIPT_DIR}/completions" ]]; then
   install -Dm644 "${SCRIPT_DIR}/completions/check-script.bash" "${BASH_COMP_DIR}/check-script"
   install -Dm644 "${SCRIPT_DIR}/completions/_check-script" "${ZSH_COMP_DIR}/_check-script"
-  echo "  ✓ complétions bash / zsh"
+  echo "  ✓ bash / zsh completions"
 fi
 echo ""
 
 # ── Interface graphique ──────────────────────────────────────────────────────
 if [[ -f "$GUI_BIN" ]]; then
-  echo "▶ Installation de l'interface graphique…"
+  echo "▶ Installing the graphical interface…"
   rm -rf "${GUI_DIR:?}"
   mkdir -p "${GUI_DIR}"
   cp -r "${SCRIPT_DIR}/gui/." "${GUI_DIR}/"
@@ -107,30 +107,30 @@ if [[ -f "$GUI_BIN" ]]; then
 fi
 
 # ── Outils d'analyse (facultatifs) ───────────────────────────────────────────
-echo "▶ Outils d'analyse détectés :"
+echo "▶ Detected analysis tools:"
 missing=()
 for tool in shellcheck shfmt bashate checkbashisms; do
   if command -v "$tool" &>/dev/null; then
     echo "  ✓ $tool"
   else
-    echo "  ✗ $tool (facultatif)"
+    echo "  ✗ $tool (optional)"
     missing+=("$tool")
   fi
 done
 if [[ ${#missing[@]} -gt 0 ]]; then
   echo ""
-  echo "  Pour une analyse complète (Fedora/RHEL) :"
+  echo "  For a complete analysis (Fedora/RHEL):"
   echo "    sudo dnf install ShellCheck shfmt devscripts-checkbashisms"
   echo "    pip install --user bashate"
-  echo "  (Debian/Ubuntu : sudo apt install shellcheck shfmt devscripts ; pip install --user bashate)"
+  echo "  (Debian/Ubuntu: sudo apt install shellcheck shfmt devscripts ; pip install --user bashate)"
 fi
 echo ""
 
 if [[ ":${PATH}:" != *":${BIN_DIR}:"* ]]; then
-  echo "⚠  ${BIN_DIR} n'est pas dans le PATH. Ajoutez à ~/.bashrc :"
+  echo "⚠  ${BIN_DIR} is not in PATH. Add to ~/.bashrc:"
   echo "   export PATH=\"${BIN_DIR}:\$PATH\""
   echo ""
 fi
-echo "✅ Installation terminée : check-script --help"
+echo "✅ Installation complete: check-script --help"
 [[ -f "$GUI_BIN" ]] && echo "   Interface graphique : check-script-gui"
 exit 0

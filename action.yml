@@ -11,9 +11,9 @@
 # au job et un fichier SARIF est produit pour GitHub Code Scanning.
 name: CheckScript
 description: >-
-  Note sur 10 les scripts shell et Python (et le shell des workflows,
-  Dockerfile, Makefile) : sécurité, robustesse, maintenabilité, portabilité,
-  performance ; annotations, résumé et SARIF.
+  Scores shell and Python scripts out of 10 (and the shell in workflows,
+  Dockerfiles, Makefiles): security, robustness, maintainability,
+  portability, performance; annotations, summary and SARIF.
 author: Christophe Lafaille
 branding:
   icon: check-circle
@@ -21,51 +21,51 @@ branding:
 
 inputs:
   paths:
-    description: Scripts ou dossiers à analyser, séparés par des espaces.
+    description: Scripts or folders to analyze, separated by spaces.
     default: '.'
   fail-under:
     description: >-
-      Seuil d'échec (ex. 7, ou security=8,global=6) ; vide : jamais d'échec
-      sur la note.
+      Failure threshold (e.g. 7, or security=8,global=6); empty: never fail
+      on the score.
     default: ''
   changed-since:
     description: >-
-      Référence git : n'analyser que les scripts modifiés depuis (ex.
-      origin/main ; checkout avec fetch-depth: 0) ; vide : tout analyser.
+      Git reference: only analyze scripts modified since then (e.g.
+      origin/main; checkout with fetch-depth: 0); empty: analyze everything.
     default: ''
   args:
-    description: Options supplémentaires de check-script (ex. --profile strict).
+    description: Additional check-script options (e.g. --profile strict).
     default: ''
   lang:
-    description: Langue des messages (fr ou en).
+    description: Message language (fr or en).
     default: 'fr'
   annotations:
-    description: Annoter les lignes concernées (true / false).
+    description: Annotate the affected lines (true / false).
     default: 'true'
   summary:
-    description: Ajouter le rapport Markdown au résumé du job (true / false).
+    description: Add the Markdown report to the job summary (true / false).
     default: 'true'
   sarif:
     description: >-
-      Fichier SARIF à produire (vide : aucun), à envoyer avec
+      SARIF file to produce (empty: none), to upload with
       github/codeql-action/upload-sarif.
     default: 'check-script.sarif'
   install-tools:
-    description: Installer ShellCheck et shfmt avec apt (true / false).
+    description: Install ShellCheck and shfmt with apt (true / false).
     default: 'true'
 
 outputs:
   score:
-    description: Note moyenne des scripts analysés (sur 10).
+    description: Average score of the analyzed scripts (out of 10).
     value: ${{ steps.run.outputs.score }}
   grade:
-    description: Niveau de la note la plus basse (A à E).
+    description: Grade of the lowest score (A to E).
     value: ${{ steps.run.outputs.grade }}
   scripts:
-    description: Nombre de scripts analysés.
+    description: Number of analyzed scripts.
     value: ${{ steps.run.outputs.scripts }}
   sarif:
-    description: Chemin du fichier SARIF (vide si aucun).
+    description: Path of the SARIF file (empty if none).
     value: ${{ steps.run.outputs.sarif }}
 
 runs:
@@ -74,7 +74,7 @@ runs:
     # SDK Dart installé ici plutôt que par dart-lang/setup-dart : dans une
     # action composite, celle-ci cherche son fichier dart-analyzer.json dans
     # le dossier de l'action appelante (erreur « add-matcher »).
-    - name: SDK Dart
+    - name: Dart SDK
       shell: bash
       run: | # zizmor: ignore[github-env] chemin fixe ajouté à GITHUB_PATH
         set -euo pipefail
@@ -84,12 +84,12 @@ runs:
         case "$RUNNER_OS" in
           Linux) os=linux ;;
           macOS) os=macos ;;
-          *) echo "::error::CheckScript : système non pris en charge ($RUNNER_OS)"; exit 1 ;;
+          *) echo "::error::CheckScript: unsupported operating system ($RUNNER_OS)"; exit 1 ;;
         esac
         case "$(uname -m)" in
           x86_64 | amd64) arch=x64 ;;
           aarch64 | arm64) arch=arm64 ;;
-          *) echo "::error::CheckScript : architecture non prise en charge"; exit 1 ;;
+          *) echo "::error::CheckScript: unsupported architecture"; exit 1 ;;
         esac
         base=https://storage.googleapis.com/dart-archive/channels/stable/release
         version=$(curl -fsSL "$base/latest/VERSION" | jq -r .version)
@@ -105,21 +105,21 @@ runs:
         unzip -q "$zip"
         echo "$RUNNER_TEMP/dart-sdk/bin" >>"$GITHUB_PATH"
         echo "Dart $version"
-    - name: Construction de check-script
+    - name: Build check-script
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
         dart pub get
         dart compile exe bin/check_script.dart -o "$RUNNER_TEMP/check-script"
-    - name: Outils d'analyse
+    - name: Analysis tools
       if: inputs.install-tools == 'true'
       shell: bash
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y -qq shellcheck shfmt >/dev/null ||
-          echo "::warning::ShellCheck / shfmt non installés : règles intégrées seules."
+          echo "::warning::ShellCheck / shfmt not installed: built-in rules only."
     - id: run
-      name: Analyse
+      name: Analyze
       shell: bash
       # Les paramètres passent par l'environnement, jamais interpolés dans le
       # script (injection).

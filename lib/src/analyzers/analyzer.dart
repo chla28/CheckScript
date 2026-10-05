@@ -52,7 +52,7 @@ class CancelToken {
 class AnalysisCancelled implements Exception {
   const AnalysisCancelled();
   @override
-  String toString() => 'Analyse annulée';
+  String toString() => 'Analysis cancelled';
 }
 
 /// Exécute les outils externes. Remplacé par un faux dans les tests.

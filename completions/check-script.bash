@@ -1,8 +1,8 @@
-# Complétion bash pour check-script.
+# Bash completion for check-script.
 #
-# Installation :
+# Installation:
 #   sudo cp completions/check-script.bash /etc/bash_completion.d/check-script
-# ou, pour l'utilisateur courant :
+# or, for the current user:
 #   mkdir -p ~/.local/share/bash-completion/completions
 #   cp completions/check-script.bash ~/.local/share/bash-completion/completions/check-script
 

@@ -1,47 +1,47 @@
 #compdef check-script
-# Complétion zsh pour check-script.
-# Installation : copier dans un dossier de $fpath (ex. ~/.zfunc) puis
+# zsh completion for check-script.
+# Installation: copy into a folder of $fpath (e.g. ~/.zfunc) then
 #   autoload -Uz compinit && compinit
 
 _arguments -s \
-  '*'{-o,--output}'[fichier de rapport]:fichier:_files' \
+  '*'{-o,--output}'[report file]:file:_files' \
   {-f,--format}'[format]:format:(terminal md adoc html pdf json sarif codeclimate junit github)' \
-  {-l,--lang}'[langue]:langue:(fr en)' \
-  {-s,--shell}'[dialecte]:dialecte:(sh bash dash ksh zsh python)' \
-  '--python-target[version minimale de Python]:version:(3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14)' \
-  {-p,--profile}'[profil]:profil:(strict default legacy)' \
-  '*--context[contexte d'"'"'exécution]:contexte:(root cron systemd interactive)' \
-  '--follow-source[suivre les fichiers sourcés]' \
-  {-c,--config}'[configuration YAML]:fichier:_files -g "*.y(a|)ml"' \
-  '*--with[activer un outil]:outil:(pylint pyright)' \
-  '*--without[désactiver un outil]:outil:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor commands gitleaks trufflehog syntax builtin custom)' \
-  '--no-external[règles intégrées seules]' \
-  '*--ref[problèmes rattachés à une référence CWE, OWASP ou ANSSI]:référence:' \
-  {-w,--watch}'[réanalyser à chaque enregistrement]' \
-  '(--embedded --no-embedded)'{--embedded,--no-embedded}'[scripts intégrés (CI, Dockerfile, Makefile, Ansible)]' \
-  {-j,--jobs}'[scripts analysés simultanément]:nombre:' \
-  '--all[avec --list-rules : aussi les codes des outils]' \
-  '--changed-since[scripts modifiés depuis la référence git]:référence:' \
-  '--dashboard[tableau de bord d'"'"'équipe]:fichier:_files -g "*.html"' \
-  '--history-dir[historique des dossiers]:dossier:_files -/' \
-  '(--no-cache)--cache[réutiliser les résultats (défaut)]' \
-  '(--cache)--no-cache[tout réanalyser]' \
-  '--explain[coût de chaque règle sur la note]' \
-  '--sort[ordre des problèmes]:ordre:(category impact)' \
-  {-b,--baseline}'[rapport JSON de référence]:fichier:_files -g "*.json"' \
-  '--fail-on-new[échec si nouveau problème]:sévérité:(low medium high critical)' \
-  '--fix[corriger les défauts sûrs]' \
-  '--dry-run[afficher le diff sans écrire]' \
-  '--backup[conserver FICHIER.orig]' \
-  '--details[tous les problèmes]' \
-  '--summary[synthèse seule]' \
-  '--no-source[sans la ligne de code sous chaque problème]' \
-  '--color[forcer la couleur]' \
-  '--no-color[sans couleur]' \
-  {-q,--quiet}'[rien sur la sortie standard]' \
-  '*--fail-under[seuil de note]:seuil:' \
-  '--list-tools[outils détectés]' \
-  '--list-rules[règles intégrées]' \
+  {-l,--lang}'[language]:language:(fr en)' \
+  {-s,--shell}'[dialect]:dialect:(sh bash dash ksh zsh python)' \
+  '--python-target[minimum Python version]:version:(3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14)' \
+  {-p,--profile}'[profile]:profile:(strict default legacy)' \
+  '*--context[execution context]:context:(root cron systemd interactive)' \
+  '--follow-source[follow sourced files]' \
+  {-c,--config}'[YAML configuration]:file:_files -g "*.y(a|)ml"' \
+  '*--with[enable a tool]:tool:(pylint pyright)' \
+  '*--without[disable a tool]:tool:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor commands gitleaks trufflehog syntax builtin custom)' \
+  '--no-external[built-in rules only]' \
+  '*--ref[issues attached to a CWE, OWASP or ANSSI reference]:reference:' \
+  {-w,--watch}'[re-analyze on every save]' \
+  '(--embedded --no-embedded)'{--embedded,--no-embedded}'[embedded scripts (CI, Dockerfile, Makefile, Ansible)]' \
+  {-j,--jobs}'[scripts analyzed concurrently]:number:' \
+  '--all[with --list-rules: also the tool codes]' \
+  '--changed-since[scripts modified since the git reference]:reference:' \
+  '--dashboard[team dashboard]:file:_files -g "*.html"' \
+  '--history-dir[history of analyzed folders]:folder:_files -/' \
+  '(--no-cache)--cache[reuse results (default)]' \
+  '(--cache)--no-cache[re-analyze everything]' \
+  '--explain[cost of each rule on the score]' \
+  '--sort[order of issues]:order:(category impact)' \
+  {-b,--baseline}'[baseline JSON report]:file:_files -g "*.json"' \
+  '--fail-on-new[fail on new issue]:severity:(low medium high critical)' \
+  '--fix[fix safe defects]' \
+  '--dry-run[print the diff without writing]' \
+  '--backup[keep FILE.orig]' \
+  '--details[all issues]' \
+  '--summary[summary only]' \
+  '--no-source[without the code line under each issue]' \
+  '--color[force color]' \
+  '--no-color[no color]' \
+  {-q,--quiet}'[nothing on standard output]' \
+  '*--fail-under[score threshold]:threshold:' \
+  '--list-tools[detected tools]' \
+  '--list-rules[built-in rules]' \
   {-v,--version}'[version]' \
-  {-h,--help}'[aide]' \
+  {-h,--help}'[help]' \
   '*:script:_files'

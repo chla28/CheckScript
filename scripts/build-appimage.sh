@@ -34,7 +34,7 @@ TOOL="${APPIMAGETOOL:-$(command -v appimagetool || true)}"
 if [[ -z "$TOOL" ]]; then
   TOOL="$WORK/appimagetool-${ARCH}.AppImage"
   if [[ ! -x "$TOOL" ]]; then
-    echo "→ téléchargement d'appimagetool"
+    echo "→ downloading appimagetool"
     mkdir -p "$WORK"
     curl -fsSL -o "$TOOL.part" \
       "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${ARCH}.AppImage"

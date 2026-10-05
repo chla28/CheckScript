@@ -39,7 +39,7 @@ if command -v flatpak-builder >/dev/null; then
 elif flatpak info org.flatpak.Builder >/dev/null 2>&1; then
   FB=(flatpak run org.flatpak.Builder)
 else
-  echo "flatpak-builder introuvable : dnf install flatpak-builder" >&2
+  echo "flatpak-builder not found: dnf install flatpak-builder" >&2
   echo "  (ou : flatpak install flathub org.flatpak.Builder)" >&2
   exit 1
 fi
@@ -68,6 +68,6 @@ echo "✓ $OUT ($(du -h "$OUT" | cut -f1))"
 
 if $INSTALL; then
   flatpak install --user -y --reinstall "$OUT"
-  echo "✓ installé : flatpak run $APP_ID"
+  echo "✓ installed: flatpak run $APP_ID"
   echo "  CLI : flatpak run --command=check-script $APP_ID script.sh"
 fi

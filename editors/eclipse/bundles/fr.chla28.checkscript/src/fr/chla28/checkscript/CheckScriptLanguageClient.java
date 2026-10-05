@@ -23,8 +23,8 @@ public class CheckScriptLanguageClient extends LanguageClientImpl {
 		if (!(score instanceof Number n)) {
 			return;
 		}
-		String text = String.format("CheckScript : %.1f/10 (%s), %s problème(s)", n.doubleValue(), grade,
-				findings);
+		String text = String.format(Msg.t("CheckScript : %.1f/10 (%s), %s problème(s)", "CheckScript: %.1f/10 (%s), %s issue(s)"),
+				n.doubleValue(), grade, findings);
 		Display display = PlatformUI.isWorkbenchRunning() ? PlatformUI.getWorkbench().getDisplay() : null;
 		if (display == null) {
 			return;

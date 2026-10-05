@@ -49,13 +49,13 @@ void main() {
         () => CheckConfig.parse('rules:\n  custom:\n    - $rule\n'),
         throwsA(isA<FormatException>()
             .having((e) => e.message, 'message', contains(message))));
-    bad('{id: SEC001, pattern: x, message: m}', 'règle intégrée');
-    bad('{id: "1X", pattern: x, message: m}', 'identifiant invalide');
-    bad('{id: AB1, message: m}', 'pattern manquant');
-    bad('{id: AB1, pattern: "(", message: m}', 'pattern invalide');
-    bad('{id: AB1, pattern: x}', 'message manquant');
+    bad('{id: SEC001, pattern: x, message: m}', 'built-in rule');
+    bad('{id: "1X", pattern: x, message: m}', 'invalid identifier');
+    bad('{id: AB1, message: m}', 'pattern missing');
+    bad('{id: AB1, pattern: "(", message: m}', 'invalid pattern');
+    bad('{id: AB1, pattern: x}', 'message missing');
     bad('{id: AB1, pattern: x, message: m, severity: énorme}',
-        'severity inconnu');
+        'unknown severity');
     expect(
         () => CheckConfig.parse('rules:\n  custom:\n'
             '    - {id: AB1, pattern: x, message: m}\n'

@@ -73,37 +73,37 @@ class CustomRule {
   /// en français, comme les autres erreurs de configuration).
   factory CustomRule.fromYaml(Object? y) {
     if (y is! YamlMap) {
-      throw const FormatException('rules.custom : liste de règles attendue');
+      throw const FormatException('rules.custom: list of rules expected');
     }
     final id = '${y['id'] ?? ''}'.toUpperCase();
     if (!_id.hasMatch(id)) {
-      throw FormatException('rules.custom : identifiant invalide « $id » '
-          '(majuscules, chiffres, _ et -)');
+      throw FormatException('rules.custom: invalid identifier "$id" '
+          '(uppercase letters, digits, _ and -)');
     }
     if (ruleCatalog.any((r) => r.id == id) || id == 'SYNTAX') {
-      throw FormatException('rules.custom : $id est déjà une règle intégrée');
+      throw FormatException('rules.custom: $id is already a built-in rule');
     }
-    String where(String key) => 'rules.custom $id : $key';
+    String where(String key) => 'rules.custom $id: $key';
     final source = y['pattern'];
     if (source is! String || source.isEmpty) {
-      throw FormatException(where('pattern manquant'));
+      throw FormatException(where('pattern missing'));
     }
     final RegExp pattern;
     try {
       pattern = RegExp(source, caseSensitive: y['ignoreCase'] != true);
     } on FormatException catch (e) {
-      throw FormatException(where('pattern invalide (${e.message})'));
+      throw FormatException(where('invalid pattern (${e.message})'));
     }
     Tr? text(String key, {bool required = false}) {
       final v = y[key];
       if (v == null) {
-        if (required) throw FormatException(where('$key manquant'));
+        if (required) throw FormatException(where('$key missing'));
         return null;
       }
       if (v is YamlMap) {
         final fr = v['fr'], en = v['en'];
         if (fr == null && en == null) {
-          throw FormatException(where('$key : fr et/ou en attendus'));
+          throw FormatException(where('$key: fr and/or en expected'));
         }
         return Tr('${fr ?? en}', '${en ?? fr}');
       }
@@ -113,7 +113,7 @@ class CustomRule {
     T parse<T>(String key, T? Function(String) f, T def) {
       final v = y[key];
       if (v == null) return def;
-      return f('$v') ?? (throw FormatException(where('$key inconnu : $v')));
+      return f('$v') ?? (throw FormatException(where('unknown $key: $v')));
     }
 
     final replace = y['replace'];

@@ -183,11 +183,11 @@ List<Finding> parseShellcheckJson(String json) {
   try {
     doc = jsonDecode(json);
   } on FormatException {
-    throw const FormatException('sortie JSON ShellCheck invalide');
+    throw const FormatException('invalid ShellCheck JSON output');
   }
   final comments = doc is Map ? doc['comments'] : doc;
   if (comments is! List) {
-    throw const FormatException('sortie JSON ShellCheck inattendue');
+    throw const FormatException('unexpected ShellCheck JSON output');
   }
   return [
     for (final c in comments.whereType<Map>())

@@ -5,7 +5,7 @@
 # Les tests tournent sans outils d'analyse externes : ceux qui en dépendent
 # (niveaux du corpus, intégration) sont ignorés, leurs résultats variant avec
 # les versions d'outils des distributions.
-name: Publication
+name: Release
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
           cache: true
       # Les tests ne doivent pas dépendre de la langue du système : ils sont
       # joués en anglais (C.UTF-8, défaut du runner) puis en français.
-      - name: Bibliothèque et CLI
+      - name: Library and CLI
         env:
           LANG: C.UTF-8
         run: |
@@ -42,7 +42,7 @@ jobs:
           dart format --output=none --set-exit-if-changed lib test bin tool
           dart analyze --fatal-infos
           dart test
-      - name: Bibliothèque et CLI (locale française)
+      - name: Library and CLI (French locale)
         env:
           LANG: fr_FR.UTF-8
         run: dart test
@@ -54,7 +54,7 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
-      - name: Interface (locale française)
+      - name: Interface (French locale)
         working-directory: gui
         env:
           LANG: fr_FR.UTF-8
@@ -72,7 +72,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - name: Dépendances de construction
+      - name: Build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config \
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-24.04
     container: fedora:44
     steps:
-      - name: Dépendances de construction
+      - name: Build dependencies
         run: |
           dnf install -y git rpm-build gtk3-devel cmake ninja-build clang \
             rubygem-asciidoctor unzip xz which findutils tar
@@ -137,7 +137,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - name: check-script (serveur LSP des tests)
+      - name: check-script (LSP server for the tests)
         run: |
           dart pub get
           dart compile exe bin/check_script.dart -o "$RUNNER_TEMP/check-script"

@@ -1,7 +1,7 @@
 {
   "name": "check-script",
   "displayName": "CheckScript",
-  "description": "Évalue les scripts shell et Python (et le shell des workflows, Dockerfile, Makefile) : problèmes soulignés, corrections rapides, survol, note, formatage.",
+  "description": "%description%",
   "version": "0.18.5",
   "publisher": "chla28",
   "license": "LGPL-3.0-or-later",
@@ -39,12 +39,12 @@
     "commands": [
       {
         "command": "checkScript.analyze",
-        "title": "Analyser le fichier",
+        "title": "%command.analyze.title%",
         "category": "CheckScript"
       },
       {
         "command": "checkScript.restart",
-        "title": "Redémarrer le serveur",
+        "title": "%command.restart.title%",
         "category": "CheckScript"
       }
     ],
@@ -54,7 +54,7 @@
         "checkScript.path": {
           "type": "string",
           "default": "check-script",
-          "description": "Exécutable check-script (nom dans le PATH ou chemin absolu)."
+          "description": "%config.path%"
         },
         "checkScript.lang": {
           "type": "string",
@@ -64,12 +64,12 @@
             "en"
           ],
           "enumDescriptions": [
-            "Langue de l'environnement",
+            "%config.lang.auto%",
             "Français",
             "English"
           ],
           "default": "",
-          "description": "Langue des messages."
+          "description": "%config.lang%"
         },
         "checkScript.profile": {
           "type": "string",
@@ -80,18 +80,18 @@
             "legacy"
           ],
           "default": "",
-          "description": "Profil de notation (vide : celui de .checkscript.yaml, sinon default)."
+          "description": "%config.profile%"
         },
         "checkScript.analyzeOnType": {
           "type": "boolean",
           "default": true,
-          "description": "Pendant la frappe, appliquer les règles intégrées (l'analyse complète a lieu à l'ouverture et à l'enregistrement)."
+          "description": "%config.analyzeOnType%"
         },
         "checkScript.typingDelay": {
           "type": "number",
           "default": 600,
           "minimum": 100,
-          "description": "Pause de frappe (ms) avant l'analyse rapide."
+          "description": "%config.typingDelay%"
         },
         "checkScript.trace.server": {
           "type": "string",
@@ -101,7 +101,7 @@
             "verbose"
           ],
           "default": "off",
-          "description": "Trace des échanges avec le serveur (panneau Sortie)."
+          "description": "%config.trace%"
         }
       }
     }

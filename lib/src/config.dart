@@ -310,13 +310,13 @@ class CheckConfig {
     final doc = loadYaml(yamlText);
     if (doc == null) return CheckConfig.forProfile(profile ?? Profile.standard);
     if (doc is! YamlMap) {
-      throw const FormatException('la racine doit être un dictionnaire');
+      throw const FormatException('the root must be a mapping');
     }
     var prof = profile;
     if (prof == null && doc['profile'] != null) {
       prof = Profile.tryParse('${doc['profile']}');
       if (prof == null) {
-        throw FormatException('profil inconnu : ${doc['profile']}');
+        throw FormatException('unknown profile: ${doc['profile']}');
       }
     }
     final base = CheckConfig.forProfile(prof ?? Profile.standard);
@@ -350,12 +350,12 @@ class CheckConfig {
     if (rules is YamlMap) {
       final c = rules['custom'];
       if (c != null && c is! YamlList) {
-        throw const FormatException('rules.custom : liste de règles attendue');
+        throw const FormatException('rules.custom: list of rules expected');
       }
       for (final y in c is YamlList ? c : const []) {
         final r = CustomRule.fromYaml(y);
         if (custom.any((x) => x.id == r.id)) {
-          throw FormatException('rules.custom : ${r.id} déclarée deux fois');
+          throw FormatException('rules.custom: ${r.id} declared twice');
         }
         custom.add(r);
       }
@@ -374,10 +374,10 @@ class CheckConfig {
               ? null
               : Severity.tryParse('${v['severity']}');
           if (v['category'] != null && cat == null) {
-            throw FormatException('catégorie inconnue : ${v['category']}');
+            throw FormatException('unknown category: ${v['category']}');
           }
           if (v['severity'] != null && sev == null) {
-            throw FormatException('sévérité inconnue : ${v['severity']}');
+            throw FormatException('unknown severity: ${v['severity']}');
           }
           overrides['$k'.toUpperCase()] =
               RuleOverride(category: cat, severity: sev);
@@ -392,7 +392,7 @@ class CheckConfig {
       if (ys['weights'] is YamlMap) {
         (ys['weights'] as YamlMap).forEach((k, v) {
           final s = Severity.tryParse('$k');
-          if (s == null) throw FormatException('sévérité inconnue : $k');
+          if (s == null) throw FormatException('unknown severity: $k');
           weights[s] = _toDouble(v, 'scoring.weights.$k');
         });
       }
@@ -400,7 +400,7 @@ class CheckConfig {
       if (ys['categoryWeights'] is YamlMap) {
         (ys['categoryWeights'] as YamlMap).forEach((k, v) {
           final c = Category.tryParse('$k');
-          if (c == null) throw FormatException('catégorie inconnue : $k');
+          if (c == null) throw FormatException('unknown category: $k');
           catWeights[c] = _toDouble(v, 'scoring.categoryWeights.$k');
         });
       }
@@ -430,18 +430,18 @@ class CheckConfig {
     final yc = doc['context'];
     for (final v in yc is YamlList ? yc : (yc == null ? const [] : [yc])) {
       final c = ExecContext.tryParse('$v');
-      if (c == null) throw FormatException('contexte inconnu : $v');
+      if (c == null) throw FormatException('unknown context: $v');
       contexts.add(c);
     }
 
     // 3.10 sans guillemets serait lu comme le nombre 3.1.
     if (doc['pythonTarget'] is num) {
       throw const FormatException(
-          'pythonTarget : écrire la version entre guillemets (ex. "3.10")');
+          'pythonTarget: write the version in quotes (e.g. "3.10")');
     }
     final target = doc['pythonTarget']?.toString();
     if (target != null && !isPythonTarget(target)) {
-      throw FormatException('pythonTarget invalide : $target (ex. 3.9)');
+      throw FormatException('invalid pythonTarget: $target (e.g. 3.9)');
     }
 
     return base.copyWith(
@@ -568,6 +568,6 @@ class CheckConfig {
 
   static double _toDouble(Object? v, String key) {
     if (v is num) return v.toDouble();
-    throw FormatException('$key : nombre attendu');
+    throw FormatException('$key: number expected');
   }
 }

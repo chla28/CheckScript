@@ -5,4 +5,4 @@
 set -euo pipefail
 cd "$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 git config core.hooksPath .githooks
-echo "✓ hooks actifs (.githooks/commit-msg)"
+echo "✓ hooks enabled (.githooks/commit-msg)"

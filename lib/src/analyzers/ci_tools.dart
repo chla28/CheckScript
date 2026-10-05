@@ -59,7 +59,7 @@ List<Object?> _jsonList(String out) {
   final t = out.trim();
   if (t.isEmpty) return const [];
   final j = jsonDecode(t);
-  if (j is! List) throw const FormatException('liste JSON attendue');
+  if (j is! List) throw const FormatException('JSON list expected');
   return j;
 }
 

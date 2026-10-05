@@ -31,7 +31,7 @@ else
 fi
 
 # ── Suppression du binaire et de la documentation ────────────────────────────
-echo "▶ Désinstallation de CheckScript (${PREFIX})…"
+echo "▶ Uninstalling CheckScript (${PREFIX})…"
 for target in \
   "${PREFIX}/bin/check-script" \
   "${PREFIX}/bin/check-script-gui" \
@@ -44,7 +44,7 @@ for target in \
   "${PREFIX}/share/applications/check_script.desktop"; do
   if [[ -e "$target" || -L "$target" ]]; then
     rm -rf -- "${target:?}"
-    echo "  ✓ supprimé : $target"
+    echo "  ✓ removed: $target"
   fi
 done
 # Cache des types MIME partagé avec les autres applications : régénéré, pas
@@ -52,4 +52,4 @@ done
 if [[ -d "${PREFIX}/share/applications" ]] && command -v update-desktop-database &>/dev/null; then
   update-desktop-database "${PREFIX}/share/applications" 2>/dev/null || true
 fi
-echo "✅ Désinstallation terminée."
+echo "✅ Uninstallation complete."

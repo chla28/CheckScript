@@ -481,10 +481,10 @@ class AppState extends ChangeNotifier {
   Future<void> exportConfig(String path) async {
     final c = await buildConfig();
     await File(path).writeAsString(c.toYaml(
-        header: 'Configuration check-script exportée par l\'interface '
+        header: 'check-script configuration exported by the interface '
             '(check-script $appVersion).\n'
-            'CLI : check-script --config ${path.split('/').last} … '
-            '(ou nommer le fichier .checkscript.yaml).'));
+            'CLI: check-script --config ${path.split('/').last} … '
+            '(or name the file .checkscript.yaml).'));
   }
 
   /// Adopte [path] comme configuration : son profil, ses contextes, le suivi

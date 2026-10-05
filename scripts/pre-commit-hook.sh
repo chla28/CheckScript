@@ -15,7 +15,7 @@ set -euo pipefail
 [[ -n "${CHECK_SCRIPT_SKIP:-}" ]] && exit 0
 
 if ! command -v check-script &>/dev/null; then
-  echo "pre-commit : check-script introuvable, contrôle ignoré." >&2
+  echo "pre-commit: check-script not found, check skipped." >&2
   exit 0
 fi
 
@@ -45,8 +45,8 @@ cd "$tmp" || exit 1
 if ! check-script --no-color --summary --fail-under "${CHECK_SCRIPT_MIN:-6}" \
   ${extra[@]+"${extra[@]}"} "${files[@]}"; then
   echo "" >&2
-  echo "pre-commit : note inférieure à ${CHECK_SCRIPT_MIN:-6}/10." >&2
-  echo "  Détail : check-script --details <script> ; corrections : check-script --fix <script>" >&2
-  echo "  Ignorer une fois : CHECK_SCRIPT_SKIP=1 git commit …" >&2
+  echo "pre-commit: score below ${CHECK_SCRIPT_MIN:-6}/10." >&2
+  echo "  Details: check-script --details <script> ; fixes: check-script --fix <script>" >&2
+  echo "  Skip once: CHECK_SCRIPT_SKIP=1 git commit …" >&2
   exit 1
 fi

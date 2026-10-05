@@ -1,0 +1,12 @@
+{
+  "description": "Évalue les scripts shell et Python (et le shell des workflows, Dockerfile, Makefile) : problèmes soulignés, corrections rapides, survol, note, formatage.",
+  "command.analyze.title": "Analyser le fichier",
+  "command.restart.title": "Redémarrer le serveur",
+  "config.path": "Exécutable check-script (nom dans le PATH ou chemin absolu).",
+  "config.lang.auto": "Langue de l'environnement",
+  "config.lang": "Langue des messages.",
+  "config.profile": "Profil de notation (vide : celui de .checkscript.yaml, sinon default).",
+  "config.analyzeOnType": "Pendant la frappe, appliquer les règles intégrées (l'analyse complète a lieu à l'ouverture et à l'enregistrement).",
+  "config.typingDelay": "Pause de frappe (ms) avant l'analyse rapide.",
+  "config.trace": "Trace des échanges avec le serveur (panneau Sortie)."
+}

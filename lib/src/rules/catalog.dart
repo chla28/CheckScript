@@ -802,7 +802,7 @@ final Map<String, RuleInfo> _byId = {for (final r in ruleCatalog) r.id: r};
 
 /// Règle du catalogue par identifiant (lève si inconnue : erreur de code).
 RuleInfo ruleInfo(String id) =>
-    _byId[id] ?? (throw ArgumentError('règle inconnue : $id'));
+    _byId[id] ?? (throw ArgumentError('unknown rule: $id'));
 
 /// Toutes les règles, shell puis Python, triées par catégorie puis
 /// identifiant (`--list-rules`).

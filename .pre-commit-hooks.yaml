@@ -10,14 +10,14 @@
 # check-script doit être installé sur le poste (language: system).
 - id: check-script
   name: check-script
-  description: Évalue les scripts shell et Python (sécurité, robustesse, maintenabilité…)
+  description: Scores shell and Python scripts (security, robustness, maintainability…)
   entry: check-script --quiet --no-color --fail-under 6
   language: system
   types_or: [shell, python]
   require_serial: true
 - id: check-script-fix
-  name: check-script (corrections automatiques)
-  description: Applique les corrections sûres de check-script
+  name: check-script (automatic fixes)
+  description: Applies check-script's safe fixes
   entry: check-script --quiet --fix
   language: system
   types_or: [shell, python]

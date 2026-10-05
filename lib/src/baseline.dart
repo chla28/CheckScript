@@ -63,11 +63,11 @@ class Baseline {
     try {
       doc = jsonDecode(json);
     } on FormatException {
-      throw const FormatException('référence : JSON invalide');
+      throw const FormatException('baseline: invalid JSON');
     }
     if (doc is! Map || doc['reports'] is! List) {
       throw const FormatException(
-          'référence : rapport JSON de check-script attendu (clé "reports")');
+          'baseline: check-script JSON report expected ("reports" key)');
     }
     return Baseline([
       for (final r in (doc['reports'] as List).whereType<Map>())

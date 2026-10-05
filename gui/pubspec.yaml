@@ -1,5 +1,5 @@
 name: check_script_gui
-description: Interface graphique de check-script (évaluation de scripts shell et Python).
+description: Graphical interface of check-script (evaluation of shell and Python scripts).
 publish_to: 'none'
 version: 0.18.5+29
 

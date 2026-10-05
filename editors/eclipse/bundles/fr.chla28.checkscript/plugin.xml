@@ -3,10 +3,10 @@
 <plugin>
    <!-- Types de contenu analysés par CheckScript (fichiers texte). -->
    <extension point="org.eclipse.core.contenttype.contentTypes">
-      <content-type id="fr.chla28.checkscript.shell" name="Script shell (CheckScript)"
+      <content-type id="fr.chla28.checkscript.shell" name="Shell script (CheckScript)"
             base-type="org.eclipse.core.runtime.text" priority="normal"
             file-extensions="sh,bash,ksh,dash,zsh"/>
-      <content-type id="fr.chla28.checkscript.python" name="Script Python (CheckScript)"
+      <content-type id="fr.chla28.checkscript.python" name="Python script (CheckScript)"
             base-type="org.eclipse.core.runtime.text" priority="normal"
             file-extensions="py,pyw"/>
       <content-type id="fr.chla28.checkscript.dockerfile" name="Dockerfile (CheckScript)"

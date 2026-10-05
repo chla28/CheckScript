@@ -1,6 +1,6 @@
 # Messages de commit au format Conventional Commits (type(portée): description),
 # vérifiés sur les nouveaux commits de chaque push et de chaque pull request.
-name: Messages de commit
+name: Commit messages
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
-      - name: Vérification
+      - name: Check
         env:
           BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           AFTER: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}

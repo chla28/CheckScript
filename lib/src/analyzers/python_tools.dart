@@ -301,7 +301,7 @@ class RuffAnalyzer extends PythonAnalyzer {
 List<Finding> parseRuff(String json) {
   final doc = _decode(json);
   if (doc == null) return [];
-  if (doc is! List) throw const FormatException('sortie JSON Ruff inattendue');
+  if (doc is! List) throw const FormatException('unexpected Ruff JSON output');
   return [
     for (final d in doc.whereType<Map<String, Object?>>())
       () {
@@ -401,7 +401,7 @@ List<Finding> parseBandit(String json) {
   final doc = _decode(json);
   if (doc == null) return [];
   if (doc is! Map || doc['results'] is! List) {
-    throw const FormatException('sortie JSON Bandit inattendue');
+    throw const FormatException('unexpected Bandit JSON output');
   }
   return [
     for (final r in (doc['results'] as List).whereType<Map<String, Object?>>())
@@ -626,7 +626,7 @@ List<String> semgrepReferences(Map meta) {
 (List<Finding>, List<String>) parseSemgrep(String json) {
   final doc = _decode(json);
   if (doc is! Map) {
-    throw const FormatException('sortie JSON Semgrep inattendue');
+    throw const FormatException('unexpected Semgrep JSON output');
   }
   final errors = [
     for (final e in (doc['errors'] as List? ?? const []).whereType<Map>())
@@ -781,7 +781,7 @@ class PyrightAnalyzer extends PythonAnalyzer {
 List<Finding> parsePyright(String json) {
   final doc = _decode(json);
   if (doc is! Map) {
-    throw const FormatException('sortie JSON Pyright inattendue');
+    throw const FormatException('unexpected Pyright JSON output');
   }
   final out = <Finding>[];
   for (final d
@@ -867,7 +867,7 @@ const Map<String, (Category, Severity)> pylintMap = {
 /// Sortie `pylint --output-format=json2`.
 List<Finding> parsePylint(String json) {
   final doc = _decode(json);
-  if (doc is! Map) throw const FormatException('sortie JSON Pylint inattendue');
+  if (doc is! Map) throw const FormatException('unexpected Pylint JSON output');
   final ruffOf = {for (final e in ruffToPylint.entries) e.value: e.key};
   final out = <Finding>[];
   for (final m in (doc['messages'] as List? ?? const []).whereType<Map>()) {
@@ -940,7 +940,7 @@ const radonMinComplexity = 11;
 List<Finding> parseRadonCc(String json) {
   final doc = _decode(json);
   if (doc == null) return [];
-  if (doc is! Map) throw const FormatException('sortie JSON Radon inattendue');
+  if (doc is! Map) throw const FormatException('unexpected Radon JSON output');
   final out = <Finding>[];
   void visit(Map b) {
     for (final m in (b['methods'] as List? ?? const []).whereType<Map>()) {

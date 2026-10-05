@@ -15,7 +15,8 @@
 Name:           check-script
 Version:        %{version}
 Release:        1%{?dist}
-Summary:        Evaluation de scripts shell (securite, robustesse, maintenabilite...)
+Summary:        Scores shell and Python scripts (security, robustness, maintainability...)
+Summary(fr):    Évaluation de scripts shell et Python (sécurité, robustesse, maintenabilité...)
 
 # À confirmer : aucune licence n'est encore choisie pour CheckScript.
 License:        LGPL-3.0-or-later
@@ -36,11 +37,20 @@ Recommends:     python3-mypy
 Suggests:       pylint
 
 %description
-check-script note des scripts shell ou Python sur cinq categories (Securite,
-Robustesse, Maintenabilite, Portabilite, Performance) avec le nombre de
-problemes par severite, une note globale et un niveau A-E. Il exploite
+check-script scores shell or Python scripts over five categories (Security,
+Robustness, Maintainability, Portability, Performance) with the number of
+issues by severity, an overall score and an A-E grade. It makes use of
+ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog and bash -n,
+complements them with built-in rules, fixes safe defects (--fix) and
+produces terminal, Markdown, AsciiDoc, HTML, JSON, SARIF and GitLab Code
+Quality reports.
+
+%description -l fr
+check-script note des scripts shell ou Python sur cinq catégories (Sécurité,
+Robustesse, Maintenabilité, Portabilité, Performance) avec le nombre de
+problèmes par sévérité, une note globale et un niveau A-E. Il exploite
 ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog et bash -n,
-les complete par des regles integrees, corrige les defauts surs (--fix) et
+les complète par des règles intégrées, corrige les défauts sûrs (--fix) et
 produit des rapports terminal, Markdown, AsciiDoc, HTML, JSON, SARIF et
 GitLab Code Quality.
 
@@ -49,7 +59,7 @@ GitLab Code Quality.
 
 %build
 command -v dart >/dev/null 2>&1 || {
-  echo "Erreur : 'dart' introuvable dans PATH (SDK Dart requis)." >&2
+  echo "Error: 'dart' not found in PATH (Dart SDK required)." >&2
   exit 1
 }
 dart pub get

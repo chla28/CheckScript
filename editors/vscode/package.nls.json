@@ -1,0 +1,12 @@
+{
+  "description": "Evaluates shell and Python scripts (and the shell in workflows, Dockerfiles, Makefiles): underlined issues, quick fixes, hover, score, formatting.",
+  "command.analyze.title": "Analyze file",
+  "command.restart.title": "Restart server",
+  "config.path": "check-script executable (name in PATH or absolute path).",
+  "config.lang.auto": "Environment language",
+  "config.lang": "Message language.",
+  "config.profile": "Scoring profile (empty: the one from .checkscript.yaml, otherwise default).",
+  "config.analyzeOnType": "While typing, apply the built-in rules (full analysis happens on open and on save).",
+  "config.typingDelay": "Typing pause (ms) before the quick analysis.",
+  "config.trace": "Trace of the exchanges with the server (Output panel)."
+}

@@ -54,7 +54,7 @@ esac
 VERSION="${VERSION%%+*}"
 
 command -v rpmbuild &>/dev/null || {
-  echo "Erreur : rpmbuild introuvable (sudo dnf install rpm-build)." >&2
+  echo "Error: rpmbuild not found (sudo dnf install rpm-build)." >&2
   exit 1
 }
 DIST_TAG="$(rpm --eval '%{?dist}' | sed 's/^\.//')"
@@ -63,7 +63,7 @@ DIST_TAG="${DIST_TAG:-native}"
 echo "╔══════════════════════════════════════════╗"
 echo "║  CheckScript — Build RPM                 ║"
 echo "╚══════════════════════════════════════════╝"
-echo "Version : ${VERSION}"
+echo "Version: ${VERSION}"
 echo "Paquet  : ${PACKAGE}"
 echo "Distrib : ${DIST_TAG}"
 echo ""
@@ -73,15 +73,15 @@ OUTDIR="${PROJECT_DIR}/dist/rpm/${DIST_TAG}"
 rm -rf "${TOPDIR:?}" "${OUTDIR:?}"
 mkdir -p "${TOPDIR}"/{SOURCES,SPECS,BUILD,BUILDROOT,RPMS,SRPMS} "$OUTDIR"
 
-echo "▶ Archive source (git archive HEAD)…"
+echo "▶ Source archive (git archive HEAD)…"
 cd "$PROJECT_DIR" || exit 1
 git rev-parse HEAD &>/dev/null || {
-  echo "Erreur : aucun commit — impossible de créer l'archive source." >&2
+  echo "Error: no commit — cannot create the source archive." >&2
   exit 1
 }
 git archive --format=tar.gz --prefix="check_script-${VERSION}/" HEAD \
   -o "${TOPDIR}/SOURCES/check_script-${VERSION}.tar.gz"
-echo "  ✓ SOURCES/check_script-${VERSION}.tar.gz (contenu commité uniquement)"
+echo "  ✓ SOURCES/check_script-${VERSION}.tar.gz (committed content only)"
 echo ""
 
 specs=()
@@ -94,7 +94,7 @@ for spec in "${specs[@]}"; do
   # LC_ALL=C : messages en anglais (filtrage fiable) ; journal complet conservé.
   if ! LC_ALL=C rpmbuild -bb --define "_topdir ${TOPDIR}" --define "version ${VERSION}" \
     "${SPEC_DIR}/${spec}" >"$log" 2>&1; then
-    echo "  ✗ échec — dernières lignes de ${log#"${PROJECT_DIR}"/} :" >&2
+    echo "  ✗ failed — last lines of ${log#"${PROJECT_DIR}"/} :" >&2
     tail -n 20 "$log" | sed 's/^/    /' >&2
     exit 1
   fi
