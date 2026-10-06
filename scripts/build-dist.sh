@@ -227,8 +227,8 @@ if command -v asciidoctor &>/dev/null; then
 else
   echo "  ⚠  asciidoctor missing: man page not generated." >&2
 fi
-cp README.md README.fr.md CHANGELOG.md LICENSE "${DIST_DIR}/"
-echo "  ✓ README.md / CHANGELOG.md / LICENSE"
+cp README.md README.fr.md CHANGELOG.md LICENSE COPYING "${DIST_DIR}/"
+echo "  ✓ README.md / CHANGELOG.md / LICENSE / COPYING"
 cp "${SCRIPT_DIR}/install.sh" "${SCRIPT_DIR}/uninstall.sh" "${DIST_DIR}/"
 chmod +x "${DIST_DIR}/install.sh" "${DIST_DIR}/uninstall.sh"
 echo "  ✓ install.sh / uninstall.sh"

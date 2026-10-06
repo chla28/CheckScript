@@ -13,7 +13,6 @@ Release:        1%{?dist}
 Summary:        Graphical interface of check-script (shell and Python script evaluation)
 Summary(fr):    Interface graphique de check-script (évaluation de scripts shell et Python)
 
-# À confirmer : aucune licence n'est encore choisie pour CheckScript.
 License:        LGPL-3.0-or-later AND OFL-1.1
 Source0:        check_script-%{version}.tar.gz
 

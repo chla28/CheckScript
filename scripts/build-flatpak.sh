@@ -50,7 +50,8 @@ cp "$PROJECT_DIR/packaging/flatpak/check-script-gui.sh" \
   "$PROJECT_DIR/packaging/flatpak/check-script.sh" \
   "$PROJECT_DIR/packaging/linux/$APP_ID.desktop" \
   "$PROJECT_DIR/packaging/linux/$APP_ID.metainfo.xml" \
-  "$PROJECT_DIR/assets/check_script.svg" "$PROJECT_DIR/LICENSE" "$STAGING/"
+  "$PROJECT_DIR/assets/check_script.svg" "$PROJECT_DIR/LICENSE" \
+  "$PROJECT_DIR/COPYING" "$STAGING/"
 glibc_report "$STAGING"
 
 # Dépôt Flathub pour l'utilisateur (runtime et SDK).

@@ -18,7 +18,6 @@ Release:        1%{?dist}
 Summary:        Scores shell and Python scripts (security, robustness, maintainability...)
 Summary(fr):    Évaluation de scripts shell et Python (sécurité, robustesse, maintenabilité...)
 
-# À confirmer : aucune licence n'est encore choisie pour CheckScript.
 License:        LGPL-3.0-or-later
 Source0:        check_script-%{version}.tar.gz
 
