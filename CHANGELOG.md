@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.21.0 — 2026-10-06
+
+### Features
+
+- **cli**: init, explain and path exclusions (5ca532b)
+- **gui**: tabs, search, shortcuts and one-click baseline (0560179)
+
+### Documentation
+
+- describe init, explain, exclusions and the new GUI features (7c1b1b1)
+
 ## 0.20.0 — 2026-10-05
 
 ### Features
