@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'embedded.dart';
+import 'ignore.dart';
 
 final _scriptShebang =
     RegExp(r'^#!.*\b(?:(?:ba|da|k|mk|z)?sh|python[23]?(?:\.\d+)?)\b');
@@ -25,18 +26,29 @@ const _hiddenHosts = {'.github', '.gitlab', '.gitlab-ci.yml'};
 /// exclus ; null si introuvable. Avec [embedded], aussi les fichiers
 /// contenant des scripts intégrés (Dockerfile, Makefile, CI, Ansible) qui
 /// en ont au moins un.
+///
+/// Dans un dossier, les chemins correspondant aux motifs [exclude] (format
+/// `.gitignore`, relatifs au dossier) ou au fichier `.checkscriptignore` de
+/// sa racine (sauf [useIgnoreFile] faux) ne sont pas analysés. Un fichier
+/// donné explicitement l'est toujours.
 Future<List<String>?> collectScripts(String target,
-    {bool embedded = true}) async {
+    {bool embedded = true,
+    Iterable<String> exclude = const [],
+    bool useIgnoreFile = true}) async {
   final type = await FileSystemEntity.type(target);
   if (type == FileSystemEntityType.file) return [target];
   if (type != FileSystemEntityType.directory) return null;
+  final ignore = IgnoreRules([
+    if (useIgnoreFile) ...IgnoreRules.readFile(p.join(target, ignoreFileName)),
+    ...exclude,
+  ]);
   final found = <String>[];
   await for (final e
       in Directory(target).list(recursive: true, followLinks: false)) {
     if (e is! File) continue;
-    if (isExcluded(p.relative(e.path, from: target), embedded: embedded)) {
-      continue;
-    }
+    final relative = p.relative(e.path, from: target);
+    if (isExcluded(relative, embedded: embedded)) continue;
+    if (ignore.ignores(p.posix.joinAll(p.split(relative)))) continue;
     if (await isScriptFile(e.path, embedded: embedded)) found.add(e.path);
   }
   found.sort();

@@ -3,6 +3,32 @@
 # Installation: copy into a folder of $fpath (e.g. ~/.zfunc) then
 #   autoload -Uz compinit && compinit
 
+# Sous-commandes : check-script explain RULE | init [DIR] | lsp
+if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init) ]]; then
+  if [[ ${words[2]} == init ]]; then
+    _arguments -s \
+      {-p,--profile}'[profile]:profile:(strict default legacy)' \
+      '*--context[execution context]:context:(root cron systemd)' \
+      '*--exclude[ignored path (.gitignore syntax)]:pattern:' \
+      '--baseline[write the baseline JSON report]:file:_files -g "*.json"' \
+      '--no-analysis[analyse nothing]' \
+      '--no-external[built-in rules only]' \
+      {-f,--force}'[replace an existing file]' \
+      '--stdout[write to standard output]' \
+      {-l,--lang}'[language]:language:(fr en)' \
+      '*:folder:_files -/'
+  else
+    _arguments -s \
+      {-l,--lang}'[language]:language:(fr en)' \
+      {-c,--config}'[YAML configuration]:file:_files -g "*.y(a|)ml"' \
+      '*:rule:'
+  fi
+  return
+fi
+if (( CURRENT == 2 )); then
+  _alternative 'subcommands:subcommand:(explain init lsp)' 'files:script:_files' && return
+fi
+
 _arguments -s \
   '*'{-o,--output}'[report file]:file:_files' \
   {-f,--format}'[format]:format:(terminal md adoc html pdf json sarif codeclimate junit github)' \
@@ -20,6 +46,7 @@ _arguments -s \
   {-w,--watch}'[re-analyze on every save]' \
   '(--embedded --no-embedded)'{--embedded,--no-embedded}'[embedded scripts (CI, Dockerfile, Makefile, Ansible)]' \
   {-j,--jobs}'[scripts analyzed concurrently]:number:' \
+  '*--exclude[ignore matching paths (.gitignore syntax)]:pattern:' \
   '--all[with --list-rules: also the tool codes]' \
   '--changed-since[scripts modified since the git reference]:reference:' \
   '--dashboard[team dashboard]:file:_files -g "*.html"' \

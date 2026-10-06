@@ -12,6 +12,10 @@ check-script - évalue la qualité et la sécurité de scripts shell et Python
 
 *check-script* [_OPTIONS_] _SCRIPT_|_DOSSIER_|*-*...
 
+*check-script explain* [*--lang* *fr*|*en*] [*--config* _FICHIER_] _RÈGLE_...
+
+*check-script init* [_OPTIONS_] [_DOSSIER_]
+
 *check-script lsp* [*--lang* *fr*|*en*]
 
 == DESCRIPTION
@@ -105,6 +109,12 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
 *--history-dir* _DOSSIER_::
   Enregistre l'historique des dossiers analysés dans _DOSSIER_.
 
+*--exclude* _MOTIF_::
+  Exclut de l'analyse d'un dossier les chemins correspondant au motif
+  (syntaxe _.gitignore_ : _vendor/_, _*.min.sh_, _**/gen/**_) ; répétable.
+  S'ajoute à la clé _exclude_ de la configuration et au fichier
+  _.checkscriptignore_ de la racine du dossier.
+
 *--changed-since* _REF_::
   N'analyse que les scripts modifiés depuis la référence git _REF_.
 
@@ -183,6 +193,29 @@ Jokers : *SC20\**, *all*.
 *1*:: Seuil non atteint (*--fail-under*, *--fail-on-new*).
 *2*:: Erreur d'usage ou de configuration.
 *3*:: Script introuvable ou illisible, rapport impossible à écrire.
+
+== EXPLAIN
+
+*check-script explain* _RÈGLE_... décrit une règle : catégorie, sévérité,
+outil, références CWE / OWASP / ANSSI, exemple _à éviter / à écrire_, codes
+équivalents dans les autres outils et façons de l'ignorer (directive,
+_rules.disabled_). _RÈGLE_ est un identifiant comme _SEC003_, _SC2086_,
+_B602_ ou une règle personnalisée de la configuration (_--config_) ; voir
+*--list-rules --all*. Identifiant inconnu : code de sortie 2, avec des
+suggestions.
+
+== INIT
+
+*check-script init* [_DOSSIER_] écrit _DOSSIER_/.checkscript.yaml (défaut :
+le dossier courant) avec un *profil suggéré par l'analyse* des scripts qu'il
+contient (note moyenne ≥ 8,5 : _strict_ ; < 6 : _legacy_ ; sinon
+_default_), les contextes et exclusions demandés, et des exemples commentés
+(règles, outils, version de Python). Options : *--profile* (impose le profil,
+sans analyse), *--context* (répétable), *--exclude* (répétable),
+*--baseline* _FICHIER.json_ (écrit aussi le rapport de référence, à utiliser
+avec *--baseline*), *--no-analysis*, *--no-external*, *--force* (remplace un
+fichier existant), *--stdout*, *--lang*. Un fichier existant n'est jamais
+remplacé sans *--force*.
 
 == SERVEUR LSP
 

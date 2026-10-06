@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'discovery.dart' show isExcluded;
+import 'ignore.dart';
 
 /// Émet, après [debounce] sans nouvel événement, les chemins absolus des
 /// fichiers créés, modifiés ou renommés sous [targets] (fichiers ou
@@ -20,7 +21,8 @@ import 'discovery.dart' show isExcluded;
 /// par la découverte des scripts.
 Stream<Set<String>> watchTargets(List<String> targets,
     {Duration debounce = const Duration(milliseconds: 400),
-    bool embedded = true}) {
+    bool embedded = true,
+    Iterable<String> exclude = const []}) {
   final subs = <String, StreamSubscription<FileSystemEvent>>{};
   final pending = <String>{};
   Timer? timer;
@@ -28,12 +30,15 @@ Stream<Set<String>> watchTargets(List<String> targets,
 
   final files = <String>{}; // cibles fichiers
   final roots = <String>[]; // cibles dossiers
+  final ignores = <String, IgnoreRules>{}; // motifs d'exclusion par racine
 
   bool wanted(String path) {
     if (files.contains(path)) return true;
     for (final r in roots) {
       if (p.isWithin(r, path)) {
-        return !isExcluded(p.relative(path, from: r), embedded: embedded);
+        final relative = p.relative(path, from: r);
+        return !isExcluded(relative, embedded: embedded) &&
+            !(ignores[r]?.ignores(p.posix.joinAll(p.split(relative))) ?? false);
       }
     }
     return false;
@@ -89,6 +94,10 @@ Stream<Set<String>> watchTargets(List<String> targets,
         final abs = p.normalize(p.absolute(t));
         if (FileSystemEntity.isDirectorySync(abs)) {
           roots.add(abs);
+          ignores[abs] = IgnoreRules([
+            ...IgnoreRules.readFile(p.join(abs, ignoreFileName)),
+            ...exclude
+          ]);
           watchDir(abs);
           for (final d in Directory(abs)
               .listSync(recursive: true, followLinks: false)

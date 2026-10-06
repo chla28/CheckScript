@@ -10,6 +10,7 @@ profile: default                # strict | default | legacy (--profile takes pre
 context: []                     # [root, cron, systemd] : dedicated rules and severities
 followSource: false             # shellcheck -x (sourced files)
 pythonTarget: "3.9"             # minimum Python to support (quoted)
+exclude: []                      # .gitignore-style patterns ignored in a folder (see also .checkscriptignore)
 
 tools:
   shellcheck:

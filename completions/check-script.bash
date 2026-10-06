@@ -13,7 +13,7 @@ _check_script() {
   prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   opts="--output -o --format -f --lang -l --shell -s --python-target --profile -p --context \
---follow-source --config -c --with --without --no-external --ref --embedded --no-embedded --watch -w --jobs -j --all --changed-since --dashboard --history-dir --cache --no-cache --explain --sort --baseline -b --fail-on-new \
+--follow-source --config -c --with --without --no-external --ref --embedded --no-embedded --watch -w --jobs -j --exclude --all --changed-since --dashboard --history-dir --cache --no-cache --explain --sort --baseline -b --fail-on-new \
 --fix --dry-run --backup --details --summary --source --no-source --color --no-color --quiet -q \
 --fail-under --list-tools --list-rules --version -v --help -h"
 
@@ -64,6 +64,20 @@ _check_script() {
       return 0
       ;;
   esac
+
+  # Sous-commandes : explain RÈGLE, init [DOSSIER], lsp.
+  if [[ $COMP_CWORD -eq 1 && "$cur" != -* ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "explain init lsp" -- "$cur"; compgen -f -- "$cur")
+    return 0
+  fi
+  if [[ "${COMP_WORDS[1]}" == init ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "--profile -p --context --exclude --baseline --no-analysis --no-external --force -f --stdout --lang -l --help -h" -- "$cur"; compgen -d -- "$cur")
+    return 0
+  fi
+  if [[ "${COMP_WORDS[1]}" == explain ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "--lang -l --config -c --help -h" -- "$cur")
+    return 0
+  fi
 
   if [[ "$cur" == -* ]]; then
     mapfile -t COMPREPLY < <(compgen -W "$opts" -- "$cur")

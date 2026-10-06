@@ -164,6 +164,11 @@ ArgParser buildParser(Lang lang) {
         help: t(
             'Dans un dossier, analyse aussi les scripts intégrés : GitHub Actions, GitLab CI, Dockerfile, Makefile, Ansible.',
             'In a folder, also analyze embedded scripts: GitHub Actions, GitLab CI, Dockerfile, Makefile, Ansible.'))
+    ..addMultiOption('exclude',
+        valueHelp: 'MOTIF',
+        help: t(
+            'Exclut de l\'analyse d\'un dossier les chemins correspondant au motif (syntaxe .gitignore : vendor/, *.min.sh, **/gen/**) ; répétable. S\'ajoute à la clé exclude de la configuration et au fichier .checkscriptignore du dossier.',
+            'Exclude from a folder analysis the paths matching the pattern (.gitignore syntax: vendor/, *.min.sh, **/gen/**); repeatable. Adds to the exclude key of the configuration and to the folder\'s .checkscriptignore file.'))
     ..addFlag('watch',
         abbr: 'w',
         negatable: false,
@@ -316,6 +321,15 @@ Future<int> run(List<String> argv,
   }
   String t(String fr, String en) => lang == Lang.fr ? fr : en;
 
+  // Sous-commandes : check-script explain RÈGLE, check-script init [DOSSIER].
+  if (argv.isNotEmpty && argv.first == 'explain') {
+    return _explain(argv.skip(1).toList(), lang, out: out, err: err);
+  }
+  if (argv.isNotEmpty && argv.first == 'init') {
+    return _init(argv.skip(1).toList(), lang,
+        out: out, err: err, runner: runner);
+  }
+
   final parser = buildParser(lang);
   final ArgResults a;
   try {
@@ -335,6 +349,17 @@ Future<int> run(List<String> argv,
             'Rates shell or Python scripts on five axes (Security, Robustness, '
             'Maintainability, Portability, Performance), scored out of 10.\n'));
     out.writeln(parser.usage);
+    out.writeln(t(
+        '\nSous-commandes :\n'
+            '  check-script explain RÈGLE   décrit une règle (exemple, références, façons de l\'ignorer)\n'
+            '  check-script init [DOSSIER]  génère un .checkscript.yaml (profil suggéré, exclusions) ;\n'
+            '                               --help pour ses options\n'
+            '  check-script lsp             serveur LSP pour les éditeurs',
+        '\nSubcommands:\n'
+            '  check-script explain RULE    describes a rule (example, references, how to ignore it)\n'
+            '  check-script init [DIR]      generates a .checkscript.yaml (suggested profile, exclusions);\n'
+            '                               --help for its options\n'
+            '  check-script lsp             LSP server for editors'));
     out.writeln(t(
         '\nDirectives dans le script : # check-script disable=RÈGLE[,…] '
             '(ligne), # check-script disable-file=RÈGLE[,…] (fichier).'
@@ -499,6 +524,7 @@ Future<int> run(List<String> argv,
         'No script to analyse. See check-script --help.'));
     return exitUsage;
   }
+  final exclude = [...config.exclude, ...(a['exclude'] as List<String>)];
   final fix = a['fix'] as bool;
   final dryRun = a['dry-run'] as bool;
   if ((dryRun || a['backup'] as bool) && !fix) {
@@ -519,7 +545,11 @@ Future<int> run(List<String> argv,
       return exitUsage;
     }
     return _watch(argv, a, lang,
-        out: out, err: err, runner: runner, stop: stopWatching);
+        exclude: exclude,
+        out: out,
+        err: err,
+        runner: runner,
+        stop: stopWatching);
   }
 
   // Fichiers modifiés depuis une référence git (--changed-since).
@@ -594,7 +624,8 @@ Future<int> run(List<String> argv,
             null);
         continue;
       }
-      var files = await collectScripts(target, embedded: a['embedded'] as bool);
+      var files = await collectScripts(target,
+          embedded: a['embedded'] as bool, exclude: exclude);
       if (files != null && changed != null) {
         final all = files.length;
         files = [
@@ -772,7 +803,8 @@ Future<int> run(List<String> argv,
 /// enregistrement d'un script — les scripts modifiés seulement, ou toutes
 /// les cibles quand des fichiers de rapport (-o) sont écrits.
 Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
-    {required IOSink out,
+    {required List<String> exclude,
+    required IOSink out,
     required IOSink err,
     CommandRunner? runner,
     Future<void>? stop}) async {
@@ -798,7 +830,8 @@ Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
   };
   final done = Completer<void>();
   late final StreamSubscription<Set<String>> sub;
-  sub = watchTargets(a.rest, embedded: embedded).listen((changed) async {
+  sub = watchTargets(a.rest, embedded: embedded, exclude: exclude)
+      .listen((changed) async {
     sub.pause();
     try {
       final scripts = [
@@ -825,6 +858,226 @@ Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
   await done.future;
   await sub.cancel();
   return code;
+}
+
+/// `check-script explain RÈGLE` : description complète d'une règle.
+Future<int> _explain(List<String> args, Lang lang,
+    {required IOSink out, required IOSink err}) async {
+  String t(String fr, String en) => lang == Lang.fr ? fr : en;
+  final parser = ArgParser()
+    ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
+    ..addOption('config', abbr: 'c')
+    ..addFlag('help', abbr: 'h', negatable: false);
+  final ArgResults a;
+  try {
+    a = parser.parse(args);
+  } on FormatException catch (e) {
+    err.writeln(e.message);
+    return exitUsage;
+  }
+  if (a['help'] as bool || a.rest.isEmpty) {
+    (a['help'] as bool ? out : err).writeln(t(
+        'Usage : check-script explain [--lang fr|en] [--config FICHIER] RÈGLE...\n\n'
+            'Décrit une règle : catégorie, sévérité, références, exemple '
+            '« à éviter / à écrire », équivalents dans les autres outils et '
+            'façons de l\'ignorer. RÈGLE : un identifiant comme SEC003, SC2086, '
+            'B602 ou ROB005 (voir check-script --list-rules --all).',
+        'Usage: check-script explain [--lang fr|en] [--config FILE] RULE...\n\n'
+            'Describes a rule: category, severity, references, "avoid / write '
+            'instead" example, equivalents in other tools and how to ignore '
+            'it. RULE: an identifier such as SEC003, SC2086, B602 or ROB005 '
+            '(see check-script --list-rules --all).'));
+    return a['help'] as bool ? exitOk : exitUsage;
+  }
+  final langArg = a['lang'] == null ? null : Lang.tryParse(a['lang'] as String);
+  final l = langArg ?? lang;
+  final CheckConfig config;
+  try {
+    config = await loadConfig(a['config'] as String?);
+  } on FormatException catch (e) {
+    err.writeln(t('Configuration invalide : ${e.message}',
+        'Invalid configuration: ${e.message}'));
+    return exitUsage;
+  } on FileSystemException catch (e) {
+    err.writeln(t('Configuration illisible : ${e.path}',
+        'Unreadable configuration: ${e.path}'));
+    return exitUsage;
+  }
+  var code = exitOk;
+  var first = true;
+  for (final id in a.rest) {
+    final found = findRules(id, l, custom: config.customRules);
+    if (found.isEmpty) {
+      err.writeln(t('Règle inconnue : $id', 'Unknown rule: $id'));
+      final like = similarRuleIds(id, l, custom: config.customRules);
+      if (like.isNotEmpty) {
+        err.writeln(t('Voulez-vous dire : ${like.join(', ')} ?',
+            'Did you mean: ${like.join(', ')}?'));
+      }
+      code = exitUsage;
+      continue;
+    }
+    for (final e in found) {
+      if (!first) out.writeln('\n${'─' * 60}\n');
+      first = false;
+      out.write(renderRuleDoc(e, l));
+    }
+  }
+  return code;
+}
+
+/// `check-script init [DOSSIER]` : génère un `.checkscript.yaml`.
+Future<int> _init(List<String> args, Lang lang,
+    {required IOSink out, required IOSink err, CommandRunner? runner}) async {
+  String t(String fr, String en) => lang == Lang.fr ? fr : en;
+  final parser = ArgParser()
+    ..addOption('profile', abbr: 'p', allowed: ['strict', 'default', 'legacy'])
+    ..addMultiOption('context', allowed: ['root', 'cron', 'systemd'])
+    ..addMultiOption('exclude')
+    ..addOption('baseline')
+    ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
+    ..addFlag('force', abbr: 'f', negatable: false)
+    ..addFlag('stdout', negatable: false)
+    ..addFlag('no-analysis', negatable: false)
+    ..addFlag('no-external', negatable: false)
+    ..addFlag('help', abbr: 'h', negatable: false);
+  final ArgResults a;
+  try {
+    a = parser.parse(args);
+  } on FormatException catch (e) {
+    err.writeln(e.message);
+    return exitUsage;
+  }
+  if (a['help'] as bool) {
+    out.writeln(t(
+        'Usage : check-script init [options] [DOSSIER]\n\n'
+            'Génère DOSSIER/.checkscript.yaml (défaut : dossier courant) : un '
+            'profil suggéré d\'après la note moyenne des scripts du dossier '
+            '(strict ≥ 8,5 · legacy < 6 · sinon default), les contextes et '
+            'exclusions demandés, et des exemples commentés.\n\n'
+            '  -p, --profile P        impose le profil (strict | default | legacy) ; pas d\'analyse\n'
+            '      --context C        contexte d\'exécution (root, cron, systemd) ; répétable\n'
+            '      --exclude MOTIF    chemin à ignorer (syntaxe .gitignore) ; répétable\n'
+            '      --baseline FICHIER écrit aussi le rapport JSON de référence (pour --baseline)\n'
+            '      --no-analysis      n\'analyse rien : profil default sauf --profile\n'
+            '      --no-external      analyse avec les règles intégrées seules\n'
+            '  -f, --force            remplace un fichier existant\n'
+            '      --stdout           écrit sur la sortie standard au lieu du fichier\n'
+            '  -l, --lang fr|en       langue des commentaires',
+        'Usage: check-script init [options] [DIR]\n\n'
+            'Generates DIR/.checkscript.yaml (default: current directory): a '
+            'profile suggested from the average score of the folder\'s scripts '
+            '(strict ≥ 8.5 · legacy < 6 · otherwise default), the requested '
+            'contexts and exclusions, and commented examples.\n\n'
+            '  -p, --profile P        force the profile (strict | default | legacy); no analysis\n'
+            '      --context C        execution context (root, cron, systemd); repeatable\n'
+            '      --exclude PATTERN  path to ignore (.gitignore syntax); repeatable\n'
+            '      --baseline FILE    also write the baseline JSON report (for --baseline)\n'
+            '      --no-analysis      analyse nothing: default profile unless --profile\n'
+            '      --no-external      analyse with the built-in rules only\n'
+            '  -f, --force            replace an existing file\n'
+            '      --stdout           write to standard output instead of the file\n'
+            '  -l, --lang fr|en       language of the comments'));
+    return exitOk;
+  }
+  final l = a['lang'] == null ? lang : Lang.tryParse(a['lang'] as String)!;
+  String tl(String fr, String en) => l == Lang.fr ? fr : en;
+  if (a.rest.length > 1) {
+    err.writeln(t('Un seul dossier attendu.', 'Only one folder expected.'));
+    return exitUsage;
+  }
+  final dir = a.rest.isEmpty ? '.' : a.rest.first;
+  if (!FileSystemEntity.isDirectorySync(dir)) {
+    err.writeln(t('Dossier introuvable : $dir', 'Folder not found: $dir'));
+    return exitInput;
+  }
+  final target = p.join(dir, projectConfigName);
+  final toStdout = a['stdout'] as bool;
+  if (!toStdout && File(target).existsSync() && !(a['force'] as bool)) {
+    err.writeln(t(
+        '$target existe déjà (--force pour le remplacer, --stdout pour l\'afficher).',
+        '$target already exists (--force to replace it, --stdout to print it).'));
+    return exitUsage;
+  }
+  final exclude = a['exclude'] as List<String>;
+  final baselinePath = a['baseline'] as String?;
+  final forced =
+      a['profile'] == null ? null : Profile.tryParse(a['profile'] as String);
+  final analyse =
+      !(a['no-analysis'] as bool) && (forced == null || baselinePath != null);
+
+  // Analyse du dossier (profil suggéré, rapport de référence).
+  final commandRunner = runner ?? const ProcessCommandRunner();
+  final cache =
+      commandRunner is ProcessCommandRunner ? ResultCache.standard() : null;
+  Future<List<ScriptReport>> analyseWith(Profile profile) async {
+    var config = CheckConfig.forProfile(profile);
+    if (a['no-external'] as bool) {
+      config = config.withToolsDisabled(externalTools);
+    }
+    final files = await collectScripts(dir, exclude: exclude) ?? const [];
+    return Engine(config: config, lang: l, runner: commandRunner, cache: cache)
+        .analyzeFiles(files);
+  }
+
+  var reports = <ScriptReport>[];
+  if (analyse) reports = await analyseWith(Profile.standard);
+  final profile =
+      forced ?? (analyse ? suggestProfile(reports) : Profile.standard);
+  String? note;
+  if (forced != null) {
+    note = tl('profil imposé par --profile.', 'profile set by --profile.');
+  } else if (analyse && reports.isNotEmpty) {
+    note = tl(
+        'profil suggéré d\'après l\'analyse : note moyenne '
+            '${fmtScore(averageScore(reports), Lang.fr)} sur ${reports.length} script(s).',
+        'profile suggested by the analysis: average score '
+            '${fmtScore(averageScore(reports), Lang.en)} over ${reports.length} script(s).');
+  } else if (analyse) {
+    note = tl('aucun script trouvé : profil par défaut.',
+        'no script found: default profile.');
+  }
+  final text = renderInitConfig(
+      profile: profile,
+      contexts: {
+        for (final c in a['context'] as List<String>) ExecContext.tryParse(c)!
+      },
+      exclude: exclude,
+      lang: l,
+      note: note);
+  if (toStdout) {
+    out.write(text);
+  } else {
+    try {
+      await File(target).writeAsString(text);
+      err.writeln(t(
+          'Configuration écrite : $target (profil ${profile == Profile.standard ? 'default' : profile.name})',
+          'Configuration written: $target (profile ${profile == Profile.standard ? 'default' : profile.name})'));
+    } on FileSystemException catch (e) {
+      err.writeln(t('Écriture impossible : $target (${e.message})',
+          'Cannot write: $target (${e.message})'));
+      return exitInput;
+    }
+  }
+
+  // Rapport de référence, avec le profil retenu.
+  if (baselinePath != null) {
+    try {
+      if (profile != Profile.standard) reports = await analyseWith(profile);
+      final f = File(baselinePath);
+      await f.parent.create(recursive: true);
+      await f.writeAsBytes(await renderBytes(
+          reports, OutputFormat.json, RenderOptions(lang: l)));
+      err.writeln(t(
+          'Référence écrite : $baselinePath (${reports.length} script(s)) — à utiliser avec --baseline.',
+          'Baseline written: $baselinePath (${reports.length} script(s)) — use it with --baseline.'));
+    } on FileSystemException catch (e) {
+      err.writeln(t('Écriture impossible : $baselinePath (${e.message})',
+          'Cannot write: $baselinePath (${e.message})'));
+      return exitInput;
+    }
+  }
+  return exitOk;
 }
 
 /// Vrai si un rapport passe sous un seuil `--fail-under` ou contient un

@@ -132,6 +132,10 @@ class CheckConfig {
   /// Règles personnalisées du projet (`rules.custom`).
   final List<CustomRule> customRules;
 
+  /// Chemins exclus de l'analyse d'un dossier (`exclude`, format
+  /// `.gitignore`).
+  final List<String> exclude;
+
   const CheckConfig({
     this.tools = defaultTools,
     this.disabledRules = const {},
@@ -143,6 +147,7 @@ class CheckConfig {
     this.profile = Profile.standard,
     this.pythonTarget = defaultPythonTarget,
     this.customRules = const [],
+    this.exclude = const [],
   });
 
   /// Python de RHEL / Rocky 9.
@@ -270,6 +275,7 @@ class CheckConfig {
     Profile? profile,
     String? pythonTarget,
     List<CustomRule>? customRules,
+    List<String>? exclude,
   }) =>
       CheckConfig(
         tools: tools ?? this.tools,
@@ -282,6 +288,7 @@ class CheckConfig {
         profile: profile ?? this.profile,
         pythonTarget: pythonTarget ?? this.pythonTarget,
         customRules: customRules ?? this.customRules,
+        exclude: exclude ?? this.exclude,
       );
 
   /// Copie avec certains outils activés (option `--with` : outils désactivés
@@ -444,9 +451,19 @@ class CheckConfig {
       throw FormatException('invalid pythonTarget: $target (e.g. 3.9)');
     }
 
+    final yEx = doc['exclude'];
+    if (yEx != null && yEx is! YamlList && yEx is! String) {
+      throw const FormatException('exclude: list of patterns expected');
+    }
+    final exclude = [
+      for (final e in yEx is YamlList ? yEx : (yEx == null ? const [] : [yEx]))
+        '$e'
+    ];
+
     return base.copyWith(
         pythonTarget: target,
         customRules: custom,
+        exclude: exclude,
         tools: tools,
         disabledRules: disabled,
         overrides: overrides,
@@ -478,6 +495,7 @@ class CheckConfig {
       b.writeln('context: ${list([for (final c in contexts) c.name])}');
     }
     if (followSource) b.writeln('followSource: true');
+    if (exclude.isNotEmpty) b.writeln('exclude: ${list(exclude)}');
     if (pythonTarget != defaultPythonTarget) {
       b.writeln('pythonTarget: ${q(pythonTarget)}');
     }

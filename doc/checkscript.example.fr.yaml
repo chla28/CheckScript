@@ -10,6 +10,7 @@ profile: default                # strict | default | legacy (--profile prime)
 context: []                     # [root, cron, systemd] : règles et sévérités dédiées
 followSource: false             # shellcheck -x (fichiers sourcés)
 pythonTarget: "3.9"             # Python minimal à supporter (entre guillemets)
+exclude: []                      # motifs .gitignore ignorés dans un dossier (voir aussi .checkscriptignore)
 
 tools:
   shellcheck:

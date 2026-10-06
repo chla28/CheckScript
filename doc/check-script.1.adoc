@@ -12,6 +12,10 @@ check-script - evaluates the quality and security of shell and Python scripts
 
 *check-script* [_OPTIONS_] _SCRIPT_|_FOLDER_|*-*...
 
+*check-script explain* [*--lang* *fr*|*en*] [*--config* _FILE_] _RULE_...
+
+*check-script init* [_OPTIONS_] [_FOLDER_]
+
 *check-script lsp* [*--lang* *fr*|*en*]
 
 == DESCRIPTION
@@ -105,6 +109,12 @@ names a shell or Python; hidden folders, *venv*, *site-packages*,
 *--history-dir* _FOLDER_::
   Stores the history of analyzed folders in _FOLDER_.
 
+*--exclude* _PATTERN_::
+  Excludes from a folder analysis the paths matching the pattern
+  (_.gitignore_ syntax: _vendor/_, _*.min.sh_, _**/gen/**_); repeatable.
+  Adds to the _exclude_ key of the configuration and to the _.checkscriptignore_
+  file at the root of the folder.
+
 *--changed-since* _REF_::
   Analyzes only the scripts modified since the git reference _REF_.
 
@@ -183,6 +193,28 @@ Wildcards: *SC20\**, *all*.
 *1*:: Threshold not met (*--fail-under*, *--fail-on-new*).
 *2*:: Usage or configuration error.
 *3*:: Script not found or unreadable, report cannot be written.
+
+== EXPLAIN
+
+*check-script explain* _RULE_... describes a rule: category, severity,
+tool, CWE / OWASP / ANSSI references, an _avoid / write instead_ example,
+equivalent codes in other tools, and the ways to ignore it (directive,
+_rules.disabled_). _RULE_ is an identifier such as _SEC003_, _SC2086_,
+_B602_ or a custom rule of the configuration (_--config_); see
+*--list-rules --all*. Unknown identifier: exit code 2 with suggestions.
+
+== INIT
+
+*check-script init* [_FOLDER_] writes _FOLDER_/.checkscript.yaml (default:
+the current folder) with a *profile suggested by the analysis* of the
+scripts it contains (average score ≥ 8.5: _strict_; < 6: _legacy_;
+otherwise _default_), the requested contexts and exclusions, and commented
+examples (rules, tools, Python target). Options: *--profile* (forces the
+profile, no analysis), *--context* (repeatable), *--exclude* (repeatable),
+*--baseline* _FILE.json_ (also writes the baseline report, to use with
+*--baseline*), *--no-analysis*, *--no-external*, *--force* (replaces an
+existing file), *--stdout*, *--lang*. An existing file is never replaced
+without *--force*.
 
 == LSP SERVER
 
