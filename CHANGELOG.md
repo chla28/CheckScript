@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.21.1 — 2026-10-06
+
+### Bug fixes
+
+- **packaging**: ship COPYING with the Flatpak, RPM and AppImage builds (d60deac)
+
+### Documentation
+
+- README examples and screenshots for init, explain, tabs and help (c656917)
+
 ## 0.21.0 — 2026-10-06
 
 ### Features

@@ -1170,7 +1170,7 @@ scanning". Complete example: `doc/ci/github-actions.yml`.
 ----
 - uses: actions/checkout@v7
 - id: cs
-  uses: chla28/CheckScript@v0.21.0
+  uses: chla28/CheckScript@v0.21.1
   with:
     paths: scripts .github          # default: .
     fail-under: '6'                 # or security=8,global=6; default: no threshold
@@ -1216,7 +1216,7 @@ With the https://pre-commit.com framework, in `.pre-commit-config.yaml`:
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.21.0
+    rev: v0.21.1
     hooks:
       - id: check-script        # or check-script-fix to fix
 ----
