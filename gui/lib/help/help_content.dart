@@ -177,6 +177,17 @@ List<HelpPage> helpPages(Lang lang) {
           t('La **loupe** (ou **Ctrl+F**, onglet Synthèse affiché) ouvre la recherche dans le code : les lignes trouvées sont teintées, **Entrée** va à la suivante, **Maj+Entrée** à la précédente, **Échap** ferme.',
               'The **magnifier** (or **Ctrl+F**, Summary tab shown) opens the code search: matching lines are tinted, **Enter** goes to the next one, **Shift+Enter** to the previous one, **Esc** closes.'),
         ]),
+        HelpHeading(t('Annuler une modification', 'Undoing a change')),
+        HelpBullets([
+          t('Chaque correction (*Corriger…*, *Appliquer cette correction*, *Corriger la sélection*), chaque enregistrement de l\'éditeur et chaque restauration est **enregistré** dans l\'historique de la session (50 entrées au plus).',
+              'Each fix (*Fix…*, *Apply this fix*, *Fix selection*), each save from the editor and each restore is **recorded** in the session history (50 entries at most).'),
+          t('**Annuler** (barre d\'outils) remet le script affiché dans l\'état d\'avant sa dernière modification, octet pour octet (fins de ligne comprises), puis relance l\'analyse. Si le fichier a changé depuis cette modification — par vous ailleurs, ou par un outil — l\'annulation est refusée plutôt que d\'écraser ce travail.',
+              '**Undo** (toolbar) puts the displayed script back into its state before its last change, byte for byte (line endings included), then re-runs the analysis. If the file changed since that change — by you elsewhere, or by a tool — the undo is refused rather than overwriting that work.'),
+          t('**Historique…** liste toutes les modifications de la session (script, nature, heure). Seule la plus récente d\'un script s\'annule ; annulez-les dans l\'ordre pour remonter plus loin.',
+              '**History…** lists all the session\'s changes (script, kind, time). Only the most recent change of a script can be undone; undo them in order to go further back.'),
+          t('**Restaurer l\'original** remet le script tel qu\'il était avant la première modification de la session, d\'après sa copie **.orig**, après confirmation. La restauration est elle-même enregistrée : elle s\'annule.',
+              '**Restore the original** puts the script back as it was before the first change of the session, from its **.orig** copy, after confirmation. The restore is itself recorded: it can be undone.'),
+        ]),
         HelpPara(t(
             'Le script ouvert est **surveillé** : à chaque enregistrement, l\'analyse est relancée (réglable dans *Réglages*).',
             'The open script is **watched**: on each save, the analysis is re-run (can be changed in *Settings*).')),

@@ -250,6 +250,29 @@ class ProgressInfo {
   const ProgressInfo(this.label, this.fraction);
 }
 
+/// Nature d'une modification d'un script faite depuis l'interface.
+enum FixKind { fix, edit, restore }
+
+/// Une modification d'un script écrite sur le disque depuis l'interface :
+/// de quoi l'annuler (texte avant) et de vérifier que le fichier n'a pas
+/// changé depuis (texte après).
+class FixRecord {
+  final String path;
+
+  /// Contenu du fichier avant et après la modification (texte brut, fins de
+  /// ligne comprises).
+  final String before;
+  final String after;
+  final DateTime time;
+  final FixKind kind;
+
+  /// Détail : règles corrigées (`SEC003 ×2, SC2086`), vide pour une édition.
+  final String detail;
+
+  const FixRecord(
+      this.path, this.before, this.after, this.time, this.kind, this.detail);
+}
+
 class AppState extends ChangeNotifier {
   AppState(
       {CommandRunner? runner,
@@ -474,8 +497,11 @@ class AppState extends ChangeNotifier {
         return staleFix;
       }
       await _backup(path, raw);
-      await File(path).writeAsString(
-          c.script.hasCrlf ? text.replaceAll('\n', '\r\n') : text);
+      await _write(
+          path,
+          c.script.hasCrlf ? text.replaceAll('\n', '\r\n') : text,
+          FixKind.edit,
+          '');
     } on FileSystemException catch (e) {
       return e.osError?.message ?? e.message;
     }
@@ -901,7 +927,8 @@ class AppState extends ChangeNotifier {
     final c = current;
     if (c == null || !r.changed) return;
     await _backup(c.script.path, r.original);
-    await File(c.script.path).writeAsString(r.fixed);
+    await _write(c.script.path, r.fixed, FixKind.fix,
+        r.applied.entries.map((e) => '${e.key} ×${e.value}').join(', '));
     await analyzeFile(c.script.path);
   }
 
@@ -938,10 +965,98 @@ class AppState extends ChangeNotifier {
     if (broken != null) return broken;
     await _backup(c.script.path, raw);
     // Les fins de ligne d'origine sont conservées (seul --fix les convertit).
-    await File(c.script.path)
-        .writeAsString(script.hasCrlf ? fixed.replaceAll('\n', '\r\n') : fixed);
+    await _write(
+        c.script.path,
+        script.hasCrlf ? fixed.replaceAll('\n', '\r\n') : fixed,
+        FixKind.fix,
+        _ruleSummary(findings));
     await analyzeFile(c.script.path);
     return null;
+  }
+
+  /// `SEC003 ×2, SC2086` : règles des problèmes corrigés, avec leur nombre.
+  static String _ruleSummary(List<Finding> findings) {
+    final counts = <String, int>{};
+    for (final f in findings) {
+      counts[f.ruleId] = (counts[f.ruleId] ?? 0) + 1;
+    }
+    return counts.entries
+        .map((e) => e.value > 1 ? '${e.key} ×${e.value}' : e.key)
+        .join(', ');
+  }
+
+  // ── Historique des modifications et annulation ───────────────────────────
+
+  /// Modifications écrites depuis le lancement, de la plus ancienne à la plus
+  /// récente (au plus [maxFixHistory]).
+  final List<FixRecord> fixHistory = [];
+  static const maxFixHistory = 50;
+
+  /// Écrit [text] dans [path] et enregistre la modification dans
+  /// [fixHistory] ; ne fait rien si le contenu ne change pas.
+  Future<void> _write(
+      String path, String text, FixKind kind, String detail) async {
+    final file = File(path);
+    final before = await file.readAsString();
+    if (before == text) return;
+    await file.writeAsString(text);
+    fixHistory.add(FixRecord(path, before, text, DateTime.now(), kind, detail));
+    if (fixHistory.length > maxFixHistory) fixHistory.removeAt(0);
+  }
+
+  /// Dernière modification de [path] encore annulable, ou null.
+  FixRecord? lastFixOf(String path) {
+    for (final r in fixHistory.reversed) {
+      if (r.path == path) return r;
+    }
+    return null;
+  }
+
+  /// Annule la modification [r], qui doit être la plus récente de son script :
+  /// le fichier retrouve son contenu d'avant. Renvoie null en cas de succès,
+  /// [staleFix] si le fichier a changé depuis (modification extérieure ou
+  /// plus récente), ou le message de l'erreur d'écriture.
+  Future<String?> undoFix(FixRecord r) async {
+    if (busy || !identical(lastFixOf(r.path), r)) return staleFix;
+    try {
+      if (await File(r.path).readAsString() != r.after) return staleFix;
+      await File(r.path).writeAsString(r.before);
+    } on FileSystemException catch (e) {
+      return e.osError?.message ?? e.message;
+    }
+    fixHistory.remove(r);
+    await _refreshAfterWrite(r.path);
+    return null;
+  }
+
+  /// Une copie `.orig` existe pour [path] (créée à la première modification
+  /// depuis le lancement).
+  bool hasOriginalBackup(String path) => File('$path.orig').existsSync();
+
+  /// Restaure le contenu de la copie `.orig` : l'état d'avant la première
+  /// modification. La restauration est elle-même enregistrée (annulable).
+  /// Renvoie null en cas de succès, ou le message de l'erreur.
+  Future<String?> restoreOriginal(String path) async {
+    if (busy) return staleFix;
+    try {
+      final original = await File('$path.orig').readAsString();
+      await _write(path, original, FixKind.restore, '');
+    } on FileSystemException catch (e) {
+      return e.osError?.message ?? e.message;
+    }
+    await _refreshAfterWrite(path);
+    return null;
+  }
+
+  /// Après une écriture hors analyse : réanalyse le script affiché, ou oublie
+  /// le rapport mémorisé de l'onglet (réanalysé à sa sélection).
+  Future<void> _refreshAfterWrite(String path) async {
+    if (path == activeTab) {
+      await analyzeFile(path);
+    } else {
+      _tabReports.remove(path);
+      notifyListeners();
+    }
   }
 
   static const staleFix = 'stale';

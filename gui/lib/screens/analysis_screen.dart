@@ -22,6 +22,7 @@ import '../widgets/score_panel.dart';
 import '../widgets/source_view.dart';
 import '../widgets/split_view.dart';
 import 'compare_dialog.dart';
+import 'fix_history.dart';
 
 class AnalysisScreen extends StatefulWidget {
   const AnalysisScreen({super.key, required this.state, this.findRequest});
@@ -184,6 +185,7 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                                       : () => _fix(context),
                                   icon: const Icon(Icons.auto_fix_high),
                                   label: Text(s.fix))),
+                          ..._undoButtons(context, s, tp, report),
                           tip(
                               tp.export,
                               OutlinedButton.icon(
@@ -365,6 +367,33 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                       }),
               ),
             ]));
+  }
+
+  /// Boutons « Annuler » (dernière modification du script affiché) et
+  /// « Historique… ».
+  List<Widget> _undoButtons(
+      BuildContext context, S s, Tips tp, ScriptReport? report) {
+    final path = report?.script.path;
+    final last = path == null ? null : state.lastFixOf(path);
+    return [
+      tip(
+        last == null ? tp.undoFix : tp.undoLast(fixLabel(s, last)),
+        OutlinedButton.icon(
+            onPressed: state.busy || last == null
+                ? null
+                : () => undoLastFix(context, state, path!),
+            icon: const Icon(Icons.undo),
+            label: Text(s.undoFix)),
+      ),
+      tip(
+        tp.historyButton,
+        OutlinedButton.icon(
+            onPressed:
+                report == null ? null : () => showFixHistory(context, state),
+            icon: const Icon(Icons.manage_history),
+            label: Text(s.fixHistoryButton)),
+      ),
+    ];
   }
 
   /// Enregistre le brouillon de [path] ; quitte l'éditeur en cas de succès.

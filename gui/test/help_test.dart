@@ -172,6 +172,11 @@ void main() {
           tp.discardChanges,
           tp.editor,
           tp.ruleDetails,
+          tp.undoFix,
+          tp.undoOlderFirst,
+          tp.restoreOriginal,
+          tp.historyButton,
+          tp.undoLast('SEC003'),
           for (final s in Severity.values) tp.severity(s),
           for (final c in ExecContext.values) tp.context(c),
           for (final t in [

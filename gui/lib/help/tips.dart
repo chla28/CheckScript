@@ -94,6 +94,22 @@ class Tips {
       'Copier la comparaison en Markdown (commentaire de merge request)',
       'Copy the comparison as Markdown (merge request comment)');
 
+  String get undoFix => _t(
+      'Annuler cette modification (le fichier retrouve son contenu d\'avant)',
+      'Undo this change (the file gets back its previous content)');
+  String get undoOlderFirst => _t(
+      'Annulez d\'abord les modifications plus récentes de ce script',
+      'Undo the more recent changes of this script first');
+  String get restoreOriginal => _t(
+      'Remettre le script tel qu\'il était avant la première modification (copie .orig)',
+      'Put the script back as it was before the first change (.orig copy)');
+  String get historyButton => _t(
+      'Historique des corrections et modifications de la session : annulation, restauration de l\'original',
+      'History of the session\'s fixes and edits: undo, restore the original');
+  String undoLast(String label) => _t(
+      'Annuler la dernière modification : $label',
+      'Undo the last change: $label');
+
   // Synthèse
   String get tabSummary => _t(
       'Note globale, radar des catégories et ce qui pèse sur la note',

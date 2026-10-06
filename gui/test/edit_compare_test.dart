@@ -212,7 +212,7 @@ void main() {
       await tester.tap(find.byTooltip('Fermer l\'onglet').last);
       await tester.pumpAndSettle();
       expect(find.text('Fermer b.sh sans enregistrer ?'), findsOneWidget);
-      await tester.tap(find.text('Annuler'));
+      await tester.tap(find.widgetWithText(TextButton, 'Annuler'));
       await tester.pumpAndSettle();
       expect(state.openTabs, [a, b]);
       expect(state.hasDraft(b), isTrue);

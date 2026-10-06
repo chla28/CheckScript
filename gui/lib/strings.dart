@@ -62,6 +62,29 @@ class S {
   String get ruleIgnoreHow =>
       _t('Pour l\'ignorer ou en savoir plus', 'To ignore it or learn more');
   String get compareAnalyses => _t('Comparer…', 'Compare…');
+  String get undoFix => _t('Annuler', 'Undo');
+  String get fixHistoryButton => _t('Historique…', 'History…');
+  String get fixHistoryTitle =>
+      _t('Modifications du script', 'Changes to scripts');
+  String get noFixHistory => _t('Aucune modification depuis le lancement.',
+      'No change since the application started.');
+  String get fixKindFix => _t('Correction', 'Fix');
+  String get fixKindEdit => _t('Modification manuelle', 'Manual edit');
+  String get fixKindRestore =>
+      _t('Restauration de l\'original', 'Original restored');
+  String fixUndone(String label) => _t('Annulé : $label', 'Undone: $label');
+  String get undoStale => _t(
+      'Le fichier a changé depuis cette modification : elle ne peut plus être annulée.',
+      'The file changed since this change: it can no longer be undone.');
+  String get restoreOriginal =>
+      _t('Restaurer l\'original', 'Restore the original');
+  String restoreOriginalTitle(String name) =>
+      _t('Restaurer l\'original de $name ?', 'Restore the original of $name?');
+  String get restoreOriginalBody => _t(
+      'Le fichier retrouve le contenu de sa copie .orig, d\'avant la première modification. Cette restauration reste annulable depuis l\'historique.',
+      'The file gets back the content of its .orig copy, from before the first change. This restore can still be undone from the history.');
+  String originalRestored(String path) =>
+      _t('Original restauré : $path', 'Original restored: $path');
   String get editScript => _t('Modifier le script', 'Edit the script');
   String get unsavedChanges =>
       _t('Modifications non enregistrées', 'Unsaved changes');
