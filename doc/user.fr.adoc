@@ -231,6 +231,7 @@ intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 |`--dashboard FICHIER.html` |Tableau de bord d'équipe : chaque cible (dossier) est un dépôt ; note moyenne, évolution (courbe de l'historique), problèmes graves, niveaux, règles les plus fréquentes, scripts les plus faibles. L'historique est enregistré à chaque exécution.
 |`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
 |`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
+|`--exclude MOTIF` |Exclut de l'analyse d'un dossier les chemins correspondant au motif (syntaxe `.gitignore` : `vendor/`, `*.min.sh`, `**/gen/**`) ; répétable. S'ajoute à la clé `exclude` de la configuration et au fichier `.checkscriptignore` du dossier (voir <<exclusions>>).
 |`--[no-]cache` |Réutilise le rapport d'un script inchangé (défaut ; `~/.cache/check-script/results`). La clé couvre le contenu et le chemin du script, la configuration, la langue, les versions de check-script et des outils (et les règles Semgrep) ; une analyse où un outil a échoué n'est pas mise en cache ; désactivé avec `--follow-source`.
 |`--explain` |Terminal : ce que coûte chaque règle (points retirés à sa catégorie, gain sur la note globale en la corrigeant, correction automatique disponible).
 |`--sort category\|impact` |Terminal : problèmes par catégorie (défaut) ou par *gain rapide* (impact sur la note, corrections automatiques favorisées).
@@ -783,6 +784,68 @@ compilation Python ; une règle désactivée n'est pas corrigée. Les directives
 `# check-script disable=…`, `# noqa` et `# nosec` s'utilisent comme décrit
 dans <<directives>>.
 
+[[exclusions]]
+== Exclure des chemins
+
+Dans un dossier, les dossiers cachés (`.git`, `.venv`…) et de dépendances
+(`venv`, `site-packages`, `node_modules`, `__pycache__`) ne sont jamais
+parcourus. Pour exclure davantage, des motifs au format `.gitignore`,
+issus de trois sources qui s'additionnent :
+
+* l'option `--exclude MOTIF` (répétable) ;
+* la clé `exclude:` de la configuration (`.checkscript.yaml`) ;
+* un fichier `.checkscriptignore` à la racine du dossier analysé, un
+  motif par ligne (commentaires `#`).
+
+[source,gitignore]
+----
+vendor/            # un dossier, à tout niveau
+generated/**       # tout le contenu d'un dossier
+*.min.sh           # par nom, à tout niveau
+/build             # seulement à la racine du dossier analysé
+legacy/*.sh        # un chemin (contient un / : relatif à la racine)
+!legacy/keep.sh    # réinclut un fichier
+----
+
+Un script donné *explicitement* sur la ligne de commande est toujours
+analysé. L'interface (vue Dossier) lit le même `.checkscriptignore`, et le
+mode `--watch` respecte les motifs.
+
+== Démarrer un projet : `check-script init`
+
+[source,bash]
+----
+check-script init                       # écrit ./.checkscript.yaml
+check-script init scripts/ --exclude vendor/ --context cron
+check-script init --baseline .checkscript-baseline.json
+----
+
+`init` analyse les scripts du dossier et écrit un `.checkscript.yaml`
+commenté avec un *profil suggéré* : `strict` si la note moyenne atteint 8,5
+(code déjà propre), `legacy` en dessous de 6 (code ancien, à améliorer
+progressivement), `default` sinon. `--profile` l'impose (sans analyse),
+`--context` et `--exclude` sont écrits dans le fichier, `--baseline
+FICHIER.json` écrit aussi le rapport de référence : la dette actuelle est
+alors tolérée et toute nouvelle dette bloque
+(`check-script -b FICHIER.json --fail-on-new high`, voir la section sur la
+référence). Un fichier existant n'est jamais remplacé sans `--force` ;
+`--stdout` affiche le résultat à la place.
+
+== Comprendre une règle : `check-script explain`
+
+[source,bash]
+----
+check-script explain SEC003             # règle intégrée
+check-script explain SC2086 B602        # codes d'outils
+----
+
+Affiche la catégorie, la sévérité, l'outil, les références CWE / OWASP /
+ANSSI, l'exemple *à éviter / à écrire*, les codes équivalents dans les
+autres outils et les trois façons de l'ignorer (directive sur la ligne,
+sur le fichier, `rules.disabled`). Les règles personnalisées de la
+configuration (`--config`) sont connues aussi. Un identifiant inconnu se
+termine par le code 2, avec des suggestions.
+
 == Configuration
 
 Fichier YAML lu, dans l'ordre : `--config FICHIER` ; sinon, pour chaque
@@ -1264,6 +1327,26 @@ Les analyses de dossier traitent plusieurs scripts à la fois.
   script ou du dossier analysé s'applique ; *Réutiliser les résultats d'un
   script inchangé* active le cache, comme la CLI.
 
+* *Plusieurs scripts* : *Ouvrir un script* (Ctrl+O) accepte plusieurs
+  fichiers, et plusieurs scripts peuvent être déposés sur la fenêtre ;
+  chacun a son *onglet* (affiché à partir de deux scripts) avec sa propre
+  analyse, gardée tant qu'elle est à jour. Ctrl+Tab / Ctrl+Maj+Tab changent
+  d'onglet, Ctrl+W en ferme un ;
+* *Recherche* : Ctrl+F cherche dans le *code* (loupe au-dessus : les lignes
+  trouvées sont teintées, Entrée / Maj+Entrée vont à la suivante / la
+  précédente) ou, onglet *Problèmes* affiché, dans les *problèmes* (code de
+  règle, texte, outil, référence ou ligne, ex. `SEC003`, `eval`, `L12`) ;
+  sur les écrans Règles et Aide, elle met le focus sur leur champ de
+  recherche ;
+* *Définir comme référence…* (écrans Analyse et Dossier) : écrit l'analyse
+  affichée en rapport JSON et la charge comme référence en un clic ; le
+  fichier peut être partagé avec la CI (`check-script -b FICHIER.json`) ;
+* la vue Dossier respecte le fichier `.checkscriptignore` du dossier et la
+  clé `exclude` de la configuration (voir <<exclusions>>) ;
+* raccourcis clavier : F1 aide, Ctrl+O ouvrir des scripts, Ctrl+Maj+O ouvrir
+  un dossier, F5 / Ctrl+R relancer, Ctrl+E exporter, Ctrl+F chercher,
+  Ctrl+Tab / Ctrl+W onglets, Ctrl+1 … Ctrl+5 écrans, Ctrl+plus / moins / 0
+  taille du code ; les info-bulles les rappellent ;
 * *Aide* : le dernier onglet est une aide en ligne — premiers pas, chaque
   écran, calcul de la note, corrections, référence, règles, réglages,
   profils et contextes, outils, fichier YAML, directives, faux positifs,

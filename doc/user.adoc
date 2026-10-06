@@ -229,6 +229,7 @@ whose shebang designates a shell or Python. Hidden folders (`.git`,
 |`--dashboard FILE.html` |Team dashboard: each target (folder) is a repository; average score, trend (history curve), serious issues, levels, most frequent rules, weakest scripts. The history is recorded on each run.
 |`--history-dir FOLDER` |Where to record the history of analyzed folders (default with `--dashboard`: `~/.local/share/check-script/history`); a versioned folder shares it within the team (same analysis paths, e.g. a nightly CI job).
 |`--changed-since REF` |Analyzes only the scripts modified since the git reference REF (commits, work in progress, new files), in the repository of the first target; no modified script: exit code 0. Ideal in CI (`--changed-since origin/main`) and in pre-commit.
+|`--exclude PATTERN` |Excludes from a folder analysis the paths matching the pattern (`.gitignore` syntax: `vendor/`, `*.min.sh`, `**/gen/**`); repeatable. Adds to the `exclude` key of the configuration and to the `.checkscriptignore` file of the folder (see <<exclusions>>).
 |`--[no-]cache` |Reuses the report of an unchanged script (default; `~/.cache/check-script/results`). The key covers the script's content and path, the configuration, the language, the versions of check-script and of the tools (and the Semgrep rules); an analysis where a tool failed is not cached; disabled with `--follow-source`.
 |`--explain` |Terminal: what each rule costs (points removed from its category, gain on the overall score if fixed, automatic fix available).
 |`--sort category\|impact` |Terminal: issues by category (default) or by *quick win* (impact on the score, automatic fixes favored).
@@ -776,6 +777,67 @@ compilation; a disabled rule is not fixed. The directives
 `# check-script disable=…`, `# noqa` and `# nosec` are used as described
 in <<directives>>.
 
+[[exclusions]]
+== Excluding paths
+
+In a folder, hidden folders (`.git`, `.venv`…) and dependency folders
+(`venv`, `site-packages`, `node_modules`, `__pycache__`) are never
+scanned. To exclude more, use `.gitignore`-style patterns, from three
+sources that add up:
+
+* the `--exclude PATTERN` option (repeatable);
+* the `exclude:` key of the configuration (`.checkscript.yaml`);
+* a `.checkscriptignore` file at the root of the analyzed folder, one
+  pattern per line (`#` comments).
+
+[source,gitignore]
+----
+vendor/            # a folder, at any level
+generated/**       # everything under a folder
+*.min.sh           # by name, at any level
+/build             # only at the root of the analyzed folder
+legacy/*.sh        # a path (contains a /: relative to the root)
+!legacy/keep.sh    # re-includes a file
+----
+
+A script given *explicitly* on the command line is always analyzed. The
+interface (folder view) reads the same `.checkscriptignore`, and the
+`--watch` mode honors the patterns.
+
+== Starting a project: `check-script init`
+
+[source,bash]
+----
+check-script init                       # writes ./.checkscript.yaml
+check-script init scripts/ --exclude vendor/ --context cron
+check-script init --baseline .checkscript-baseline.json
+----
+
+`init` analyzes the scripts of the folder and writes a commented
+`.checkscript.yaml` with a *suggested profile*: `strict` if the average
+score is at least 8.5 (code already clean), `legacy` below 6 (old code, to
+be improved gradually), `default` otherwise. `--profile` forces it (no
+analysis), `--context` and `--exclude` are written into the file,
+`--baseline FILE.json` also writes the baseline report: the current debt
+is then tolerated and any new debt blocks
+(`check-script -b FILE.json --fail-on-new high`, see the baseline
+section). An existing file is never replaced without `--force`;
+`--stdout` prints the result instead.
+
+== Understanding a rule: `check-script explain`
+
+[source,bash]
+----
+check-script explain SEC003             # built-in rule
+check-script explain SC2086 B602        # tool codes
+----
+
+Prints the rule's category, severity, tool, CWE / OWASP / ANSSI
+references, the *avoid / write instead* example, the equivalent codes in
+other tools and the three ways to ignore it (directive on the line, on the
+file, `rules.disabled`). It also knows the custom rules of the configuration
+(`--config`). An unknown identifier ends with exit code 2 and suggestions.
+
 == Configuration
 
 YAML file read, in order: `--config FILE`; otherwise, for each
@@ -1252,6 +1314,24 @@ Also in the interface:
   the script or folder analyzed applies; *Reuse the results of an unchanged
   script* enables the cache, like the CLI.
 
+* *Several scripts*: *Open a script* (Ctrl+O) accepts several files, and
+  several scripts can be dropped on the window; each one gets a *tab*
+  (shown from two scripts on) with its own analysis, kept while it is up to
+  date. Ctrl+Tab / Ctrl+Shift+Tab switch tabs, Ctrl+W closes one;
+* *Search*: Ctrl+F searches the *code* (magnifier above it: matching lines
+  are tinted, Enter / Shift+Enter go to the next / previous one) or, with the
+  *Issues* tab shown, the *issues* (rule code, text, tool, reference or line,
+  e.g. `SEC003`, `eval`, `L12`); on the Rules and Help screens it focuses
+  their search field;
+* *Set as baseline…* (Analysis and Folder screens): writes the displayed
+  analysis as a JSON report and loads it as the baseline in one click; the
+  file can be shared with the CI (`check-script -b FILE.json`);
+* the folder view honors the `.checkscriptignore` file of the folder and the
+  `exclude` key of the configuration (see <<exclusions>>);
+* keyboard shortcuts: F1 help, Ctrl+O open scripts, Ctrl+Shift+O open a
+  folder, F5 / Ctrl+R re-run, Ctrl+E export, Ctrl+F search, Ctrl+Tab /
+  Ctrl+W tabs, Ctrl+1 … Ctrl+5 screens, Ctrl+plus / minus / 0 code size;
+  tooltips recall them;
 * *Help*: the last tab is an online help — getting started, each screen,
   how the score is computed, fixes, baseline, rules, settings, profiles and
   contexts, tools, YAML file, directives, false positives, exports,
