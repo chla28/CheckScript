@@ -39,6 +39,9 @@ check-script Dockerfile .github/workflows/     # embedded scripts
 check-script --watch scripts/                  # re-analyze on every save
 check-script -o report.xml scripts/            # JUnit XML (Jenkins, GitLab)
 check-script -o audit.pdf scripts/             # PDF audit report
+check-script --exclude 'vendor/' scripts/      # ignore paths (.gitignore syntax)
+check-script init                              # write a .checkscript.yaml (suggested profile)
+check-script explain SEC003                    # describe a rule: example, references
 check-script --list-tools                      # detected tools
 check-script-gui                               # graphical interface
 ./CheckScript-VERSION-x86_64.AppImage          # interface (AppImage, no installation)
@@ -65,6 +68,13 @@ Overall score: 1.5/10 (E)
 ![Analysis of a folder: scores per script and history](doc/screenshots/en/dossier.png)
 
 ![Rule catalog: enabling and disabling each rule](doc/screenshots/en/regles.png)
+
+![Several scripts as tabs, with code search and baseline buttons](doc/screenshots/en/onglets.png)
+
+![Online help: topics, search, contextual tooltips](doc/screenshots/en/aide.png)
+
+Shortcuts: F1 help, Ctrl+O open, F5 re-run, Ctrl+E export, Ctrl+F search, Ctrl+Tab / Ctrl+W tabs
+(full list in the in-app help and the user guide).
 
 These screenshots (English in `doc/screenshots/en/`, French in `doc/screenshots/`) are regenerated with `SCREENSHOT_DIR=../doc/screenshots flutter test test/screenshot_test.dart`
 (from `gui/`, see the developer guide).
