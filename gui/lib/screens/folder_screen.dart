@@ -111,7 +111,8 @@ class _FolderScreenState extends State<FolderScreen> {
                   label: Text(s.export),
                 ),
               ),
-              BaselineButton(state: state),
+              ...baselineActions(context, state,
+                  hasReport: reports.isNotEmpty, folder: true),
               HelpButton(HelpTopic.folder, lang: state.lang),
               if (state.folderPath != null)
                 Text(state.folderPath!,

@@ -22,6 +22,21 @@ class S {
   String helpOn(String topic) => _t('Aide : $topic', 'Help: $topic');
   String get fullHelp => _t('Aide complète', 'Full help');
   String get searchHelp => _t('Rechercher dans l\'aide', 'Search the help');
+  String get searchIssues => _t(
+      'Rechercher dans les problèmes (code, texte, ligne)',
+      'Search the issues (code, text, line)');
+  String get searchCode => _t('Rechercher dans le code', 'Search the code');
+  String matchCount(int i, int n) =>
+      n == 0 ? _t('aucun résultat', 'no match') : '${i + 1} / $n';
+  String get previousMatch =>
+      _t('Occurrence précédente (Maj+Entrée)', 'Previous match (Shift+Enter)');
+  String get nextMatch =>
+      _t('Occurrence suivante (Entrée)', 'Next match (Enter)');
+  String get closeSearch => _t('Fermer la recherche', 'Close the search');
+  String get setBaseline => _t('Définir comme référence…', 'Set as baseline…');
+  String baselineSet(String path) =>
+      _t('Référence enregistrée : $path', 'Baseline saved: $path');
+  String get closeTab => _t('Fermer l\'onglet', 'Close the tab');
   String get clearSearch => _t('Effacer la recherche', 'Clear the search');
   String get noHelpFound =>
       _t('Aucun sujet ne correspond.', 'No topic matches.');

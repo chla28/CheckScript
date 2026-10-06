@@ -5,6 +5,7 @@
 library;
 
 import 'package:check_script/check_script.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -16,8 +17,11 @@ import '../strings.dart';
 import '../widgets/common.dart';
 
 class RulesScreen extends StatefulWidget {
-  const RulesScreen({super.key, required this.state});
+  const RulesScreen({super.key, required this.state, this.findRequest});
   final AppState state;
+
+  /// Demande de recherche (Ctrl+F) : met le focus sur le champ de recherche.
+  final ValueListenable<int>? findRequest;
 
   @override
   State<RulesScreen> createState() => _RulesScreenState();
@@ -25,6 +29,7 @@ class RulesScreen extends StatefulWidget {
 
 class _RulesScreenState extends State<RulesScreen> {
   final _search = TextEditingController();
+  final _searchFocus = FocusNode();
   final _add = TextEditingController();
   ToolLanguage? _language;
   String? _tool;
@@ -41,8 +46,22 @@ class _RulesScreenState extends State<RulesScreen> {
   AppState get state => widget.state;
 
   @override
+  void initState() {
+    super.initState();
+    widget.findRequest?.addListener(_focusSearch);
+  }
+
+  void _focusSearch() {
+    _searchFocus.requestFocus();
+    _search.selection =
+        TextSelection(baseOffset: 0, extentOffset: _search.text.length);
+  }
+
+  @override
   void dispose() {
+    widget.findRequest?.removeListener(_focusSearch);
     _search.dispose();
+    _searchFocus.dispose();
     _add.dispose();
     super.dispose();
   }
@@ -159,6 +178,7 @@ class _RulesScreenState extends State<RulesScreen> {
                 tp.searchRules,
                 TextField(
                   controller: _search,
+                  focusNode: _searchFocus,
                   decoration: InputDecoration(
                     isDense: true,
                     prefixIcon: const Icon(Icons.search),

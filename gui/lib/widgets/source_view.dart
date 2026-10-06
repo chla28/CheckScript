@@ -23,6 +23,7 @@ class SourceView extends StatefulWidget {
     this.fontSize = defaultCodeFontSize,
     this.onZoom,
     this.header,
+    this.matchLines = const {},
   });
 
   final List<String> lines;
@@ -42,6 +43,9 @@ class SourceView extends StatefulWidget {
 
   /// Barre affichée au-dessus du code (taille du texte…).
   final Widget? header;
+
+  /// Lignes (numéros à partir de 1) contenant le texte cherché : teintées.
+  final Set<int> matchLines;
 
   @override
   State<SourceView> createState() => _SourceViewState();
@@ -136,7 +140,9 @@ class _SourceViewState extends State<SourceView> {
               child: Container(
                 color: selected
                     ? theme.colorScheme.primary.withValues(alpha: 0.14)
-                    : null,
+                    : (widget.matchLines.contains(n)
+                        ? Colors.amber.withValues(alpha: 0.28)
+                        : null),
                 child: Row(children: [
                   Container(
                       width: 4,

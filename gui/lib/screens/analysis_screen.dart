@@ -6,7 +6,9 @@ import 'dart:io';
 
 import 'package:check_script/check_script.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_state.dart';
 import '../code_style.dart';
@@ -21,22 +23,113 @@ import '../widgets/source_view.dart';
 import '../widgets/split_view.dart';
 
 class AnalysisScreen extends StatefulWidget {
-  const AnalysisScreen({super.key, required this.state});
+  const AnalysisScreen({super.key, required this.state, this.findRequest});
   final AppState state;
+
+  /// Demande de recherche (Ctrl+F) : ouvre la recherche dans le code, ou met
+  /// le focus sur la recherche des problèmes si cet onglet est affiché.
+  final ValueListenable<int>? findRequest;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
 }
 
-class _AnalysisScreenState extends State<AnalysisScreen> {
+class _AnalysisScreenState extends State<AnalysisScreen>
+    with SingleTickerProviderStateMixin {
   int? _selectedLine;
+
+  /// Onglets Synthèse / Problèmes (le premier est affiché au départ).
+  late final _tabs = TabController(length: 2, vsync: this);
+
+  /// Recherche dans le code : champ ouvert, texte, occurrence courante.
+  bool _searching = false;
+  final _codeQuery = TextEditingController();
+  final _codeFocus = FocusNode();
+  int _matchIndex = 0;
+
+  /// Demande de focus sur la recherche de la liste des problèmes.
+  final _issuesFind = ValueNotifier<int>(0);
 
   AppState get state => widget.state;
 
+  @override
+  void initState() {
+    super.initState();
+    widget.findRequest?.addListener(_onFind);
+  }
+
+  @override
+  void didUpdateWidget(AnalysisScreen old) {
+    super.didUpdateWidget(old);
+    if (old.findRequest != widget.findRequest) {
+      old.findRequest?.removeListener(_onFind);
+      widget.findRequest?.addListener(_onFind);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.findRequest?.removeListener(_onFind);
+    _tabs.dispose();
+    _codeQuery.dispose();
+    _codeFocus.dispose();
+    _issuesFind.dispose();
+    super.dispose();
+  }
+
+  void _onFind() {
+    if (state.current == null) return;
+    if (_tabs.index == 1) {
+      _issuesFind.value++;
+    } else {
+      _openSearch();
+    }
+  }
+
+  /// Ouvre la recherche dans le code et lui donne le focus.
+  void _openSearch() {
+    setState(() => _searching = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _codeFocus.requestFocus();
+      _codeQuery.selection =
+          TextSelection(baseOffset: 0, extentOffset: _codeQuery.text.length);
+    });
+  }
+
+  /// Numéros des lignes du code contenant le texte cherché.
+  List<int> _matches(ScriptReport report) {
+    final q = _codeQuery.text.trim().toLowerCase();
+    if (!_searching || q.isEmpty) return const [];
+    final lines = report.script.displayLines;
+    return [
+      for (var i = 0; i < lines.length; i++)
+        if (lines[i].toLowerCase().contains(q)) i + 1
+    ];
+  }
+
+  /// Va à l'occurrence suivante ([step] 1) ou précédente (-1), en boucle.
+  void _gotoMatch(ScriptReport report, int step) {
+    final m = _matches(report);
+    if (m.isEmpty) return;
+    setState(() {
+      _matchIndex = (_matchIndex + step) % m.length;
+      _selectedLine = m[_matchIndex];
+    });
+  }
+
+  void _closeSearch() => setState(() {
+        _searching = false;
+        _codeQuery.clear();
+        _matchIndex = 0;
+      });
+
   Future<void> _open() async {
-    final r = await FilePicker.pickFiles(dialogTitle: S(state.lang).openScript);
-    final path = r?.files.single.path;
-    if (path != null) await state.analyzeFile(path);
+    final r = await FilePicker.pickFiles(
+        dialogTitle: S(state.lang).openScript, allowMultiple: true);
+    for (final f in r?.files ?? const <PlatformFile>[]) {
+      final path = f.path;
+      if (path != null) await state.analyzeFile(path);
+    }
   }
 
   /// Taille du code : +/- [delta] points, null : taille par défaut.
@@ -106,7 +199,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                           _selectedLine ?? 1),
                                   icon: const Icon(Icons.edit_note),
                                   label: Text(s.openInEditor))),
-                          BaselineButton(state: state),
+                          ...baselineActions(context, state,
+                              hasReport: report != null),
                           HelpButton(HelpTopic.analysis, lang: state.lang),
                           if (report != null)
                             Text(report.script.path,
@@ -115,6 +209,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   ),
                 ),
               ),
+              if (state.openTabs.length >= 2)
+                _DocTabs(state: state, tips: tp, closeLabel: s.closeTab),
               const Divider(height: 1),
               Expanded(
                 child: report == null
@@ -122,55 +218,52 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         child: Text(s.dropHere, textAlign: TextAlign.center))
                     : LayoutBuilder(builder: (context, c) {
                         final issues = detailFindings(report);
-                        final side = DefaultTabController(
-                          length: 2,
-                          child: Column(children: [
-                            TabBar(tabs: [
-                              tip(tp.tabSummary, Tab(text: s.summary)),
-                              tip(tp.tabIssues,
-                                  Tab(text: '${s.issues} (${issues.length})')),
-                            ]),
-                            Expanded(
-                              child: TabBarView(children: [
-                                SingleChildScrollView(
-                                  padding: const EdgeInsets.all(12),
-                                  child: ScorePanel(
-                                      report: report, lang: state.lang),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: FindingsList(
-                                    findings: issues,
-                                    lang: state.lang,
-                                    lines: report.script.displayLines,
-                                    onSelect: (f) =>
-                                        setState(() => _selectedLine = f.line),
-                                    onApplyFix: state.busy
-                                        ? null
-                                        : (f) => _applyOne(context, f),
-                                    onDisableRule: (f) =>
-                                        _disableRule(context, f),
-                                    onApplyRule: state.busy
-                                        ? null
-                                        : (f) => _applyRule(context, f),
-                                    onApplySelection: state.busy
-                                        ? null
-                                        : (fs) => _applySelection(context, fs),
-                                    explanation: report.explanation,
-                                    onOpenInEditor: (f) => _edit(
-                                        context, report.script.path, f.line),
-                                    onReportFalsePositive: state
-                                                .falsePositives ==
-                                            null
-                                        ? null
-                                        : (f) =>
-                                            _falsePositive(context, report, f),
-                                  ),
-                                ),
-                              ]),
-                            ),
+                        final side = Column(children: [
+                          TabBar(controller: _tabs, tabs: [
+                            tip(tp.tabSummary, Tab(text: s.summary)),
+                            tip(tp.tabIssues,
+                                Tab(text: '${s.issues} (${issues.length})')),
                           ]),
-                        );
+                          Expanded(
+                            child: TabBarView(controller: _tabs, children: [
+                              SingleChildScrollView(
+                                padding: const EdgeInsets.all(12),
+                                child: ScorePanel(
+                                    report: report, lang: state.lang),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: FindingsList(
+                                  findings: issues,
+                                  findRequest: _issuesFind,
+                                  lang: state.lang,
+                                  lines: report.script.displayLines,
+                                  onSelect: (f) =>
+                                      setState(() => _selectedLine = f.line),
+                                  onApplyFix: state.busy
+                                      ? null
+                                      : (f) => _applyOne(context, f),
+                                  onDisableRule: (f) =>
+                                      _disableRule(context, f),
+                                  onApplyRule: state.busy
+                                      ? null
+                                      : (f) => _applyRule(context, f),
+                                  onApplySelection: state.busy
+                                      ? null
+                                      : (fs) => _applySelection(context, fs),
+                                  explanation: report.explanation,
+                                  onOpenInEditor: (f) => _edit(
+                                      context, report.script.path, f.line),
+                                  onReportFalsePositive: state.falsePositives ==
+                                          null
+                                      ? null
+                                      : (f) =>
+                                          _falsePositive(context, report, f),
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ]);
                         final g0 = state.settings;
                         final source = SourceView(
                           lines: report.script.displayLines,
@@ -181,7 +274,34 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           fontFamily: g0.codeFont,
                           fontSize: g0.codeFontSize,
                           onZoom: _zoom,
-                          header: _ZoomBar(state: state, onZoom: _zoom),
+                          matchLines: _matches(report).toSet(),
+                          header: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _ZoomBar(
+                                    state: state,
+                                    onZoom: _zoom,
+                                    searching: _searching,
+                                    onSearch: _searching
+                                        ? _closeSearch
+                                        : _openSearch),
+                                if (_searching)
+                                  _CodeSearchBar(
+                                    controller: _codeQuery,
+                                    focus: _codeFocus,
+                                    lang: state.lang,
+                                    count: _matches(report).length,
+                                    index: _matchIndex,
+                                    onChanged: () => setState(() {
+                                      _matchIndex = 0;
+                                      final m = _matches(report);
+                                      if (m.isNotEmpty) _selectedLine = m.first;
+                                    }),
+                                    onStep: (d) => _gotoMatch(report, d),
+                                    onClose: _closeSearch,
+                                  ),
+                              ]),
                         );
                         // Code et résultats séparés par une barre déplaçable ;
                         // répartition mémorisée par disposition.
@@ -418,9 +538,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 /// Taille du texte du code : A− / taille / A+ ; clic sur la taille :
 /// taille par défaut.
 class _ZoomBar extends StatelessWidget {
-  const _ZoomBar({required this.state, required this.onZoom});
+  const _ZoomBar({
+    required this.state,
+    required this.onZoom,
+    required this.searching,
+    required this.onSearch,
+  });
   final AppState state;
   final void Function(double? delta) onZoom;
+
+  /// Recherche dans le code ouverte ; [onSearch] l'ouvre ou la ferme.
+  final bool searching;
+  final VoidCallback onSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -439,6 +568,13 @@ class _ZoomBar extends StatelessWidget {
                   style: theme.textTheme.labelSmall)),
         ),
         const Spacer(),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: Tips(state.lang).searchCode,
+          isSelected: searching,
+          onPressed: onSearch,
+          icon: const Icon(Icons.search, size: 18),
+        ),
         IconButton(
           visualDensity: VisualDensity.compact,
           tooltip: '${s.smallerText} (Ctrl+−)',
@@ -463,6 +599,192 @@ class _ZoomBar extends StatelessWidget {
           icon: const Icon(Icons.text_increase, size: 18),
         ),
       ]),
+    );
+  }
+}
+
+/// Barre de recherche dans le code : champ, nombre d'occurrences,
+/// précédente / suivante, fermeture. Entrée : suivante ; Maj+Entrée :
+/// précédente ; Échap : ferme.
+class _CodeSearchBar extends StatelessWidget {
+  const _CodeSearchBar({
+    required this.controller,
+    required this.focus,
+    required this.lang,
+    required this.count,
+    required this.index,
+    required this.onChanged,
+    required this.onStep,
+    required this.onClose,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focus;
+  final Lang lang;
+  final int count;
+  final int index;
+  final VoidCallback onChanged;
+  final void Function(int step) onStep;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S(lang);
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainer,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.enter, shift: true): () =>
+              onStep(-1),
+          const SingleActivator(LogicalKeyboardKey.escape): onClose,
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 4, 4),
+          child: Row(children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                focusNode: focus,
+                autofocus: true,
+                style: theme.textTheme.bodySmall,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: s.searchCode,
+                  border: const OutlineInputBorder(),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                ),
+                onChanged: (_) => onChanged(),
+                onSubmitted: (_) {
+                  onStep(1);
+                  focus.requestFocus();
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (controller.text.trim().isNotEmpty)
+              Text(s.matchCount(index, count),
+                  style: theme.textTheme.labelSmall),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: s.previousMatch,
+              onPressed: count == 0 ? null : () => onStep(-1),
+              icon: const Icon(Icons.keyboard_arrow_up, size: 20),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: s.nextMatch,
+              onPressed: count == 0 ? null : () => onStep(1),
+              icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: s.closeSearch,
+              onPressed: onClose,
+              icon: const Icon(Icons.close, size: 18),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Onglets des scripts ouverts : un clic affiche le script, la croix le
+/// ferme.
+class _DocTabs extends StatelessWidget {
+  const _DocTabs(
+      {required this.state, required this.tips, required this.closeLabel});
+  final AppState state;
+  final Tips tips;
+  final String closeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerLow,
+      child: SizedBox(
+        height: 36,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            for (final path in state.openTabs)
+              _DocTab(
+                path: path,
+                active: path == state.activeTab,
+                tooltip: '$path\n${tips.tab}',
+                closeLabel: closeLabel,
+                onTap: () => state.selectTab(path),
+                onClose: () => state.closeTab(path),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DocTab extends StatelessWidget {
+  const _DocTab({
+    required this.path,
+    required this.active,
+    required this.tooltip,
+    required this.closeLabel,
+    required this.onTap,
+    required this.onClose,
+  });
+  final String path;
+  final bool active;
+  final String tooltip;
+  final String closeLabel;
+  final VoidCallback onTap;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fg = active
+        ? theme.colorScheme.onSecondaryContainer
+        : theme.colorScheme.onSurfaceVariant;
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 500),
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.only(left: 12, right: 2),
+          decoration: BoxDecoration(
+            color: active ? theme.colorScheme.secondaryContainer : null,
+            border: Border(
+                bottom: BorderSide(
+                    width: 2,
+                    color: active
+                        ? theme.colorScheme.primary
+                        : Colors.transparent)),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180),
+              child: Text(path.split('/').last,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                      color: fg,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: 14,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+              tooltip: closeLabel,
+              onPressed: onClose,
+              icon: Icon(Icons.close, color: fg),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }
@@ -537,6 +859,53 @@ class BaselineButton extends StatelessWidget {
           icon: const Icon(Icons.compare_arrows),
           label: Text(s.loadBaseline),
         ));
+  }
+}
+
+/// Boutons de la référence : charger ou retirer, et « Définir comme
+/// référence » (enregistre l'analyse affichée en JSON puis la charge).
+/// [folder] : l'analyse du dossier plutôt que du script.
+List<Widget> baselineActions(BuildContext context, AppState state,
+    {required bool hasReport, bool folder = false}) {
+  final s = S(state.lang);
+  return [
+    BaselineButton(state: state),
+    if (state.baseline == null)
+      tip(
+        Tips(state.lang).setBaseline,
+        OutlinedButton.icon(
+          onPressed: state.busy || !hasReport
+              ? null
+              : () => _setBaseline(context, state, folder: folder),
+          icon: const Icon(Icons.bookmark_add_outlined),
+          label: Text(s.setBaseline),
+        ),
+      ),
+  ];
+}
+
+Future<void> _setBaseline(BuildContext context, AppState state,
+    {required bool folder}) async {
+  final s = S(state.lang);
+  final messenger = ScaffoldMessenger.of(context);
+  final base = folder
+      ? 'baseline'
+      : (state.current?.script.path.split('/').last ?? 'script')
+          .replaceAll(RegExp(r'\.\w+$'), '');
+  final path = await FilePicker.saveFile(
+    dialogTitle: s.setBaseline,
+    fileName: '$base-baseline.json',
+    type: FileType.custom,
+    allowedExtensions: ['json'],
+  );
+  if (path == null) return;
+  try {
+    final written = await state.setAsBaseline(path, folder: folder);
+    if (written != null) {
+      messenger.showSnackBar(SnackBar(content: Text(s.baselineSet(written))));
+    }
+  } on FileSystemException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(s.error(e.message))));
   }
 }
 

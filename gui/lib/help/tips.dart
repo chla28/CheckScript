@@ -12,34 +12,37 @@ class Tips {
   String _t(String fr, String en) => lang == Lang.fr ? fr : en;
 
   // Navigation
-  String get navAnalysis => _t('Analyser un script et lire ses résultats',
-      'Analyse a script and read its results');
-  String get navFolder => _t('Analyser tous les scripts d\'un dossier',
-      'Analyse all the scripts of a folder');
-  String get navRules => _t('Choisir les règles qui sont signalées',
-      'Choose which rules are reported');
-  String get navSettings => _t('Langue, thème, profil, outils, configuration',
-      'Language, theme, profile, tools, configuration');
-  String get navHelp => _t('Aide en ligne (F1)', 'Online help (F1)');
+  String get navAnalysis => _t(
+      'Analyser un script et lire ses résultats (Ctrl+1)',
+      'Analyse a script and read its results (Ctrl+1)');
+  String get navFolder => _t('Analyser tous les scripts d\'un dossier (Ctrl+2)',
+      'Analyse all the scripts of a folder (Ctrl+2)');
+  String get navRules => _t('Choisir les règles qui sont signalées (Ctrl+3)',
+      'Choose which rules are reported (Ctrl+3)');
+  String get navSettings => _t(
+      'Langue, thème, profil, outils, configuration (Ctrl+4)',
+      'Language, theme, profile, tools, configuration (Ctrl+4)');
+  String get navHelp =>
+      _t('Aide en ligne (F1, Ctrl+5)', 'Online help (F1, Ctrl+5)');
   String get recentMenu => _t('Derniers scripts et dossiers analysés',
       'Last scripts and folders analysed');
 
   // Barre d'outils
   String get openScript => _t(
-      'Choisir un script shell ou Python à analyser (ou le déposer sur la fenêtre)',
-      'Pick a shell or Python script to analyse (or drop it on the window)');
+      'Choisir un ou plusieurs scripts shell ou Python à analyser, un onglet chacun (Ctrl+O, ou les déposer sur la fenêtre)',
+      'Pick one or more shell or Python scripts to analyse, one tab each (Ctrl+O, or drop them on the window)');
   String get openFolder => _t(
-      'Choisir un dossier : tous ses scripts sont analysés (ou le déposer sur la fenêtre)',
-      'Pick a folder: all its scripts are analysed (or drop it on the window)');
+      'Choisir un dossier : tous ses scripts sont analysés (Ctrl+Maj+O, ou le déposer sur la fenêtre)',
+      'Pick a folder: all its scripts are analysed (Ctrl+Shift+O, or drop it on the window)');
   String get reanalyze => _t(
-      'Refaire l\'analyse (après une modification du script, des règles ou des réglages)',
-      'Analyse again (after a change to the script, the rules or the settings)');
+      'Refaire l\'analyse (F5), après une modification du script, des règles ou des réglages',
+      'Analyse again (F5), after a change to the script, the rules or the settings');
   String get fix => _t(
       'Proposer les corrections automatiques sûres, avec aperçu avant écriture',
       'Propose the safe automatic fixes, with a preview before writing');
   String get export => _t(
-      'Écrire un rapport : HTML, PDF, Markdown, AsciiDoc, JSON, SARIF ou texte (selon l\'extension)',
-      'Write a report: HTML, PDF, Markdown, AsciiDoc, JSON, SARIF or text (by extension)');
+      'Écrire un rapport (Ctrl+E) : HTML, PDF, Markdown, AsciiDoc, JSON, SARIF ou texte (selon l\'extension)',
+      'Write a report (Ctrl+E): HTML, PDF, Markdown, AsciiDoc, JSON, SARIF or text (by extension)');
   String get openInEditor => _t(
       'Ouvrir le script dans votre éditeur, à la ligne sélectionnée',
       'Open the script in your editor, at the selected line');
@@ -50,6 +53,19 @@ class Tips {
       'Baseline in use: the cross removes it');
   String get cancelAnalysis =>
       _t('Interrompre l\'analyse en cours', 'Stop the analysis in progress');
+
+  String get searchIssues => _t(
+      'Chercher dans les problèmes par code de règle, texte, outil, référence ou ligne (Ctrl+F) ; plusieurs mots : tous doivent y figurer',
+      'Search the issues by rule code, text, tool, reference or line (Ctrl+F); several words: all must match');
+  String get searchCode => _t(
+      'Chercher dans le code (Ctrl+F) : les lignes trouvées sont teintées, Entrée passe à la suivante',
+      'Search the code (Ctrl+F): matching lines are tinted, Enter goes to the next one');
+  String get setBaseline => _t(
+      'Enregistrer cette analyse comme référence : seuls les nouveaux problèmes seront ensuite détaillés',
+      'Save this analysis as the baseline: only new issues will be detailed afterwards');
+  String get tab => _t(
+      'Cliquer pour afficher ce script (Ctrl+Tab : suivant, Ctrl+W : fermer)',
+      'Click to show this script (Ctrl+Tab: next, Ctrl+W: close)');
 
   // Synthèse
   String get tabSummary => _t(
@@ -156,8 +172,8 @@ class Tips {
 
   // Règles
   String get searchRules => _t(
-      'Chercher par code, texte, outil, CWE, OWASP ou ANSSI',
-      'Search by code, text, tool, CWE, OWASP or ANSSI');
+      'Chercher par code, texte, outil, CWE, OWASP ou ANSSI (Ctrl+F)',
+      'Search by code, text, tool, CWE, OWASP or ANSSI (Ctrl+F)');
   String get enableAll => _t(
       'Recocher toutes les règles que vous avez désactivées',
       'Re-tick all the rules you disabled');

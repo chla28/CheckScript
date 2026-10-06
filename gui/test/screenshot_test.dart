@@ -66,7 +66,9 @@ void main() {
 
   Future<void> run(WidgetTester tester, String name, Brightness b,
       Future<void> Function(AppState) prepare,
-      {int tab = 0, bool openIssues = false}) async {
+      {int tab = 0,
+      bool openIssues = false,
+      Future<void> Function(WidgetTester)? after}) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1500, 950);
     tester.view.devicePixelRatio = 1;
@@ -94,6 +96,7 @@ void main() {
           find.textContaining(_lang == Lang.fr ? 'Problèmes (' : 'Issues ('));
       await tester.pumpAndSettle();
     }
+    await after?.call(tester);
     await _shot(tester, name);
   }
 
@@ -123,6 +126,20 @@ void main() {
       }, tab: 2);
       await run(tester, 'reglages', Brightness.light, (s) async {}, tab: 3);
       await run(tester, 'aide', Brightness.light, (s) async {}, tab: 4);
+      await run(tester, 'onglets', Brightness.light, (s) async {
+        await s.analyzeFile('../test/fixtures/bad.py');
+        await s.analyzeFile(bad);
+      }, after: (t) async {
+        // L'écran d'aide du test précédent reste affiché : retour à l'analyse.
+        await t.tap(find.descendant(
+            of: find.byType(NavigationRail),
+            matching: find.byIcon(Icons.description_outlined)));
+        await t.pumpAndSettle();
+        await t.tap(find.byIcon(Icons.search).first);
+        await t.pumpAndSettle();
+        await t.enterText(find.byType(TextField).first, 'echo');
+        await t.pumpAndSettle();
+      });
       // Laisse expirer les minuteurs d'animation (info-bulles, défilement).
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 5));

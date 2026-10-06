@@ -3,6 +3,7 @@
 library;
 
 import 'package:check_script/check_script.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import '../code_style.dart';
@@ -84,8 +85,12 @@ List<HelpPage> filterHelpPages(List<HelpPage> pages, String query) {
 /// Écran d'aide : sujets à gauche (en liste déroulante si la fenêtre est
 /// étroite), page du sujet à droite.
 class HelpScreen extends StatefulWidget {
-  const HelpScreen({super.key, required this.lang, required this.topic});
+  const HelpScreen(
+      {super.key, required this.lang, required this.topic, this.findRequest});
   final Lang lang;
+
+  /// Demande de recherche (Ctrl+F) : met le focus sur le champ de recherche.
+  final ValueListenable<int>? findRequest;
 
   /// Sujet affiché ; modifié par la navigation et par l'aide contextuelle.
   final ValueNotifier<HelpTopic> topic;
@@ -96,17 +101,27 @@ class HelpScreen extends StatefulWidget {
 
 class _HelpScreenState extends State<HelpScreen> {
   final _search = TextEditingController();
+  final _searchFocus = FocusNode();
   final _scroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
     widget.topic.addListener(_onTopic);
+    widget.findRequest?.addListener(_focusSearch);
+  }
+
+  void _focusSearch() {
+    _searchFocus.requestFocus();
+    _search.selection =
+        TextSelection(baseOffset: 0, extentOffset: _search.text.length);
   }
 
   @override
   void dispose() {
     widget.topic.removeListener(_onTopic);
+    widget.findRequest?.removeListener(_focusSearch);
+    _searchFocus.dispose();
     _search.dispose();
     _scroll.dispose();
     super.dispose();
@@ -126,6 +141,7 @@ class _HelpScreenState extends State<HelpScreen> {
 
     final searchField = TextField(
       controller: _search,
+      focusNode: _searchFocus,
       decoration: InputDecoration(
         isDense: true,
         prefixIcon: const Icon(Icons.search),

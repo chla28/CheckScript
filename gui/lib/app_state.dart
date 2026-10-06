@@ -407,6 +407,74 @@ class AppState extends ChangeNotifier {
   Lang get lang => _settings.lang ?? Lang.fromEnvironment(Platform.environment);
 
   ScriptReport? current;
+
+  /// Scripts ouverts en onglets (chemins, dans l'ordre d'ouverture) ; le
+  /// script affiché est [current]. Les rapports des autres onglets sont
+  /// gardés dans [_tabReports] tant qu'ils sont à jour.
+  final List<String> openTabs = [];
+  final Map<String, ScriptReport> _tabReports = {};
+
+  /// Chemin du script de l'onglet affiché.
+  String? get activeTab => current?.script.path;
+
+  /// Oublie les rapports des onglets non affichés (périmés) : ils seront
+  /// réanalysés à leur sélection.
+  void _dropStaleTabs() {
+    final keep = activeTab;
+    _tabReports.removeWhere((path, _) => path != keep);
+  }
+
+  /// Affiche l'onglet [path] : son rapport mémorisé, ou une nouvelle analyse
+  /// si le fichier a changé depuis ou si le rapport est périmé.
+  Future<void> selectTab(String path) async {
+    if (busy || path == activeTab || !openTabs.contains(path)) return;
+    final cached = _tabReports[path];
+    if (cached == null) {
+      await analyzeFile(path);
+      return;
+    }
+    try {
+      final now = ScriptInfo.fromContent(path, await File(path).readAsString());
+      if (now.content != cached.script.content) {
+        await analyzeFile(path);
+        return;
+      }
+    } on Object {
+      // Illisible : le rapport mémorisé reste affiché.
+    }
+    current = cached;
+    _watch(path);
+    notifyListeners();
+  }
+
+  /// Passe à l'onglet suivant ([step] 1) ou précédent (-1), en boucle.
+  Future<void> cycleTab(int step) async {
+    if (openTabs.length < 2) return;
+    final i = openTabs.indexOf(activeTab ?? '');
+    final next = openTabs[((i < 0 ? 0 : i) + step) % openTabs.length];
+    await selectTab(next);
+  }
+
+  /// Ferme l'onglet [path] ; s'il était affiché, un voisin le remplace (ou
+  /// l'écran se vide s'il n'en reste aucun).
+  Future<void> closeTab(String path) async {
+    if (busy) return;
+    final i = openTabs.indexOf(path);
+    if (i < 0) return;
+    openTabs.removeAt(i);
+    _tabReports.remove(path);
+    if (path != activeTab) {
+      notifyListeners();
+    } else if (openTabs.isEmpty) {
+      current = null;
+      _unwatch();
+      notifyListeners();
+    } else {
+      current = null; // selectTab affiche le voisin
+      await selectTab(openTabs[i < openTabs.length ? i : openTabs.length - 1]);
+    }
+  }
+
   List<ScriptReport> folderReports = [];
   String? folderPath;
   Baseline? baseline;
@@ -420,8 +488,23 @@ class AppState extends ChangeNotifier {
   /// Outils détectés : nom → version (null : absent).
   Map<String, String?> toolVersions = {};
 
+  /// Réglages qui changent le résultat d'une analyse : s'ils changent, les
+  /// rapports des onglets non affichés sont périmés.
+  static String _analysisKey(GuiSettings s) => [
+        s.profile.name,
+        (s.contexts.map((c) => c.name).toList()..sort()).join(','),
+        (s.disabledTools.toList()..sort()).join(','),
+        (s.enabledTools.toList()..sort()).join(','),
+        (s.disabledRules.toList()..sort()).join(','),
+        s.followSource,
+        s.configPath,
+        s.pythonTarget,
+        s.ruffProjectConfig,
+      ].join('|');
+
   Future<void> updateSettings(GuiSettings s) async {
     final watchChanged = s.watchFile != _settings.watchFile;
+    if (_analysisKey(s) != _analysisKey(_settings)) _dropStaleTabs();
     _settings = s;
     if (watchChanged) {
       final c = current;
@@ -606,6 +689,8 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       });
       await _recordSeen([current!]);
+      if (!openTabs.contains(path)) openTabs.add(path);
+      _tabReports[path] = current!;
       _watch(path);
       await _remember(path);
       _finish();
@@ -624,7 +709,9 @@ class AppState extends ChangeNotifier {
     folderPath = path;
     folderHistory = await history?.load(path) ?? [];
     try {
-      final files = await collectScripts(path) ?? const [];
+      final config = await buildConfig(near: path);
+      final files = await collectScripts(path, exclude: config.exclude) ??
+          const <String>[];
       final engine = await _engine(near: path);
       // Plusieurs scripts à la fois ; fichiers illisibles ou non textuels
       // ignorés.
@@ -699,6 +786,7 @@ class AppState extends ChangeNotifier {
     } on Object catch (e) {
       message = 'error:$e';
     }
+    _dropStaleTabs();
     notifyListeners();
     await reanalyze();
   }
@@ -706,8 +794,25 @@ class AppState extends ChangeNotifier {
   Future<void> clearBaseline() async {
     baseline = null;
     baselinePath = null;
+    _dropStaleTabs();
     notifyListeners();
     await reanalyze();
+  }
+
+  /// Définit l'analyse affichée comme référence : écrit son rapport JSON dans
+  /// [path] (extension .json ajoutée au besoin), puis le charge comme
+  /// référence. [folder] : le dossier analysé plutôt que le script courant
+  /// (il est alors réanalysé pour afficher la tendance). Renvoie le chemin
+  /// écrit, ou null s'il n'y a rien à enregistrer.
+  Future<String?> setAsBaseline(String path, {bool folder = false}) async {
+    final reports = folder ? folderReports : [if (current != null) current!];
+    if (reports.isEmpty) return null;
+    final file = path.toLowerCase().endsWith('.json') ? path : '$path.json';
+    await export(file, reports);
+    await loadBaseline(file);
+    final dir = folderPath;
+    if (folder && dir != null) await analyzeFolder(dir);
+    return file;
   }
 
   /// Calcule les corrections du script courant (sans rien écrire).

@@ -142,6 +142,15 @@ List<HelpPage> helpPages(Lang lang) {
               '**Open in editor**: opens the script at the selected line.'),
           t('**Charger une référence…** : compare avec un rapport JSON antérieur (voir *Référence*).',
               '**Load a baseline…**: compares with an earlier JSON report (see *Baseline*).'),
+          t('**Définir comme référence…** : enregistre l\'analyse affichée comme référence, en un clic (voir *Référence*).',
+              '**Set as baseline…**: saves the displayed analysis as the baseline, in one click (see *Baseline*).'),
+        ]),
+        HelpHeading(t('Plusieurs scripts', 'Several scripts')),
+        HelpBullets([
+          t('*Ouvrir un script* accepte plusieurs fichiers (Ctrl+clic ou Maj+clic) ; on peut aussi en déposer plusieurs sur la fenêtre : chaque script a son **onglet**.',
+              '*Open a script* accepts several files (Ctrl+click or Shift+click); you can also drop several on the window: each script gets its own **tab**.'),
+          t('La barre d\'onglets apparaît dès deux scripts. Un clic affiche le script (son analyse est mémorisée, et refaite si le fichier a changé) ; la croix le ferme. **Ctrl+Tab** / **Ctrl+Maj+Tab** passent d\'un onglet à l\'autre, **Ctrl+W** ferme l\'onglet affiché.',
+              'The tab bar appears from two scripts on. A click shows the script (its analysis is kept, and redone if the file changed); the cross closes it. **Ctrl+Tab** / **Ctrl+Shift+Tab** switch tabs, **Ctrl+W** closes the displayed tab.'),
         ]),
         HelpHeading(t('Le code', 'The code')),
         HelpBullets([
@@ -151,6 +160,8 @@ List<HelpPage> helpPages(Lang lang) {
               '**A−/A+** (above the code) set the text size; a click on the size resets it.'),
           t('La **barre verticale** entre le code et les résultats se déplace à la souris ; un double-clic rétablit la répartition par défaut, ses flèches replient un panneau.',
               'The **bar** between the code and the results can be dragged; a double-click restores the default split, its arrows collapse a panel.'),
+          t('La **loupe** (ou **Ctrl+F**, onglet Synthèse affiché) ouvre la recherche dans le code : les lignes trouvées sont teintées, **Entrée** va à la suivante, **Maj+Entrée** à la précédente, **Échap** ferme.',
+              'The **magnifier** (or **Ctrl+F**, Summary tab shown) opens the code search: matching lines are tinted, **Enter** goes to the next one, **Shift+Enter** to the previous one, **Esc** closes.'),
         ]),
         HelpPara(t(
             'Le script ouvert est **surveillé** : à chaque enregistrement, l\'analyse est relancée (réglable dans *Réglages*).',
@@ -213,6 +224,8 @@ List<HelpPage> helpPages(Lang lang) {
         ]),
         HelpHeading(t('Filtres et tri', 'Filters and sorting')),
         HelpBullets([
+          t('Le **champ de recherche** (ou **Ctrl+F**, onglet Problèmes affiché) filtre par code de règle, texte, outil, catégorie, référence ou ligne (`SEC003`, `eval`, `L12`) ; plusieurs mots : tous doivent y figurer.',
+              'The **search field** (or **Ctrl+F**, Issues tab shown) filters by rule code, text, tool, category, reference or line (`SEC003`, `eval`, `L12`); several words: all must match.'),
           t('Les **pastilles** de catégorie et de sévérité masquent ou affichent les problèmes correspondants ; le nombre entre parenthèses est le total de la catégorie.',
               'The category and severity **chips** hide or show the matching issues; the number in brackets is the category total.'),
           t('**Par catégorie** : ordre du rapport. **Par gain rapide** : du plus rentable au moins rentable (une règle corrigeable automatiquement compte 1,5 fois son gain).',
@@ -276,6 +289,10 @@ List<HelpPage> helpPages(Lang lang) {
               'The **Trend** column appears when a baseline is loaded: evolution of each script\'s score.'),
           t('**Historique** : courbe de la note moyenne des analyses successives du dossier (200 analyses conservées par dossier).',
               '**History**: curve of the average score of the folder\'s successive analyses (200 analyses kept per folder).'),
+          t('Les chemins listés dans le fichier **.checkscriptignore** du dossier (syntaxe .gitignore) ou dans la clé `exclude` de la configuration sont ignorés.',
+              'Paths listed in the folder\'s **.checkscriptignore** file (.gitignore syntax) or in the `exclude` key of the configuration are ignored.'),
+          t('**Définir comme référence…** enregistre l\'analyse de tout le dossier comme référence ; la colonne *Tendance* montre ensuite l\'évolution de chaque script.',
+              '**Set as baseline…** saves the analysis of the whole folder as the baseline; the *Trend* column then shows each script\'s evolution.'),
           t('**Exporter…** : le rapport HTML d\'un dossier commence par un résumé (note moyenne, niveaux, problèmes par sévérité), un tableau triable et les règles les plus fréquentes.',
               '**Export…**: a folder\'s HTML report starts with a summary (average score, grades, issues by severity), a sortable table and the most frequent rules.'),
         ]),
@@ -288,8 +305,10 @@ List<HelpPage> helpPages(Lang lang) {
           'An earlier JSON report serves as a baseline: only new issues are detailed and the evolution of the scores is shown. Ideal to adopt the tool on existing code.'),
       [
         HelpBullets([
-          t('Produisez la référence sur votre branche principale : *Exporter…* au format **JSON**.',
-              'Produce the baseline on your main branch: *Export…* in **JSON** format.'),
+          t('**Définir comme référence…** (écrans Analyse et Dossier) : choisissez où enregistrer le rapport JSON ; il est écrit puis chargé comme référence en un clic.',
+              '**Set as baseline…** (Analysis and Folder screens): choose where to save the JSON report; it is written then loaded as the baseline in one click.'),
+          t('Pour la partager avec la CI, enregistrez-la dans le dépôt : `check-script -b référence.json --fail-on-new high`. Un rapport exporté en **JSON** convient aussi.',
+              'To share it with CI, save it in the repository: `check-script -b baseline.json --fail-on-new high`. A report exported as **JSON** works too.'),
           t('*Charger une référence…* : choisissez ce fichier ; la puce *Référence chargée* apparaît (la croix la retire).',
               '*Load a baseline…*: choose that file; the *Baseline loaded* chip appears (the cross removes it).'),
           t('Les problèmes sont rapprochés par une **empreinte indépendante du numéro de ligne** : ajouter du code au-dessus d\'un problème connu ne le rend pas « nouveau ».',
@@ -311,8 +330,8 @@ List<HelpPage> helpPages(Lang lang) {
         HelpBullets([
           t('Les règles viennent de CheckScript (intégrées), des outils (ShellCheck, Ruff, Bandit, Pylint…) et des codes **rencontrés** lors de vos analyses.',
               'Rules come from CheckScript (built-in), from the tools (ShellCheck, Ruff, Bandit, Pylint…) and from codes **encountered** during your analyses.'),
-          t('**Recherche** : par code, texte, outil, CWE, OWASP ou ANSSI. Les listes filtrent par langage, outil et catégorie.',
-              '**Search**: by code, text, tool, CWE, OWASP or ANSSI. The lists filter by language, tool and category.'),
+          t('**Recherche** (**Ctrl+F**) : par code, texte, outil, CWE, OWASP ou ANSSI. Les listes filtrent par langage, outil et catégorie.',
+              '**Search** (**Ctrl+F**): by code, text, tool, CWE, OWASP or ANSSI. The lists filter by language, tool and category.'),
           t('**Tout réactiver (N)** recoche toutes les règles que vous avez désactivées.',
               '**Enable all (N)** re-ticks all the rules you disabled.'),
           t('**Autre code à désactiver** : saisissez n\'importe quel code (ex. `SC2317`), même absent de la liste.',
@@ -426,6 +445,7 @@ List<HelpPage> helpPages(Lang lang) {
         ]),
         HelpCode('profile: strict            # strict | default | legacy\n'
             'context: [root]            # root, cron, systemd\n'
+            'exclude: [vendor/, "*.min.sh"]   # chemins ignorés (.gitignore)\n'
             'rules:\n'
             '  disabled: [MNT005, E006]\n'
             'tools:\n'
@@ -508,21 +528,38 @@ List<HelpPage> helpPages(Lang lang) {
     HelpPage(
       HelpTopic.shortcuts,
       t('Raccourcis et astuces', 'Shortcuts and tips'),
-      t('F1 : aide du sujet en cours · Ctrl+plus / Ctrl+moins / Ctrl+0 : taille du code · glisser-déposer : analyser un script ou un dossier.',
-          'F1: help on the current topic · Ctrl+plus / Ctrl+minus / Ctrl+0: code size · drag and drop: analyse a script or a folder.'),
+      t('F1 : aide · Ctrl+O : ouvrir · F5 : relancer · Ctrl+E : exporter · Ctrl+F : chercher · Ctrl+Tab : onglet suivant · Ctrl+plus / moins / 0 : taille du code.',
+          'F1: help · Ctrl+O: open · F5: re-run · Ctrl+E: export · Ctrl+F: search · Ctrl+Tab: next tab · Ctrl+plus / minus / 0: code size.'),
       [
-        HelpHeading(t('Clavier et souris', 'Keyboard and mouse')),
+        HelpHeading(t('Clavier', 'Keyboard')),
         HelpBullets([
           t('**F1** : ouvre l\'aide du sujet de l\'écran en cours.',
               '**F1**: opens the help of the current screen\'s topic.'),
+          t('**Ctrl+O** : ouvrir un ou plusieurs scripts. **Ctrl+Maj+O** : ouvrir un dossier.',
+              '**Ctrl+O**: open one or more scripts. **Ctrl+Shift+O**: open a folder.'),
+          t('**F5** ou **Ctrl+R** : relancer l\'analyse (du dossier sur l\'écran Dossier, sinon du script affiché).',
+              '**F5** or **Ctrl+R**: re-run the analysis (of the folder on the Folder screen, otherwise of the displayed script).'),
+          t('**Ctrl+E** : exporter le rapport (du dossier sur l\'écran Dossier, sinon du script).',
+              '**Ctrl+E**: export the report (of the folder on the Folder screen, otherwise of the script).'),
+          t('**Ctrl+F** : chercher — dans le code (onglet Synthèse), dans les problèmes (onglet Problèmes), dans les règles ou dans l\'aide, selon l\'écran.',
+              '**Ctrl+F**: search — in the code (Summary tab), in the issues (Issues tab), in the rules or in the help, depending on the screen.'),
+          t('**Ctrl+Tab**, **Ctrl+Maj+Tab** (ou **Ctrl+Page suiv.** / **Page préc.**) : onglet suivant / précédent. **Ctrl+W** : fermer l\'onglet.',
+              '**Ctrl+Tab**, **Ctrl+Shift+Tab** (or **Ctrl+Page Down** / **Page Up**): next / previous tab. **Ctrl+W**: close the tab.'),
+          t('**Ctrl+1** à **Ctrl+5** : Analyse, Dossier, Règles, Réglages, Aide.',
+              '**Ctrl+1** to **Ctrl+5**: Analysis, Folder, Rules, Settings, Help.'),
           t('**Ctrl + plus**, **Ctrl + moins**, **Ctrl + 0** : agrandir, réduire, rétablir la taille du code (aussi **Ctrl + molette** sur le code).',
               '**Ctrl + plus**, **Ctrl + minus**, **Ctrl + 0**: enlarge, reduce, reset the code size (also **Ctrl + wheel** on the code).'),
-          t('**Glisser-déposer** un script ou un dossier sur la fenêtre : analyse immédiate.',
-              '**Drag and drop** a script or a folder on the window: immediate analysis.'),
+          t('Dans la recherche du code : **Entrée** (suivante), **Maj+Entrée** (précédente), **Échap** (fermer).',
+              'In the code search: **Enter** (next), **Shift+Enter** (previous), **Esc** (close).'),
+        ]),
+        HelpHeading(t('Souris', 'Mouse')),
+        HelpBullets([
+          t('**Glisser-déposer** un ou plusieurs scripts, ou un dossier, sur la fenêtre : analyse immédiate.',
+              '**Drag and drop** one or more scripts, or a folder, on the window: immediate analysis.'),
           t('**Double-clic** sur la barre entre le code et les résultats : répartition par défaut.',
               '**Double-click** the bar between the code and the results: default split.'),
-          t('**Survol** : toute icône, bouton ou étiquette a une info-bulle.',
-              '**Hover**: every icon, button or label has a tooltip.'),
+          t('**Survol** : toute icône, bouton ou étiquette a une info-bulle, qui rappelle son raccourci.',
+              '**Hover**: every icon, button or label has a tooltip, which recalls its shortcut.'),
         ]),
         HelpHeading(t('En ligne de commande', 'On the command line')),
         HelpCode('check-script-gui deploy.sh      # analyse au démarrage\n'

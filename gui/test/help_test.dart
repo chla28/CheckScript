@@ -159,6 +159,10 @@ void main() {
           tp.removeConfig,
           tp.tabSummary,
           tp.tabIssues,
+          tp.searchIssues,
+          tp.searchCode,
+          tp.setBaseline,
+          tp.tab,
           for (final s in Severity.values) tp.severity(s),
           for (final c in ExecContext.values) tp.context(c),
           for (final t in [

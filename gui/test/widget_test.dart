@@ -711,6 +711,8 @@ void main() {
         ),
       ));
       expect(find.textContaining('Ne plus signaler'), findsNothing);
+      await tester.ensureVisible(find.textContaining('SEC003'));
+      await tester.pumpAndSettle();
       await tester.tap(find.textContaining('SEC003'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Ne plus signaler SEC003'));

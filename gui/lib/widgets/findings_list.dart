@@ -4,6 +4,7 @@
 library;
 
 import 'package:check_script/check_script.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,6 +14,27 @@ import '../help/tips.dart';
 import '../strings.dart';
 import 'common.dart';
 import 'fix_panel.dart';
+
+/// Le problème contient [query] (sans tenir compte de la casse) dans sa
+/// règle, son message, son outil, sa catégorie, sa suggestion, ses
+/// références ou sa ligne (`L12` ou `12`) ; plusieurs mots : tous doivent y
+/// figurer.
+bool findingMatchesQuery(Finding f, String query) {
+  final words = query.toLowerCase().split(RegExp(r'\s+'))
+    ..removeWhere((w) => w.isEmpty);
+  if (words.isEmpty) return true;
+  final hay = [
+    f.ruleId,
+    f.message,
+    f.tool,
+    f.category.name,
+    f.hint ?? '',
+    ...f.refs,
+    f.line == 0 ? '' : 'l${f.line}',
+    if (f.line > 0) '${f.line}',
+  ].join('\n').toLowerCase();
+  return words.every(hay.contains);
+}
 
 class FindingsList extends StatefulWidget {
   const FindingsList({
@@ -28,6 +50,7 @@ class FindingsList extends StatefulWidget {
     this.onOpenInEditor,
     this.onReportFalsePositive,
     this.onApplySelection,
+    this.findRequest,
   });
 
   final List<Finding> findings;
@@ -60,6 +83,10 @@ class FindingsList extends StatefulWidget {
   /// Corrige ensemble les problèmes cochés ; null : pas de sélection.
   final void Function(List<Finding> findings)? onApplySelection;
 
+  /// Demande de recherche (Ctrl+F) : met le focus sur le champ de recherche
+  /// quand sa valeur change.
+  final ValueListenable<int>? findRequest;
+
   @override
   State<FindingsList> createState() => _FindingsListState();
 }
@@ -77,9 +104,38 @@ class _FindingsListState extends State<FindingsList> {
   /// Problèmes cochés pour une correction groupée.
   final _selected = Set<Finding>.identity();
 
+  /// Recherche libre : code de la règle, message, outil, suggestion,
+  /// références, numéro de ligne (`L12` ou `12`).
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.findRequest?.addListener(_focusSearch);
+  }
+
+  void _focusSearch() {
+    _searchFocus.requestFocus();
+    _search.selection =
+        TextSelection(baseOffset: 0, extentOffset: _search.text.length);
+  }
+
+  @override
+  void dispose() {
+    widget.findRequest?.removeListener(_focusSearch);
+    _search.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
   @override
   void didUpdateWidget(FindingsList old) {
     super.didUpdateWidget(old);
+    if (old.findRequest != widget.findRequest) {
+      old.findRequest?.removeListener(_focusSearch);
+      widget.findRequest?.addListener(_focusSearch);
+    }
     if (!identical(old.findings, widget.findings)) {
       _open = null;
       _selected.clear();
@@ -88,10 +144,14 @@ class _FindingsListState extends State<FindingsList> {
 
   /// Filtre pur, exposé pour les tests.
   static List<Finding> filter(
-          List<Finding> all, Set<Category> cats, Set<Severity> sevs) =>
+          List<Finding> all, Set<Category> cats, Set<Severity> sevs,
+          {String query = ''}) =>
       [
         for (final f in all)
-          if (cats.contains(f.category) && sevs.contains(f.severity)) f
+          if (cats.contains(f.category) &&
+              sevs.contains(f.severity) &&
+              findingMatchesQuery(f, query))
+            f
       ];
 
   /// Tout cocher / décocher parmi les problèmes corrigeables affichés, et
@@ -142,12 +202,35 @@ class _FindingsListState extends State<FindingsList> {
     final t = s.m;
     final tp = Tips(widget.lang);
     final b = Theme.of(context).brightness;
-    final filtered = filter(widget.findings, _categories, _severities);
+    final filtered =
+        filter(widget.findings, _categories, _severities, query: _search.text);
     final e = widget.explanation;
     final shown =
         _quickWin && e != null ? sortByQuickWin(filtered, e) : filtered;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      tip(
+        tp.searchIssues,
+        TextField(
+          controller: _search,
+          focusNode: _searchFocus,
+          decoration: InputDecoration(
+            isDense: true,
+            prefixIcon: const Icon(Icons.search, size: 20),
+            hintText: s.searchIssues,
+            border: const OutlineInputBorder(),
+            suffixIcon: _search.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: s.clearSearch,
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () => setState(_search.clear),
+                  ),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+      ),
+      const SizedBox(height: 6),
       Wrap(spacing: 6, runSpacing: 4, children: [
         for (final c in Category.values)
           tip(
