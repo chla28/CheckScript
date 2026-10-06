@@ -85,6 +85,8 @@ lib/src/
                                    .checkscriptignore), utilisé par collectScripts et watchTargets
   init.dart                        check-script init : suggestProfile, renderInitConfig
   rule_doc.dart                    check-script explain : findRules, similarRuleIds, renderRuleDoc
+  report_diff.dart                 check-script diff : diffReports, ReportsDiff, renderDiffText / Markdown / Json
+  baseline_update.dart             --baseline-update : updateBaseline (resserrage de la référence)
   rules/same_rules.dart            sameRuleIds : la même règle dans plusieurs outils (Ruff S ↔
                                    Bandit B, Ruff PL ↔ Pylint, ShellCheck ↔ intégrées)
   rules/registry.dart              RuleEntry, knownRules : règles intégrées et codes externes
@@ -486,6 +488,7 @@ dart analyze --fatal-infos
 |`improvements_test.dart` |Même règle entre outils, exclusions transmises, `--fix` et règles désactivées, doublons multi-lignes, `# noqa` / `# nosec`, analyses parallèles, cache Semgrep, export YAML (aller-retour), rapport HTML de dossier, calibrage Python
 |`python_test.dart` |Parseurs des outils Python (sorties réelles de `fixtures/outputs/python/`, capturées sur `fixtures/bad.py`), dédoublonnage, secrets, règles intégrées Python (lexer et `ast` réel), `--fix`, découverte, `pythonTarget`
 |`fix_suggestions_test.dart` |Corrections par problème, exemples, rapport HTML
+|`tools_test.dart` |`check-script diff`, `--baseline-update`, `--fix --interactive`, `--format gitlab`
 |`subcommands_test.dart` |Motifs `.gitignore`, `--exclude` / `.checkscriptignore` / `exclude:`, `check-script explain` et `check-script init`
 |`integration_test.dart` |Vrais outils (ignorés s'ils sont absents), dont Ruff, Bandit, mypy, Radon, Vermin sur `bad.py` / `good.py`
 |===

@@ -16,6 +16,8 @@ check-script - evaluates the quality and security of shell and Python scripts
 
 *check-script init* [_OPTIONS_] [_FOLDER_]
 
+*check-script diff* [_OPTIONS_] _BEFORE.json_ _AFTER.json_
+
 *check-script lsp* [*--lang* *fr*|*en*]
 
 == DESCRIPTION
@@ -136,6 +138,12 @@ names a shell or Python; hidden folders, *venv*, *site-packages*,
   Baseline JSON report: only new issues are detailed and
   the evolution of the scores is shown.
 
+*--baseline-update*::
+  With *--baseline*: rewrites the baseline without the fixed issues (a script with new issues keeps its entry).
+
+*-i, --interactive*::
+  With *--fix*: offers each fix one at a time (y/n/a/q).
+
 *--fail-on-new* _SEVERITY_::
   With *--baseline*: exit code 1 if a new issue reaches this
   severity.
@@ -202,6 +210,14 @@ equivalent codes in other tools, and the ways to ignore it (directive,
 _rules.disabled_). _RULE_ is an identifier such as _SEC003_, _SC2086_,
 _B602_ or a custom rule of the configuration (_--config_); see
 *--list-rules --all*. Unknown identifier: exit code 2 with suggestions.
+
+== DIFF
+
+*check-script diff* [*-f* *text*|*md*|*json*] [*--summary*] [*--fail-on-new* _SEVERITY_] [*--fail-on-worse*] _BEFORE.json_ _AFTER.json_
+compares two JSON reports: new, fixed and unchanged issues per script
+(matched by fingerprint, independent of the line number), score evolution,
+added and removed scripts. *--fail-on-new* exits with code 1 if a new issue
+reaches the severity, *--fail-on-worse* if the score of a script dropped.
 
 == INIT
 

@@ -214,7 +214,7 @@ intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 |===
 |Option |Effet
 |`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension : `.md`, `.adoc`, `.html`, `.pdf` (voir <<pdf>>), `.json`, `.sarif`, `.codeclimate.json` (ou `gl-code-quality-report.json`), `.xml` (JUnit), `.txt`. Répétable.
-|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate`, `junit` (JUnit XML), `github` (annotations GitHub Actions) : format de la sortie standard, et des fichiers `-o` sans extension reconnue (l'extension prime).
+|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate` (alias `gitlab` : GitLab Code Quality), `junit` (JUnit XML), `github` (annotations GitHub Actions) : format de la sortie standard, et des fichiers `-o` sans extension reconnue (l'extension prime).
 |`-l`, `--lang fr\|en` |Langue du rapport. Défaut : `LC_ALL`, `LC_MESSAGES` puis `LANG`.
 |`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Force le dialecte au lieu de le déduire du shebang (ou de l'extension `.py`).
 |`--python-target VERSION` |Version minimale de Python que les scripts doivent supporter (défaut : `3.9`, voir <<python>>).
@@ -238,8 +238,10 @@ intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 |`-j`, `--jobs N` |Nombre de scripts d'un dossier analysés simultanément (défaut : selon le nombre de processeurs, au plus 4 ; `1` : l'un après l'autre). Les outils d'un même script tournent toujours en parallèle.
 |`-b`, `--baseline RAPPORT.json` |Référence : seuls les nouveaux problèmes sont détaillés, l'évolution des notes est affichée (voir <<reference>>).
 |`--fail-on-new SÉVÉRITÉ` |Avec `--baseline` : code de sortie 1 si un nouveau problème atteint cette sévérité.
+|`--baseline-update` |Avec `--baseline` : réécrit le fichier de référence sans les problèmes qui ont été corrigés : la dette tolérée ne peut que diminuer (voir la section sur la référence).
 |`--fix` |Corrige les défauts sûrs dans le fichier (voir <<fix>>).
 |`--dry-run` |Avec `--fix` : affiche le diff unifié sans modifier le fichier.
+|`-i`, `--interactive` |Avec `--fix` : propose chaque correction l'une après l'autre (`o` / `n` / `a` toutes les suivantes / `q` quitter), comme `git add -p` (voir <<fix>>).
 |`--backup` |Avec `--fix` : conserve l'original en `FICHIER.orig`.
 |`--details` |Terminal : tous les problèmes, avec leur conseil de correction (défaut : 10 par catégorie).
 |`--summary` |Terminal : synthèse seule.
@@ -473,6 +475,19 @@ check-script --fix --dry-run deploy.sh       # diff sur la sortie standard, rien
 check-script --fix --backup deploy.sh        # écrit deploy.sh, garde deploy.sh.orig
 ----
 
+Avec `--interactive` (`-i`), chaque correction est montrée (lignes avant /
+après) et n'est appliquée que si vous l'acceptez, comme `git add -p` : `o`
+l'applique, `n` l'ignore, `a` l'applique ainsi que toutes les suivantes, `q`
+arrête (les corrections déjà acceptées sont appliquées), `?` rappelle les
+touches. Seules les corrections ligne par ligne (ShellCheck, intégrées) sont
+proposées ; le reformatage shfmt reste réservé au mode non interactif.
+`--dry-run` et `--backup` fonctionnent comme d'habitude.
+
+[source,bash]
+----
+check-script --fix --interactive deploy.sh
+----
+
 [[code-correction]]
 === Code de correction par problème
 
@@ -515,6 +530,46 @@ check-script -b reference.json --fail-on-new high scripts/
 
 C'est la manière d'adopter l'outil sur un existant : la dette actuelle est
 tolérée, toute nouvelle dette bloque.
+
+=== Resserrer la référence
+
+À mesure que les problèmes sont corrigés, la référence doit diminuer avec
+eux, sinon un problème corrigé pourrait revenir sans bruit.
+`--baseline-update` réécrit le fichier de référence sans les problèmes qui
+n'existent plus :
+
+[source,bash]
+----
+check-script -b reference.json --baseline-update --fail-on-new high scripts/
+----
+
+Un script n'est resserré que s'il n'a *aucun problème nouveau* : son rapport
+actuel remplace alors son entrée (notes comprises). Un script ayant des
+problèmes nouveaux garde son entrée, pour qu'ils ne soient jamais absorbés
+dans la dette tolérée (le message les liste). Les scripts absents de la
+référence ne sont pas ajoutés. Incompatible avec `--ref` (rapport filtré).
+Usage typique : une tâche de CI sur la branche principale qui valide le
+fichier mis à jour.
+
+[[diff]]
+== Comparer deux rapports : `check-script diff`
+
+[source,bash]
+----
+check-script diff avant.json apres.json               # texte
+check-script diff avant.json apres.json -f md         # commentaire de merge request
+check-script diff avant.json apres.json --fail-on-new high --fail-on-worse
+----
+
+Compare deux rapports JSON (`-o rapport.json`) sans rien analyser : pour
+chaque script, les problèmes *nouveaux*, *corrigés* et *inchangés* (appariés
+par empreinte, donc indépendamment du numéro de ligne), l'évolution de la
+note globale et de chaque catégorie, ainsi que les scripts ajoutés et
+retirés. `--summary` masque le détail des problèmes, `-f json` donne un
+résultat exploitable par un programme, `--fail-on-new SÉVÉRITÉ` sort avec le
+code 1 si un problème nouveau atteint cette sévérité, et `--fail-on-worse`
+si la note d'un script a baissé. La même comparaison existe dans
+l'interface (*Comparer…*).
 
 == Outils externes : ce qui est exploité
 
@@ -1347,6 +1402,28 @@ Les analyses de dossier traitent plusieurs scripts à la fois.
   un dossier, F5 / Ctrl+R relancer, Ctrl+E exporter, Ctrl+F chercher,
   Ctrl+Tab / Ctrl+W onglets, Ctrl+1 … Ctrl+5 écrans, Ctrl+plus / moins / 0
   taille du code ; les info-bulles les rappellent ;
+* *Comparer…* (écrans Analyse et Dossier) : met côte à côte un état « avant »
+  (un rapport JSON, ou la référence chargée) et un état « après » (l'analyse
+  affichée, ou un autre rapport JSON) : problèmes corrigés en vert à gauche,
+  nouveaux en rouge à droite, évolution des notes par catégorie, régressions
+  en tête ; *Copier (Markdown)* donne un commentaire de merge request (même
+  moteur que `check-script diff`, voir <<diff>>) ;
+* *Détail d'une règle* (icône ⓘ d'une règle dans l'écran *Règles*) :
+  description, catégorie, sévérité, références, exemple « à éviter / à
+  écrire », codes équivalents dans d'autres outils, occurrences dans le
+  script et le dossier affichés, interrupteur d'activation et façons de
+  l'ignorer (comme `check-script explain`) ;
+* *Édition* : le crayon au-dessus du code ouvre un éditeur de texte dans le
+  panneau ; Ctrl+S (ou *Enregistrer*) écrit le fichier — une copie `.orig`
+  garde l'original, les fins de ligne sont conservées — et relance
+  l'analyse. Les modifications non enregistrées forment un *brouillon* qui
+  survit aux changements d'onglet (● devant le nom, bandeau) ; fermer un
+  onglet modifié demande confirmation, et l'enregistrement est refusé si le
+  fichier a changé sur le disque depuis l'analyse ;
+* *Accessibilité* : les couleurs des sévérités et des notes ont un contraste
+  d'au moins 4,5:1 (WCAG AA) sur tous les fonds, dans les deux thèmes ; la
+  couleur n'est jamais le seul indice (libellés, info-bulles) ; la marge du
+  code, le radar et la courbe d'historique sont décrits aux lecteurs d'écran ;
 * *Aide* : le dernier onglet est une aide en ligne — premiers pas, chaque
   écran, calcul de la note, corrections, référence, règles, réglages,
   profils et contextes, outils, fichier YAML, directives, faux positifs,

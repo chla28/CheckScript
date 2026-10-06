@@ -212,7 +212,7 @@ whose shebang designates a shell or Python. Hidden folders (`.git`,
 |===
 |Option |Effect
 |`-o`, `--output FILE` |Writes the report to FILE; format according to the extension: `.md`, `.adoc`, `.html`, `.pdf` (see <<pdf>>), `.json`, `.sarif`, `.codeclimate.json` (or `gl-code-quality-report.json`), `.xml` (JUnit), `.txt`. Repeatable.
-|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate`, `junit` (JUnit XML), `github` (GitHub Actions annotations): format of the standard output, and of `-o` files without a recognized extension (the extension takes precedence).
+|`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate` (alias `gitlab`: GitLab Code Quality), `junit` (JUnit XML), `github` (GitHub Actions annotations): format of the standard output, and of `-o` files without a recognized extension (the extension takes precedence).
 |`-l`, `--lang fr\|en` |Report language. Default: `LC_ALL`, `LC_MESSAGES` then `LANG`.
 |`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Forces the dialect instead of inferring it from the shebang (or from the `.py` extension).
 |`--python-target VERSION` |Minimum Python version the scripts must support (default: `3.9`, see <<python>>).
@@ -236,8 +236,10 @@ whose shebang designates a shell or Python. Hidden folders (`.git`,
 |`-j`, `--jobs N` |Number of scripts of a folder analyzed simultaneously (default: depends on the number of processors, at most 4; `1`: one after the other). The tools of a single script always run in parallel.
 |`-b`, `--baseline REPORT.json` |Baseline: only new issues are detailed, the evolution of the scores is displayed (see <<reference>>).
 |`--fail-on-new SEVERITY` |With `--baseline`: exit code 1 if a new issue reaches this severity.
+|`--baseline-update` |With `--baseline`: rewrites the baseline file without the issues that were fixed, so the tolerated debt can only shrink (see <<baseline>>).
 |`--fix` |Fixes safe defects in the file (see <<fix>>).
 |`--dry-run` |With `--fix`: prints the unified diff without modifying the file.
+|`-i`, `--interactive` |With `--fix`: offers each fix one at a time (`y` / `n` / `a` all the rest / `q` quit), like `git add -p` (see <<fix>>).
 |`--backup` |With `--fix`: keeps the original as `FILE.orig`.
 |`--details` |Terminal: every issue, with its fix suggestion (default: 10 per category).
 |`--summary` |Terminal: summary only.
@@ -471,6 +473,18 @@ check-script --fix --dry-run deploy.sh       # diff on standard output, nothing 
 check-script --fix --backup deploy.sh        # writes deploy.sh, keeps deploy.sh.orig
 ----
 
+With `--interactive` (`-i`), each fix is shown (lines before / after) and
+applied only if you accept it, like `git add -p`: `y` applies it, `n` skips
+it, `a` applies it and all the following ones, `q` stops (the fixes already
+accepted are applied), `?` reminds the keys. Only the line-level fixes
+(ShellCheck, built-in) are offered; the shfmt reformatting stays reserved to
+the non-interactive mode. `--dry-run` and `--backup` work as usual.
+
+[source,bash]
+----
+check-script --fix --interactive deploy.sh
+----
+
 [[code-correction]]
 === Fix code for each issue
 
@@ -510,6 +524,43 @@ check-script -b baseline.json --fail-on-new high scripts/
 
 This is the way to adopt the tool on existing code: the current debt is
 tolerated, any new debt blocks.
+
+=== Tightening the baseline
+
+As issues get fixed, the baseline should shrink with them, otherwise a
+fixed issue could silently come back. `--baseline-update` rewrites the
+baseline file without the issues that are no longer there:
+
+[source,bash]
+----
+check-script -b baseline.json --baseline-update --fail-on-new high scripts/
+----
+
+A script is tightened only if it has *no new issue*: its current report
+then replaces its entry (scores included). A script with new issues keeps
+its entry, so they are never absorbed into the tolerated debt (they are
+listed in the message). Scripts absent from the baseline are not added. Not
+usable with `--ref` (filtered report). A typical use is a CI job on the main
+branch that commits the updated file.
+
+[[diff]]
+== Comparing two reports: `check-script diff`
+
+[source,bash]
+----
+check-script diff before.json after.json              # text
+check-script diff before.json after.json -f md        # merge request comment
+check-script diff before.json after.json --fail-on-new high --fail-on-worse
+----
+
+Compares two JSON reports (`-o report.json`) without analyzing anything:
+for each script, the *new*, *fixed* and *unchanged* issues (matched by
+fingerprint, so independent of the line number), the evolution of the
+overall score and of each category, plus the added and removed scripts.
+`--summary` hides the issue details, `-f json` gives a machine-readable
+result, `--fail-on-new SEVERITY` exits with code 1 if a new issue reaches
+that severity, and `--fail-on-worse` if the score of a script dropped. The
+same comparison is available in the interface (*Compare…*).
 
 == External tools: what is used
 
@@ -1332,6 +1383,27 @@ Also in the interface:
   folder, F5 / Ctrl+R re-run, Ctrl+E export, Ctrl+F search, Ctrl+Tab /
   Ctrl+W tabs, Ctrl+1 … Ctrl+5 screens, Ctrl+plus / minus / 0 code size;
   tooltips recall them;
+* *Compare…* (Analysis and Folder screens): puts a "before" state (a JSON
+  report, or the loaded baseline) and an "after" state (the displayed
+  analysis, or another JSON report) side by side: fixed issues in green on
+  the left, new ones in red on the right, score evolution per category,
+  regressions first; *Copy (Markdown)* gives a merge request comment (same
+  engine as `check-script diff`, see <<diff>>);
+* *Rule details* (the ⓘ icon of a rule in the *Rules* screen): description,
+  category, severity, references, "avoid / write instead" example,
+  equivalent codes in other tools, occurrences in the displayed script and
+  folder, enable switch and ways to ignore it (same as `check-script
+  explain`);
+* *Editing*: the pencil above the code opens a text editor in the panel;
+  Ctrl+S (or *Save*) writes the file — a `.orig` copy keeps the original,
+  line endings are kept — and re-runs the analysis. Unsaved changes form a
+  *draft* that survives tab changes (● before the name, banner) and a
+  confirmation is asked before closing a modified tab; saving is refused if
+  the file changed on disk since the analysis;
+* *Accessibility*: the colors of severities and scores have a contrast of at
+  least 4.5:1 (WCAG AA) on all backgrounds in both themes; color is never
+  the only cue (labels, tooltips); the code margin, the radar and the
+  history curve are described to screen readers;
 * *Help*: the last tab is an online help — getting started, each screen,
   how the score is computed, fixes, baseline, rules, settings, profiles and
   contexts, tools, YAML file, directives, false positives, exports,

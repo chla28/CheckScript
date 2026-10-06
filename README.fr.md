@@ -42,6 +42,9 @@ check-script -o audit.pdf scripts/             # rapport d'audit PDF
 check-script --exclude 'vendor/' scripts/      # ignorer des chemins (syntaxe .gitignore)
 check-script init                              # écrit un .checkscript.yaml (profil suggéré)
 check-script explain SEC003                    # décrit une règle : exemple, références
+check-script diff avant.json apres.json        # problèmes nouveaux / corrigés entre deux rapports
+check-script --fix --interactive deploy.sh     # accepter chaque correction une à une
+check-script -b ref.json --baseline-update .   # resserrer la référence (problèmes corrigés)
 check-script --list-tools                      # outils détectés
 check-script-gui                               # interface graphique
 ./CheckScript-VERSION-x86_64.AppImage          # interface (AppImage, sans installation)
@@ -72,6 +75,12 @@ Note globale : 1,5/10 (E)
 ![Plusieurs scripts en onglets, avec recherche dans le code et boutons de référence](doc/screenshots/onglets.png)
 
 ![Aide en ligne : sujets, recherche, info-bulles contextuelles](doc/screenshots/aide.png)
+
+![Comparaison de deux analyses : problèmes corrigés à gauche, nouveaux à droite](doc/screenshots/comparaison.png)
+
+![Détail d'une règle : exemple, références, occurrences, interrupteur](doc/screenshots/regle-detail.png)
+
+![Édition légère du script, avec le bandeau des modifications non enregistrées](doc/screenshots/editeur.png)
 
 Raccourcis : F1 aide, Ctrl+O ouvrir, F5 relancer, Ctrl+E exporter, Ctrl+F chercher, Ctrl+Tab / Ctrl+W onglets
 (liste complète dans l'aide intégrée et le guide utilisateur).

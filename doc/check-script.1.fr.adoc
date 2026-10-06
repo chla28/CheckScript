@@ -16,6 +16,8 @@ check-script - évalue la qualité et la sécurité de scripts shell et Python
 
 *check-script init* [_OPTIONS_] [_DOSSIER_]
 
+*check-script diff* [_OPTIONS_] _AVANT.json_ _APRÈS.json_
+
 *check-script lsp* [*--lang* *fr*|*en*]
 
 == DESCRIPTION
@@ -136,6 +138,12 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
   Rapport JSON de référence : seuls les nouveaux problèmes sont détaillés et
   l'évolution des notes est affichée.
 
+*--baseline-update*::
+  Avec *--baseline* : réécrit la référence sans les problèmes corrigés (un script ayant des problèmes nouveaux garde son entrée).
+
+*-i, --interactive*::
+  Avec *--fix* : propose chaque correction l'une après l'autre (o/n/a/q).
+
 *--fail-on-new* _SÉVÉRITÉ_::
   Avec *--baseline* : code de sortie 1 si un nouveau problème atteint cette
   sévérité.
@@ -203,6 +211,15 @@ _rules.disabled_). _RÈGLE_ est un identifiant comme _SEC003_, _SC2086_,
 _B602_ ou une règle personnalisée de la configuration (_--config_) ; voir
 *--list-rules --all*. Identifiant inconnu : code de sortie 2, avec des
 suggestions.
+
+== DIFF
+
+*check-script diff* [*-f* *text*|*md*|*json*] [*--summary*] [*--fail-on-new* _SÉVÉRITÉ_] [*--fail-on-worse*] _AVANT.json_ _APRÈS.json_
+compare deux rapports JSON : problèmes nouveaux, corrigés et inchangés par
+script (appariés par empreinte, indépendamment du numéro de ligne),
+évolution des notes, scripts ajoutés et retirés. *--fail-on-new* sort avec le
+code 1 si un problème nouveau atteint la sévérité, *--fail-on-worse* si la
+note d'un script a baissé.
 
 == INIT
 

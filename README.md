@@ -42,6 +42,9 @@ check-script -o audit.pdf scripts/             # PDF audit report
 check-script --exclude 'vendor/' scripts/      # ignore paths (.gitignore syntax)
 check-script init                              # write a .checkscript.yaml (suggested profile)
 check-script explain SEC003                    # describe a rule: example, references
+check-script diff before.json after.json       # new / fixed issues between two reports
+check-script --fix --interactive deploy.sh     # accept each fix one by one
+check-script -b base.json --baseline-update .  # shrink the baseline (fixed issues)
 check-script --list-tools                      # detected tools
 check-script-gui                               # graphical interface
 ./CheckScript-VERSION-x86_64.AppImage          # interface (AppImage, no installation)
@@ -72,6 +75,12 @@ Overall score: 1.5/10 (E)
 ![Several scripts as tabs, with code search and baseline buttons](doc/screenshots/en/onglets.png)
 
 ![Online help: topics, search, contextual tooltips](doc/screenshots/en/aide.png)
+
+![Comparison of two analyses: fixed issues on the left, new ones on the right](doc/screenshots/en/comparaison.png)
+
+![Rule details: example, references, occurrences, switch](doc/screenshots/en/regle-detail.png)
+
+![Light editing of the script, with the unsaved changes banner](doc/screenshots/en/editeur.png)
 
 Shortcuts: F1 help, Ctrl+O open, F5 re-run, Ctrl+E export, Ctrl+F search, Ctrl+Tab / Ctrl+W tabs
 (full list in the in-app help and the user guide).
