@@ -4,7 +4,7 @@
 #   autoload -Uz compinit && compinit
 
 # Sous-commandes : check-script explain RULE | init [DIR] | lsp
-if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init) ]]; then
+if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init|diff) ]]; then
   if [[ ${words[2]} == init ]]; then
     _arguments -s \
       {-p,--profile}'[profile]:profile:(strict default legacy)' \
@@ -17,6 +17,14 @@ if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init) ]]; then
       '--stdout[write to standard output]' \
       {-l,--lang}'[language]:language:(fr en)' \
       '*:folder:_files -/'
+  elif [[ ${words[2]} == diff ]]; then
+    _arguments -s \
+      {-f,--format}'[format]:format:(text md json)' \
+      '--summary[without the issue details]' \
+      '--fail-on-new[fail on new issue]:severity:(low medium high critical)' \
+      '--fail-on-worse[fail if a score dropped]' \
+      {-l,--lang}'[language]:language:(fr en)' \
+      '*:report:_files -g "*.json"'
   else
     _arguments -s \
       {-l,--lang}'[language]:language:(fr en)' \
@@ -26,12 +34,12 @@ if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init) ]]; then
   return
 fi
 if (( CURRENT == 2 )); then
-  _alternative 'subcommands:subcommand:(explain init lsp)' 'files:script:_files' && return
+  _alternative 'subcommands:subcommand:(explain init diff lsp)' 'files:script:_files' && return
 fi
 
 _arguments -s \
   '*'{-o,--output}'[report file]:file:_files' \
-  {-f,--format}'[format]:format:(terminal md adoc html pdf json sarif codeclimate junit github)' \
+  {-f,--format}'[format]:format:(terminal md adoc html pdf json sarif codeclimate gitlab junit github)' \
   {-l,--lang}'[language]:language:(fr en)' \
   {-s,--shell}'[dialect]:dialect:(sh bash dash ksh zsh python)' \
   '--python-target[minimum Python version]:version:(3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14)' \
@@ -56,8 +64,10 @@ _arguments -s \
   '--explain[cost of each rule on the score]' \
   '--sort[order of issues]:order:(category impact)' \
   {-b,--baseline}'[baseline JSON report]:file:_files -g "*.json"' \
+  '--baseline-update[rewrite the baseline without the fixed issues]' \
   '--fail-on-new[fail on new issue]:severity:(low medium high critical)' \
   '--fix[fix safe defects]' \
+  {-i,--interactive}'[with --fix: confirm each fix]' \
   '--dry-run[print the diff without writing]' \
   '--backup[keep FILE.orig]' \
   '--details[all issues]' \

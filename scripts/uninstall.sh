@@ -40,6 +40,7 @@ for target in \
   "${PREFIX}/share/man/man1/check-script.1" \
   "${PREFIX}/share/bash-completion/completions/check-script" \
   "${PREFIX}/share/zsh/site-functions/_check-script" \
+  "${PREFIX}/share/fish/vendor_completions.d/check-script.fish" \
   "${PREFIX}/share/icons/hicolor/scalable/apps/check_script.svg" \
   "${PREFIX}/share/applications/check_script.desktop"; do
   if [[ -e "$target" || -L "$target" ]]; then

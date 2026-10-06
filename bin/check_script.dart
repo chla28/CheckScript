@@ -66,14 +66,17 @@ ArgParser buildParser(Lang lang) {
           'codeclimate',
           'junit',
           'github',
+          'gitlab',
           'pdf',
         ],
         help: t(
             'Format de la sortie standard, et des fichiers de sortie sans '
                 'extension reconnue (github : annotations GitHub Actions ; '
+                'gitlab : rapport GitLab Code Quality, comme codeclimate ; '
                 'junit : JUnit XML).',
             'Format of standard output, and of output files without a known '
-                'extension (github: GitHub Actions annotations; junit: JUnit '
+                'extension (github: GitHub Actions annotations; gitlab: GitLab '
+                'Code Quality report, same as codeclimate; junit: JUnit '
                 'XML).'))
     ..addOption('lang',
         abbr: 'l',
@@ -181,6 +184,11 @@ ArgParser buildParser(Lang lang) {
         help: t(
             'Rapport JSON de référence : ne détaille que les nouveaux problèmes et affiche l\'évolution des notes.',
             'Baseline JSON report: only new issues are detailed and score changes are shown.'))
+    ..addFlag('baseline-update',
+        negatable: false,
+        help: t(
+            'Avec --baseline : réécrit la référence sans les problèmes corrigés (la dette tolérée ne peut que diminuer). Un script ayant des problèmes nouveaux garde son entrée.',
+            'With --baseline: rewrite the baseline without the fixed issues (tolerated debt can only shrink). A script with new issues keeps its entry.'))
     ..addOption('fail-on-new',
         valueHelp: 'SÉVÉRITÉ',
         allowed: ['low', 'medium', 'high', 'critical'],
@@ -192,6 +200,12 @@ ArgParser buildParser(Lang lang) {
         help: t(
             'Corrige les défauts sûrs (ShellCheck, règles intégrées, shfmt) dans le fichier.',
             'Fix safe issues (ShellCheck, built-in rules, shfmt) in place.'))
+    ..addFlag('interactive',
+        abbr: 'i',
+        negatable: false,
+        help: t(
+            'Avec --fix : propose chaque correction l\'une après l\'autre (o/n/a/q), comme git add -p.',
+            'With --fix: offer each fix one at a time (y/n/a/q), like git add -p.'))
     ..addFlag('dry-run',
         negatable: false,
         help: t('Avec --fix : affiche le diff sans modifier le fichier.',
@@ -294,9 +308,11 @@ Future<int> run(List<String> argv,
     {IOSink? out,
     IOSink? err,
     CommandRunner? runner,
-    Future<void>? stopWatching}) async {
+    Future<void>? stopWatching,
+    Future<String?> Function()? readLine}) async {
   out ??= stdout;
   err ??= stderr;
+  readLine ??= () async => stdin.readLineSync();
 
   // Serveur LSP pour les éditeurs : check-script lsp [--lang fr|en].
   if (argv.isNotEmpty && argv.first == 'lsp') {
@@ -324,6 +340,9 @@ Future<int> run(List<String> argv,
   // Sous-commandes : check-script explain RÈGLE, check-script init [DOSSIER].
   if (argv.isNotEmpty && argv.first == 'explain') {
     return _explain(argv.skip(1).toList(), lang, out: out, err: err);
+  }
+  if (argv.isNotEmpty && argv.first == 'diff') {
+    return _diff(argv.skip(1).toList(), lang, out: out, err: err);
   }
   if (argv.isNotEmpty && argv.first == 'init') {
     return _init(argv.skip(1).toList(), lang,
@@ -354,11 +373,13 @@ Future<int> run(List<String> argv,
             '  check-script explain RÈGLE   décrit une règle (exemple, références, façons de l\'ignorer)\n'
             '  check-script init [DOSSIER]  génère un .checkscript.yaml (profil suggéré, exclusions) ;\n'
             '                               --help pour ses options\n'
+            '  check-script diff A.json B.json  compare deux rapports JSON (nouveaux, corrigés, notes)\n'
             '  check-script lsp             serveur LSP pour les éditeurs',
         '\nSubcommands:\n'
             '  check-script explain RULE    describes a rule (example, references, how to ignore it)\n'
             '  check-script init [DIR]      generates a .checkscript.yaml (suggested profile, exclusions);\n'
             '                               --help for its options\n'
+            '  check-script diff A.json B.json  compares two JSON reports (new, fixed, scores)\n'
             '  check-script lsp             LSP server for editors'));
     out.writeln(t(
         '\nDirectives dans le script : # check-script disable=RÈGLE[,…] '
@@ -532,6 +553,27 @@ Future<int> run(List<String> argv,
         '--dry-run and --backup are used with --fix.'));
     return exitUsage;
   }
+  final interactive = a['interactive'] as bool;
+  if (interactive && !fix) {
+    err.writeln(t('--interactive s\'utilise avec --fix.',
+        '--interactive is used with --fix.'));
+    return exitUsage;
+  }
+  if (interactive && a.rest.contains('-')) {
+    err.writeln(t('--interactive ne s\'utilise pas avec l\'entrée standard.',
+        '--interactive cannot be used with standard input.'));
+    return exitUsage;
+  }
+  final baselineUpdate = a['baseline-update'] as bool;
+  if (baselineUpdate &&
+      (baseline == null || (a['ref'] as List<String>).isNotEmpty)) {
+    err.writeln(baseline == null
+        ? t('--baseline-update nécessite --baseline.',
+            '--baseline-update requires --baseline.')
+        : t('--baseline-update ne s\'utilise pas avec --ref (rapport filtré).',
+            '--baseline-update cannot be used with --ref (filtered report).'));
+    return exitUsage;
+  }
   if (fix && !dryRun && a.rest.contains('-')) {
     err.writeln(t('--fix sur l\'entrée standard nécessite --dry-run.',
         '--fix on standard input requires --dry-run.'));
@@ -581,8 +623,14 @@ Future<int> run(List<String> argv,
   Future<void> handle(ScriptInfo script, String? path) async {
     final eng = engineFor(path);
     if (fix) {
-      final r =
-          await fixScript(script, config: eng.config, runner: commandRunner);
+      final r = interactive
+          ? await _interactiveFix(script, eng,
+              runner: commandRunner,
+              out: errSink,
+              readLine: readLine!,
+              lang: lang,
+              name: path ?? '<stdin>')
+          : await fixScript(script, config: eng.config, runner: commandRunner);
       final name = path ?? '<stdin>';
       if (r.aborted != null) {
         errSink.writeln(t(
@@ -791,6 +839,29 @@ Future<int> run(List<String> argv,
           'Écriture impossible : $path (${e.osError?.message ?? e.message})',
           'Cannot write: $path (${e.osError?.message ?? e.message})'));
       return exitInput;
+    }
+  }
+
+  if (baselineUpdate) {
+    final path = a['baseline'] as String;
+    try {
+      final u = updateBaseline(await File(path).readAsString(), reports);
+      if (u.updated > 0) await File(path).writeAsString('${u.json}\n');
+      err.writeln(t(
+          'Référence ${u.updated > 0 ? 'resserrée' : 'inchangée'} : $path — '
+              '${u.updated} script(s) resserré(s), ${u.removed} problème(s) corrigé(s) retiré(s)'
+              '${u.refused.isEmpty ? '' : ', ${u.refused.length} script(s) laissé(s) tel(s) quel(s) (nouveaux problèmes : ${u.refused.join(', ')})'}.',
+          'Baseline ${u.updated > 0 ? 'tightened' : 'unchanged'}: $path — '
+              '${u.updated} script(s) tightened, ${u.removed} fixed issue(s) removed'
+              '${u.refused.isEmpty ? '' : ', ${u.refused.length} script(s) left as is (new issues: ${u.refused.join(', ')})'}.'));
+    } on FileSystemException catch (e) {
+      err.writeln(t(
+          'Écriture impossible : $path (${e.osError?.message ?? e.message})',
+          'Cannot write: $path (${e.osError?.message ?? e.message})'));
+      return exitInput;
+    } on FormatException catch (e) {
+      err.writeln(e.message);
+      return exitUsage;
     }
   }
 
@@ -1078,6 +1149,166 @@ Future<int> _init(List<String> args, Lang lang,
     }
   }
   return exitOk;
+}
+
+/// `check-script diff AVANT.json APRÈS.json` : compare deux rapports.
+Future<int> _diff(List<String> args, Lang lang,
+    {required IOSink out, required IOSink err}) async {
+  String t(String fr, String en) => lang == Lang.fr ? fr : en;
+  final parser = ArgParser()
+    ..addOption('format', abbr: 'f', allowed: ['text', 'md', 'json'])
+    ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
+    ..addOption('fail-on-new', allowed: ['low', 'medium', 'high', 'critical'])
+    ..addFlag('fail-on-worse', negatable: false)
+    ..addFlag('summary', negatable: false)
+    ..addFlag('help', abbr: 'h', negatable: false);
+  final ArgResults a;
+  try {
+    a = parser.parse(args);
+  } on FormatException catch (e) {
+    err.writeln(e.message);
+    return exitUsage;
+  }
+  if (a['help'] as bool || a.rest.length != 2) {
+    (a['help'] as bool ? out : err).writeln(t(
+        'Usage : check-script diff [options] AVANT.json APRÈS.json\n\n'
+            'Compare deux rapports JSON de check-script (-o rapport.json) : '
+            'problèmes nouveaux, corrigés et inchangés par script, évolution '
+            'des notes, scripts ajoutés ou retirés. Les problèmes sont '
+            'appariés par empreinte (indépendante du numéro de ligne).\n\n'
+            '  -f, --format text|md|json  format de sortie (défaut : text ; md : commentaire de merge request)\n'
+            '      --summary              sans le détail des problèmes (texte)\n'
+            '      --fail-on-new SÉVÉRITÉ code de sortie 1 si un problème nouveau atteint cette sévérité\n'
+            '      --fail-on-worse        code de sortie 1 si la note d\'un script a baissé\n'
+            '  -l, --lang fr|en           langue',
+        'Usage: check-script diff [options] BEFORE.json AFTER.json\n\n'
+            'Compares two check-script JSON reports (-o report.json): new, '
+            'fixed and unchanged issues per script, score evolution, added or '
+            'removed scripts. Issues are matched by fingerprint (independent '
+            'of the line number).\n\n'
+            '  -f, --format text|md|json  output format (default: text; md: merge request comment)\n'
+            '      --summary              without the issue details (text)\n'
+            '      --fail-on-new SEVERITY exit code 1 if a new issue reaches this severity\n'
+            '      --fail-on-worse        exit code 1 if a script\'s score dropped\n'
+            '  -l, --lang fr|en           language'));
+    return a['help'] as bool ? exitOk : exitUsage;
+  }
+  final l = a['lang'] == null ? lang : Lang.tryParse(a['lang'] as String)!;
+  final names = a.rest;
+  final String beforeText, afterText;
+  try {
+    beforeText = await File(names[0]).readAsString();
+    afterText = await File(names[1]).readAsString();
+  } on FileSystemException catch (e) {
+    err.writeln(
+        t('Rapport illisible : ${e.path}', 'Unreadable report: ${e.path}'));
+    return exitInput;
+  }
+  final ReportsDiff d;
+  try {
+    d = diffReports(beforeText, afterText,
+        beforeName: names[0], afterName: names[1]);
+  } on FormatException catch (e) {
+    err.writeln(e.message);
+    return exitUsage;
+  }
+  switch (a['format'] as String?) {
+    case 'json':
+      out.writeln(renderDiffJson(d));
+    case 'md':
+      out.write(renderDiffMarkdown(d, l, before: names[0], after: names[1]));
+    default:
+      out.write(renderDiffText(d, l,
+          details: !(a['summary'] as bool), before: names[0], after: names[1]));
+  }
+  final failOnNew = a['fail-on-new'] == null
+      ? null
+      : Severity.tryParse(a['fail-on-new'] as String);
+  if (failOnNew != null && d.hasNew(failOnNew)) return exitBelowThreshold;
+  if ((a['fail-on-worse'] as bool) && d.hasRegression) {
+    return exitBelowThreshold;
+  }
+  return exitOk;
+}
+
+/// `--fix --interactive` : propose chaque correction (ligne avant / après)
+/// et n'applique que celles acceptées. Réponses : o (oui), n (non), a (celle-ci
+/// et toutes les suivantes), q (arrêter ; les acceptées sont appliquées).
+Future<FixResult> _interactiveFix(ScriptInfo script, Engine eng,
+    {required CommandRunner runner,
+    required IOSink out,
+    required Future<String?> Function() readLine,
+    required Lang lang,
+    required String name}) async {
+  String t(String fr, String en) => lang == Lang.fr ? fr : en;
+  final report = await eng.analyze(script);
+  final fixable = [
+    for (final f in report.findings)
+      if (f.edits.isNotEmpty) f
+  ]..sort((x, y) => x.line.compareTo(y.line));
+  if (fixable.isEmpty) {
+    return FixResult(script.content, script.content, const {});
+  }
+  final accepted = <Finding>[];
+  var all = false;
+  for (var i = 0; i < fixable.length; i++) {
+    final f = fixable[i];
+    final preview = fixPreview(f, script.lines);
+    if (preview == null) continue;
+    final (first, before, after) = preview;
+    if (!all) {
+      out.writeln(
+          '\n[${i + 1}/${fixable.length}] $name:$first  ${f.ruleId} (${f.severity.label})  ${f.message}');
+      for (final l in before.split('\n')) {
+        out.writeln('  - $l');
+      }
+      for (final l in after.split('\n')) {
+        out.writeln('  + $l');
+      }
+      var answered = false;
+      while (!answered) {
+        out.write(t(
+            'Appliquer ? [o]ui [n]on [a]toutes les suivantes [q]uitter [?] : ',
+            'Apply? [y]es [n]o [a]ll the rest [q]uit [?]: '));
+        final raw = (await readLine())?.trim().toLowerCase();
+        out.writeln();
+        switch (raw) {
+          case 'o' || 'y' || 'oui' || 'yes':
+            accepted.add(f);
+            answered = true;
+          case 'n' || 'non' || 'no':
+            answered = true;
+          case 'a' || 'all' || 'toutes':
+            accepted.add(f);
+            all = true;
+            answered = true;
+          case 'q' || 'quit' || null:
+            i = fixable.length;
+            answered = true;
+          default:
+            out.writeln(t(
+                'o : appliquer · n : ignorer · a : appliquer celle-ci et toutes les suivantes · q : arrêter (les corrections acceptées sont appliquées)',
+                'y: apply · n: skip · a: apply this and all the following · q: stop (accepted fixes are applied)'));
+        }
+      }
+    } else {
+      accepted.add(f);
+    }
+  }
+  if (accepted.isEmpty) {
+    return FixResult(script.content, script.content, const {});
+  }
+  final (fixed, counts) =
+      applyEdits(script.content, [for (final f in accepted) ...f.edits]);
+  if (fixed == script.content) {
+    return FixResult(script.content, script.content, const {});
+  }
+  final broken =
+      await syntaxRegression(script, fixed, config: eng.config, runner: runner);
+  if (broken != null) {
+    return FixResult(script.content, script.content, const {}, aborted: broken);
+  }
+  return FixResult(script.content, fixed, counts);
 }
 
 /// Vrai si un rapport passe sous un seuil `--fail-under` ou contient un

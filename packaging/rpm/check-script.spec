@@ -72,6 +72,8 @@ install -Dm644 completions/check-script.bash \
   %{buildroot}%{_datadir}/bash-completion/completions/check-script
 install -Dm644 completions/_check-script \
   %{buildroot}%{_datadir}/zsh/site-functions/_check-script
+install -Dm644 completions/check-script.fish \
+  %{buildroot}%{_datadir}/fish/vendor_completions.d/check-script.fish
 install -Dm644 doc/checkscript.example.yaml \
   %{buildroot}%{_docdir}/%{name}/checkscript.example.yaml
 
@@ -84,3 +86,4 @@ install -Dm644 doc/checkscript.example.yaml \
 %{_mandir}/man1/check-script.1*
 %{_datadir}/bash-completion/completions/check-script
 %{_datadir}/zsh/site-functions/_check-script
+%{_datadir}/fish/vendor_completions.d/check-script.fish

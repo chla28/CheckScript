@@ -43,6 +43,7 @@ MAN_DIR="${PREFIX}/share/man/man1"
 GUI_DIR="${PREFIX}/lib/check_script"
 BASH_COMP_DIR="${PREFIX}/share/bash-completion/completions"
 ZSH_COMP_DIR="${PREFIX}/share/zsh/site-functions"
+FISH_COMP_DIR="${PREFIX}/share/fish/vendor_completions.d"
 ICON_DIR="${PREFIX}/share/icons/hicolor/scalable/apps"
 DESKTOP_DIR="${PREFIX}/share/applications"
 CLI_BIN="${SCRIPT_DIR}/bin/check-script"
@@ -79,7 +80,8 @@ fi
 if [[ -d "${SCRIPT_DIR}/completions" ]]; then
   install -Dm644 "${SCRIPT_DIR}/completions/check-script.bash" "${BASH_COMP_DIR}/check-script"
   install -Dm644 "${SCRIPT_DIR}/completions/_check-script" "${ZSH_COMP_DIR}/_check-script"
-  echo "  ✓ bash / zsh completions"
+  install -Dm644 "${SCRIPT_DIR}/completions/check-script.fish" "${FISH_COMP_DIR}/check-script.fish"
+  echo "  ✓ bash / zsh / fish completions"
 fi
 echo ""
 

@@ -10,7 +10,7 @@
 #   bin/check-script        CLI (Dart, binaire autonome)
 #   gui/                    interface Flutter (bundle release, check_script_gui)
 #   man/check-script.1      page de manuel (si asciidoctor est présent)
-#   completions/            complétions bash et zsh
+#   completions/            complétions bash, zsh et fish
 #   doc/                    user.adoc, developer.adoc, exemple de configuration,
 #                           exemples CI
 #   sbom.cdx.json           SBOM CycloneDX (arbre pub) — si `sbom-generator`
@@ -218,8 +218,9 @@ cp doc/user.adoc doc/developer.adoc doc/user.fr.adoc doc/developer.fr.adoc \
   doc/checkscript.example.yaml "${DIST_DIR}/doc/"
 cp -r doc/ci "${DIST_DIR}/doc/"
 echo "  ✓ doc/ (user.adoc, developer.adoc, checkscript.example.yaml, ci/)"
-cp completions/check-script.bash completions/_check-script "${DIST_DIR}/completions/"
-echo "  ✓ completions/ (bash, zsh)"
+cp completions/check-script.bash completions/_check-script completions/check-script.fish \
+  "${DIST_DIR}/completions/"
+echo "  ✓ completions/ (bash, zsh, fish)"
 if command -v asciidoctor &>/dev/null; then
   mkdir -p "${DIST_DIR}/man"
   asciidoctor -b manpage doc/check-script.1.adoc -o "${DIST_DIR}/man/check-script.1"
