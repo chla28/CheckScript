@@ -1,0 +1,18 @@
+# Configuration de gitleaks (https://github.com/gitleaks/gitleaks).
+#
+# Les valeurs ressemblant à des secrets (jetons, mots de passe, clé AWS
+# d'exemple) des dossiers ci-dessous sont factices : ce sont les données de
+# test des règles de détection de CheckScript (SEC001, SEC002…) et les scripts
+# volontairement mauvais du corpus. Aucun secret réel n'y figure.
+
+title = "CheckScript"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Données de test factices"
+paths = [
+  '''^test/''',
+  '''^gui/test/''',
+]
