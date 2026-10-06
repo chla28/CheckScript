@@ -21,6 +21,7 @@ import '../widgets/findings_list.dart';
 import '../widgets/score_panel.dart';
 import '../widgets/source_view.dart';
 import '../widgets/split_view.dart';
+import 'compare_dialog.dart';
 
 class AnalysisScreen extends StatefulWidget {
   const AnalysisScreen({super.key, required this.state, this.findRequest});
@@ -46,6 +47,9 @@ class _AnalysisScreenState extends State<AnalysisScreen>
   final _codeQuery = TextEditingController();
   final _codeFocus = FocusNode();
   int _matchIndex = 0;
+
+  /// Script en cours de modification dans l'éditeur (null : lecture seule).
+  String? _editingPath;
 
   /// Demande de focus sur la recherche de la liste des problèmes.
   final _issuesFind = ValueNotifier<int>(0);
@@ -265,44 +269,77 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                           ),
                         ]);
                         final g0 = state.settings;
-                        final source = SourceView(
-                          lines: report.script.displayLines,
-                          findings: report.findings,
-                          selectedLine: _selectedLine,
-                          onLineTap: (l) => setState(() => _selectedLine = l),
-                          language: HighlightLanguage.of(report.script),
-                          fontFamily: g0.codeFont,
-                          fontSize: g0.codeFontSize,
-                          onZoom: _zoom,
-                          matchLines: _matches(report).toSet(),
-                          header: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _ZoomBar(
-                                    state: state,
-                                    onZoom: _zoom,
-                                    searching: _searching,
-                                    onSearch: _searching
-                                        ? _closeSearch
-                                        : _openSearch),
-                                if (_searching)
-                                  _CodeSearchBar(
-                                    controller: _codeQuery,
-                                    focus: _codeFocus,
-                                    lang: state.lang,
-                                    count: _matches(report).length,
-                                    index: _matchIndex,
-                                    onChanged: () => setState(() {
-                                      _matchIndex = 0;
-                                      final m = _matches(report);
-                                      if (m.isNotEmpty) _selectedLine = m.first;
-                                    }),
-                                    onStep: (d) => _gotoMatch(report, d),
-                                    onClose: _closeSearch,
-                                  ),
-                              ]),
-                        );
+                        final editing = _editingPath == report.script.path;
+                        final path = report.script.path;
+                        final headerBar = Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _ZoomBar(
+                                  state: state,
+                                  onZoom: _zoom,
+                                  searching: _searching && !editing,
+                                  editing: editing,
+                                  onEdit: () => setState(() =>
+                                      _editingPath = editing ? null : path),
+                                  onSearch: editing
+                                      ? null
+                                      : (_searching
+                                          ? _closeSearch
+                                          : _openSearch)),
+                              if (state.hasDraft(path))
+                                _DraftBanner(
+                                  lang: state.lang,
+                                  onSave: () => _saveDraft(context, path),
+                                  onDiscard: () => setState(() {
+                                    state.discardDraft(path);
+                                    _editingPath = null;
+                                  }),
+                                  onEdit: editing
+                                      ? null
+                                      : () =>
+                                          setState(() => _editingPath = path),
+                                ),
+                              if (_searching && !editing)
+                                _CodeSearchBar(
+                                  controller: _codeQuery,
+                                  focus: _codeFocus,
+                                  lang: state.lang,
+                                  count: _matches(report).length,
+                                  index: _matchIndex,
+                                  onChanged: () => setState(() {
+                                    _matchIndex = 0;
+                                    final m = _matches(report);
+                                    if (m.isNotEmpty) _selectedLine = m.first;
+                                  }),
+                                  onStep: (d) => _gotoMatch(report, d),
+                                  onClose: _closeSearch,
+                                ),
+                            ]);
+                        final Widget source = editing
+                            ? _SourceEditor(
+                                key: ValueKey('editor:$path'),
+                                initial: state.textForEdit(path) ?? '',
+                                lang: state.lang,
+                                fontFamily: g0.codeFont,
+                                fontSize: g0.codeFontSize,
+                                header: headerBar,
+                                onChanged: (t) => state.setDraft(path, t),
+                                onSave: () => _saveDraft(context, path),
+                              )
+                            : SourceView(
+                                lines: report.script.displayLines,
+                                findings: report.findings,
+                                selectedLine: _selectedLine,
+                                onLineTap: (l) =>
+                                    setState(() => _selectedLine = l),
+                                language: HighlightLanguage.of(report.script),
+                                fontFamily: g0.codeFont,
+                                fontSize: g0.codeFontSize,
+                                onZoom: _zoom,
+                                matchLines: _matches(report).toSet(),
+                                header: headerBar,
+                              );
                         // Code et résultats séparés par une barre déplaçable ;
                         // répartition mémorisée par disposition.
                         final wide = c.maxWidth > 1000;
@@ -328,6 +365,22 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                       }),
               ),
             ]));
+  }
+
+  /// Enregistre le brouillon de [path] ; quitte l'éditeur en cas de succès.
+  Future<void> _saveDraft(BuildContext context, String path) async {
+    final s = S(state.lang);
+    final messenger = ScaffoldMessenger.of(context);
+    final why = await state.saveDraft(path);
+    if (!mounted) return;
+    if (why == null) {
+      setState(() => _editingPath = null);
+      messenger.showSnackBar(SnackBar(content: Text(s.scriptSaved(path))));
+    } else {
+      messenger.showSnackBar(SnackBar(
+          content:
+              Text(why == AppState.staleFix ? s.saveStale : s.error(why))));
+    }
   }
 
   /// Signale un faux positif : aperçu anonymisé, commentaire, puis
@@ -543,13 +596,20 @@ class _ZoomBar extends StatelessWidget {
     required this.onZoom,
     required this.searching,
     required this.onSearch,
+    required this.editing,
+    required this.onEdit,
   });
   final AppState state;
   final void Function(double? delta) onZoom;
 
-  /// Recherche dans le code ouverte ; [onSearch] l'ouvre ou la ferme.
+  /// Recherche dans le code ouverte ; [onSearch] l'ouvre ou la ferme (null :
+  /// indisponible, par exemple pendant l'édition).
   final bool searching;
-  final VoidCallback onSearch;
+  final VoidCallback? onSearch;
+
+  /// Éditeur ouvert ; [onEdit] l'ouvre ou le ferme.
+  final bool editing;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -568,6 +628,13 @@ class _ZoomBar extends StatelessWidget {
                   style: theme.textTheme.labelSmall)),
         ),
         const Spacer(),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: Tips(state.lang).editScript,
+          isSelected: editing,
+          onPressed: onEdit,
+          icon: Icon(editing ? Icons.edit_off : Icons.edit_outlined, size: 18),
+        ),
         IconButton(
           visualDensity: VisualDensity.compact,
           tooltip: Tips(state.lang).searchCode,
@@ -600,6 +667,179 @@ class _ZoomBar extends StatelessWidget {
         ),
       ]),
     );
+  }
+}
+
+/// Ferme l'onglet [path] ; s'il a des modifications non enregistrées, demande
+/// d'abord confirmation.
+Future<void> requestCloseTab(
+    BuildContext context, AppState state, String path) async {
+  if (state.hasDraft(path)) {
+    final s = S(state.lang);
+    final name = path.split('/').last;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.closeUnsavedTitle(name)),
+        content: Text(s.closeUnsavedBody),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(s.closeWithoutSaving)),
+        ],
+      ),
+    );
+    if (ok != true) return;
+  }
+  await state.closeTab(path);
+}
+
+/// Bandeau « modifications non enregistrées » : enregistrer, abandonner, ou
+/// rouvrir l'éditeur.
+class _DraftBanner extends StatelessWidget {
+  const _DraftBanner({
+    required this.lang,
+    required this.onSave,
+    required this.onDiscard,
+    this.onEdit,
+  });
+  final Lang lang;
+  final VoidCallback onSave;
+  final VoidCallback onDiscard;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S(lang);
+    final tp = Tips(lang);
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 2, 4, 2),
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 4,
+          children: [
+            Text('● ${s.unsavedChanges}',
+                style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onTertiaryContainer,
+                    fontWeight: FontWeight.w700)),
+            if (onEdit != null)
+              TextButton(onPressed: onEdit, child: Text(s.editScript)),
+            tip(
+              tp.saveScript,
+              FilledButton.tonal(
+                  style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact),
+                  onPressed: onSave,
+                  child: Text(s.saveScript)),
+            ),
+            tip(
+              tp.discardChanges,
+              TextButton(onPressed: onDiscard, child: Text(s.discardChanges)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Éditeur de texte du script, dans la police du code : chaque frappe met à
+/// jour le brouillon ; Ctrl+S enregistre ; Tab insère une tabulation.
+class _SourceEditor extends StatefulWidget {
+  const _SourceEditor({
+    super.key,
+    required this.initial,
+    required this.lang,
+    required this.fontFamily,
+    required this.fontSize,
+    required this.header,
+    required this.onChanged,
+    required this.onSave,
+  });
+  final String initial;
+  final Lang lang;
+  final String? fontFamily;
+  final double fontSize;
+  final Widget header;
+  final void Function(String text) onChanged;
+  final VoidCallback onSave;
+
+  @override
+  State<_SourceEditor> createState() => _SourceEditorState();
+}
+
+class _SourceEditorState extends State<_SourceEditor> {
+  late final _controller = TextEditingController(text: widget.initial);
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// Tab : une tabulation à la place du changement de focus.
+  void _insertTab() {
+    final v = _controller.value;
+    final sel = v.selection;
+    if (!sel.isValid) return;
+    final text = v.text.replaceRange(sel.start, sel.end, '\t');
+    _controller.value = TextEditingValue(
+        text: text, selection: TextSelection.collapsed(offset: sel.start + 1));
+    widget.onChanged(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      widget.header,
+      Expanded(
+        child: Container(
+          color: theme.colorScheme.surfaceContainerLowest,
+          child: Semantics(
+            label: Tips(widget.lang).editor,
+            textField: true,
+            child: CallbackShortcuts(
+              bindings: {
+                const SingleActivator(LogicalKeyboardKey.keyS, control: true):
+                    widget.onSave,
+                const SingleActivator(LogicalKeyboardKey.tab): _insertTab,
+              },
+              child: TextField(
+                controller: _controller,
+                focusNode: _focus,
+                maxLines: null,
+                expands: true,
+                textAlignVertical: TextAlignVertical.top,
+                keyboardType: TextInputType.multiline,
+                style: codeTextStyle(widget.fontFamily, widget.fontSize,
+                    color: theme.colorScheme.onSurface),
+                decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.all(8)),
+                onChanged: widget.onChanged,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ]);
   }
 }
 
@@ -717,7 +957,8 @@ class _DocTabs extends StatelessWidget {
                 tooltip: '$path\n${tips.tab}',
                 closeLabel: closeLabel,
                 onTap: () => state.selectTab(path),
-                onClose: () => state.closeTab(path),
+                dirty: state.hasDraft(path),
+                onClose: () => requestCloseTab(context, state, path),
               ),
           ],
         ),
@@ -734,9 +975,13 @@ class _DocTab extends StatelessWidget {
     required this.closeLabel,
     required this.onTap,
     required this.onClose,
+    this.dirty = false,
   });
   final String path;
   final bool active;
+
+  /// Modifications non enregistrées : pastille devant le nom.
+  final bool dirty;
   final String tooltip;
   final String closeLabel;
   final VoidCallback onTap;
@@ -767,7 +1012,7 @@ class _DocTab extends StatelessWidget {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 180),
-              child: Text(path.split('/').last,
+              child: Text('${dirty ? '● ' : ''}${path.split('/').last}',
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelLarge?.copyWith(
                       color: fg,
@@ -881,6 +1126,16 @@ List<Widget> baselineActions(BuildContext context, AppState state,
           label: Text(s.setBaseline),
         ),
       ),
+    tip(
+      Tips(state.lang).compare,
+      OutlinedButton.icon(
+        onPressed: state.busy || !hasReport
+            ? null
+            : () => showCompareDialog(context, state, folder: folder),
+        icon: const Icon(Icons.difference_outlined),
+        label: Text(s.compareAnalyses),
+      ),
+    ),
   ];
 }
 

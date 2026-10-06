@@ -37,6 +37,49 @@ class S {
   String baselineSet(String path) =>
       _t('Référence enregistrée : $path', 'Baseline saved: $path');
   String get closeTab => _t('Fermer l\'onglet', 'Close the tab');
+  String get ruleDetails => _t('Détail de la règle', 'Rule details');
+  String get references => _t('Références', 'References');
+  String get ruleExample => _t('Exemple', 'Example');
+  String get noRuleExample => _t('Pas d\'exemple rédigé pour cette règle.',
+      'No example written for this rule.');
+  String get ruleEquivalents =>
+      _t('Équivalents dans d\'autres outils', 'Equivalent in other tools');
+  String get ruleOccurrences => _t('Occurrences', 'Occurrences');
+  String get noOccurrenceHere =>
+      _t('Aucune dans le script affiché.', 'None in the displayed script.');
+  String occurrencesHere(int n, List<int> lines) => _t(
+      '$n dans le script affiché (lignes ${_lines(lines)})',
+      '$n in the displayed script (lines ${_lines(lines)})');
+  String occurrencesInFolder(int n, int scripts) => _t(
+      '$n dans le dossier analysé ($scripts script${scripts > 1 ? 's' : ''})',
+      '$n in the analysed folder ($scripts script${scripts > 1 ? 's' : ''})');
+  String _lines(List<int> lines) {
+    final l = lines.map((n) => n == 0 ? '—' : '$n').toList();
+    return l.length <= 12 ? l.join(', ') : '${l.take(12).join(', ')}…';
+  }
+
+  String get ruleReported => _t('Règle signalée', 'Rule reported');
+  String get ruleIgnoreHow =>
+      _t('Pour l\'ignorer ou en savoir plus', 'To ignore it or learn more');
+  String get compareAnalyses => _t('Comparer…', 'Compare…');
+  String get editScript => _t('Modifier le script', 'Edit the script');
+  String get unsavedChanges =>
+      _t('Modifications non enregistrées', 'Unsaved changes');
+  String get saveScript => _t('Enregistrer', 'Save');
+  String get discardChanges => _t('Abandonner', 'Discard');
+  String get stopEditing => _t('Quitter l\'éditeur', 'Close the editor');
+  String scriptSaved(String path) =>
+      _t('Script enregistré : $path', 'Script saved: $path');
+  String get saveStale => _t(
+      'Le fichier a changé sur le disque depuis l\'analyse : relancez l\'analyse avant d\'enregistrer.',
+      'The file changed on disk since the analysis: re-run it before saving.');
+  String closeUnsavedTitle(String name) =>
+      _t('Fermer $name sans enregistrer ?', 'Close $name without saving?');
+  String get closeUnsavedBody => _t(
+      'Les modifications non enregistrées seront perdues.',
+      'Unsaved changes will be lost.');
+  String get closeWithoutSaving =>
+      _t('Fermer sans enregistrer', 'Close without saving');
   String get clearSearch => _t('Effacer la recherche', 'Clear the search');
   String get noHelpFound =>
       _t('Aucun sujet ne correspond.', 'No topic matches.');

@@ -4,6 +4,7 @@ library;
 import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart';
 
+import '../strings.dart';
 import 'common.dart';
 
 class HistoryChart extends StatelessWidget {
@@ -15,17 +16,25 @@ class HistoryChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return CustomPaint(
-      painter: HistoryPainter(
-        [for (final e in entries) e.average],
-        line: theme.colorScheme.primary,
-        grid: theme.colorScheme.outlineVariant,
-        text: theme.textTheme.labelSmall!,
-        pointColor: (v) => scoreColor(v, theme.brightness),
-        first: _date(entries.first.date),
-        last: _date(entries.last.date),
+    return Semantics(
+      image: true,
+      label: S(lang).historyLine(
+          entries.length,
+          fmtScore(entries.first.average, lang),
+          fmtScore(entries.last.average, lang),
+          fmtDelta(entries.last.average, entries.first.average, lang)),
+      child: CustomPaint(
+        painter: HistoryPainter(
+          [for (final e in entries) e.average],
+          line: theme.colorScheme.primary,
+          grid: theme.colorScheme.outlineVariant,
+          text: theme.textTheme.labelSmall!,
+          pointColor: (v) => scoreColor(v, theme.brightness),
+          first: _date(entries.first.date),
+          last: _date(entries.last.date),
+        ),
+        child: const SizedBox.expand(),
       ),
-      child: const SizedBox.expand(),
     );
   }
 

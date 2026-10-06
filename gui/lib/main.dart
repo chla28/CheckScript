@@ -16,7 +16,8 @@ import 'package:flutter/services.dart';
 
 import 'app_state.dart';
 import 'code_style.dart';
-import 'screens/analysis_screen.dart' show AnalysisScreen, exportReports;
+import 'screens/analysis_screen.dart'
+    show AnalysisScreen, exportReports, requestCloseTab;
 import 'screens/folder_screen.dart';
 import 'screens/rules_screen.dart';
 import 'screens/settings_screen.dart';
@@ -266,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SingleActivator(LogicalKeyboardKey.keyF, control: true): _find,
         const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
           final tab = state.activeTab;
-          if (_index == 0 && tab != null) state.closeTab(tab);
+          if (_index == 0 && tab != null) requestCloseTab(context, state, tab);
         },
         const SingleActivator(LogicalKeyboardKey.tab, control: true): () =>
             state.cycleTab(1),

@@ -134,43 +134,52 @@ class _SourceViewState extends State<SourceView> {
             final n = i + 1;
             final sev = worst[n];
             final selected = n == widget.selectedLine;
-            final row = InkWell(
-              onTap:
-                  widget.onLineTap == null ? null : () => widget.onLineTap!(n),
-              child: Container(
-                color: selected
-                    ? theme.colorScheme.primary.withValues(alpha: 0.14)
-                    : (widget.matchLines.contains(n)
-                        ? Colors.amber.withValues(alpha: 0.28)
-                        : null),
-                child: Row(children: [
-                  Container(
-                      width: 4,
-                      color: sev == null
-                          ? Colors.transparent
-                          : severityColor(sev, b)),
-                  SizedBox(
-                    width: 12.0 + digits * digitWidth,
-                    child: Text('$n',
-                        textAlign: TextAlign.right,
-                        style: mono.copyWith(color: theme.disabledColor)),
+            final row = Semantics(
+                selected: selected,
+                hint: tips[n]?.join('. '),
+                child: InkWell(
+                  onTap: widget.onLineTap == null
+                      ? null
+                      : () => widget.onLineTap!(n),
+                  child: Container(
+                    color: selected
+                        ? theme.colorScheme.primary.withValues(alpha: 0.14)
+                        : (widget.matchLines.contains(n)
+                            ? Colors.amber.withValues(alpha: 0.28)
+                            : null),
+                    child: Row(children: [
+                      // Marque de sévérité : la couleur seule ne suffit pas, le
+                      // libellé est lu par les lecteurs d'écran.
+                      Semantics(
+                        label: sev?.label,
+                        child: Container(
+                            width: 4,
+                            color: sev == null
+                                ? Colors.transparent
+                                : severityColor(sev, b)),
+                      ),
+                      SizedBox(
+                        width: 12.0 + digits * digitWidth,
+                        child: Text('$n',
+                            textAlign: TextAlign.right,
+                            style: mono.copyWith(color: theme.disabledColor)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: tokens == null
+                            ? Text(widget.lines[i],
+                                style: mono,
+                                softWrap: false,
+                                overflow: TextOverflow.fade)
+                            : Text.rich(
+                                highlightedLine(
+                                    widget.lines[i], tokens[i], mono, b),
+                                softWrap: false,
+                                overflow: TextOverflow.fade),
+                      ),
+                    ]),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: tokens == null
-                        ? Text(widget.lines[i],
-                            style: mono,
-                            softWrap: false,
-                            overflow: TextOverflow.fade)
-                        : Text.rich(
-                            highlightedLine(
-                                widget.lines[i], tokens[i], mono, b),
-                            softWrap: false,
-                            overflow: TextOverflow.fade),
-                  ),
-                ]),
-              ),
-            );
+                ));
             final shown = sev == null
                 ? row
                 : Tooltip(

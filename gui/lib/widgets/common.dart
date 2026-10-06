@@ -4,22 +4,28 @@ library;
 import 'package:check_script/check_script.dart';
 import 'package:flutter/material.dart';
 
+/// Couleurs des sévérités. Thème clair comme sombre, chaque couleur a un
+/// rapport de contraste d'au moins 4,5:1 (WCAG AA) avec les fonds de
+/// l'interface, y compris le fond teinté des pastilles (test `a11y_test`).
+/// La couleur n'est jamais le seul indice : libellé, info-bulle et
+/// description pour les lecteurs d'écran l'accompagnent.
 Color severityColor(Severity s, Brightness b) {
   final dark = b == Brightness.dark;
   return switch (s) {
     Severity.critical =>
-      dark ? const Color(0xFFFF6B6B) : const Color(0xFFB3261E),
-    Severity.high => dark ? const Color(0xFFFF922B) : const Color(0xFFD9480F),
-    Severity.medium => dark ? const Color(0xFFFFD43B) : const Color(0xFFB8860B),
-    Severity.low => dark ? const Color(0xFF74C0FC) : const Color(0xFF2F6FB5),
+      dark ? const Color(0xFFFF8F8F) : const Color(0xFFA5231C),
+    Severity.high => dark ? const Color(0xFFFFA04D) : const Color(0xFF9D340B),
+    Severity.medium => dark ? const Color(0xFFFFD43B) : const Color(0xFF715207),
+    Severity.low => dark ? const Color(0xFF74C0FC) : const Color(0xFF265B94),
   };
 }
 
+/// Couleur d'une note : mêmes exigences de contraste que [severityColor].
 Color scoreColor(double v, Brightness b) {
   final dark = b == Brightness.dark;
-  if (v >= 7.5) return dark ? const Color(0xFF69DB7C) : const Color(0xFF2E7D32);
-  if (v >= 5) return dark ? const Color(0xFFFFD43B) : const Color(0xFFB8860B);
-  return dark ? const Color(0xFFFF6B6B) : const Color(0xFFB3261E);
+  if (v >= 7.5) return dark ? const Color(0xFF69DB7C) : const Color(0xFF246227);
+  if (v >= 5) return dark ? const Color(0xFFFFD43B) : const Color(0xFF715207);
+  return dark ? const Color(0xFFFF8F8F) : const Color(0xFFA5231C);
 }
 
 String categoryShort(Category c, Lang lang) {

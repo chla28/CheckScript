@@ -424,6 +424,66 @@ class AppState extends ChangeNotifier {
     _tabReports.removeWhere((path, _) => path != keep);
   }
 
+  /// Brouillons : chemin d'un script → texte modifié dans l'interface, pas
+  /// encore enregistré. Ils survivent aux changements d'onglet.
+  final Map<String, String> drafts = {};
+
+  bool hasDraft(String path) => drafts.containsKey(path);
+
+  /// Texte à éditer pour [path] : le brouillon, sinon le contenu analysé.
+  String? textForEdit(String path) =>
+      drafts[path] ??
+      (current?.script.path == path
+          ? current!.script.content
+          : _tabReports[path]?.script.content);
+
+  /// Mémorise [text] comme brouillon de [path] ; s'il revient au contenu
+  /// analysé, le brouillon disparaît. N'avertit les écouteurs que si la
+  /// présence d'un brouillon change (pas à chaque frappe).
+  void setDraft(String path, String text) {
+    final original = current?.script.path == path
+        ? current!.script.content
+        : _tabReports[path]?.script.content;
+    final had = drafts.containsKey(path);
+    if (text == original) {
+      drafts.remove(path);
+    } else {
+      drafts[path] = text;
+    }
+    if (had != drafts.containsKey(path)) notifyListeners();
+  }
+
+  void discardDraft(String path) {
+    if (drafts.remove(path) != null) notifyListeners();
+  }
+
+  /// Écrit le brouillon de [path] dans le fichier (copie .orig à la
+  /// première écriture depuis le lancement, fins de ligne d'origine
+  /// conservées) puis relance l'analyse. Renvoie null en cas de succès,
+  /// [staleFix] si le fichier a changé sur le disque depuis l'analyse, ou le
+  /// message de l'erreur d'écriture.
+  Future<String?> saveDraft(String path) async {
+    final text = drafts[path];
+    final c = current;
+    if (text == null || c == null || c.script.path != path || busy) {
+      return staleFix;
+    }
+    try {
+      final raw = await File(path).readAsString();
+      if (ScriptInfo.fromContent(path, raw).content != c.script.content) {
+        return staleFix;
+      }
+      await _backup(path, raw);
+      await File(path).writeAsString(
+          c.script.hasCrlf ? text.replaceAll('\n', '\r\n') : text);
+    } on FileSystemException catch (e) {
+      return e.osError?.message ?? e.message;
+    }
+    drafts.remove(path);
+    await analyzeFile(path);
+    return null;
+  }
+
   /// Affiche l'onglet [path] : son rapport mémorisé, ou une nouvelle analyse
   /// si le fichier a changé depuis ou si le rapport est périmé.
   Future<void> selectTab(String path) async {
@@ -463,6 +523,7 @@ class AppState extends ChangeNotifier {
     if (i < 0) return;
     openTabs.removeAt(i);
     _tabReports.remove(path);
+    drafts.remove(path);
     if (path != activeTab) {
       notifyListeners();
     } else if (openTabs.isEmpty) {

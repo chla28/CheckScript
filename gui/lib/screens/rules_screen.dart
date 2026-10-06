@@ -15,6 +15,7 @@ import '../help/help_screen.dart';
 import '../help/tips.dart';
 import '../strings.dart';
 import '../widgets/common.dart';
+import 'rule_detail.dart';
 
 class RulesScreen extends StatefulWidget {
   const RulesScreen({super.key, required this.state, this.findRequest});
@@ -309,6 +310,12 @@ class _RulesScreenState extends State<RulesScreen> {
                   ].join(' · ')),
                   secondary: Row(mainAxisSize: MainAxisSize.min, children: [
                     if (sev != null) SeverityBadge(sev),
+                    IconButton(
+                      tooltip: tp.ruleDetails,
+                      icon: const Icon(Icons.info_outline, size: 18),
+                      onPressed: () =>
+                          showRuleDetail(context, state, e, locked: locked),
+                    ),
                     if (e.url != null)
                       IconButton(
                         tooltip: tp.documentation,

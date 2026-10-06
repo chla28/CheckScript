@@ -67,6 +67,33 @@ class Tips {
       'Cliquer pour afficher ce script (Ctrl+Tab : suivant, Ctrl+W : fermer)',
       'Click to show this script (Ctrl+Tab: next, Ctrl+W: close)');
 
+  String get editScript => _t(
+      'Modifier le script ici (Ctrl+S enregistre) : l\'analyse est relancée à l\'enregistrement, une copie .orig garde l\'original',
+      'Edit the script here (Ctrl+S saves): the analysis re-runs on save, a .orig copy keeps the original');
+  String get saveScript => _t(
+      'Écrire les modifications dans le fichier (Ctrl+S)',
+      'Write the changes to the file (Ctrl+S)');
+  String get discardChanges => _t(
+      'Abandonner les modifications non enregistrées',
+      'Discard the unsaved changes');
+  String get editor => _t('Éditeur du script', 'Script editor');
+
+  String get ruleDetails => _t(
+      'Détail de la règle : description, exemple, références, occurrences, façons de l\'ignorer',
+      'Rule details: description, example, references, occurrences, ways to ignore it');
+
+  String get compare => _t(
+      'Comparer deux analyses côte à côte : problèmes corrigés et nouveaux, évolution des notes',
+      'Compare two analyses side by side: fixed and new issues, score evolution');
+  String get pickReport => _t(
+      'Choisir le rapport JSON « avant » (-o rapport.json)',
+      'Pick the “before” JSON report (-o report.json)');
+  String get useBaseline => _t('Utiliser la référence chargée comme « avant »',
+      'Use the loaded baseline as “before”');
+  String get copyDiff => _t(
+      'Copier la comparaison en Markdown (commentaire de merge request)',
+      'Copy the comparison as Markdown (merge request comment)');
+
   // Synthèse
   String get tabSummary => _t(
       'Note globale, radar des catégories et ce qui pèse sur la note',
