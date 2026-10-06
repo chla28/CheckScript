@@ -1,7 +1,7 @@
 name: check_script_gui
 description: Graphical interface of check-script (evaluation of shell and Python scripts).
 publish_to: 'none'
-version: 0.21.1+38
+version: 0.22.0+39
 
 environment:
   sdk: '>=3.5.0 <4.0.0'

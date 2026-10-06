@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.22.0 — 2026-10-06
+
+### Features
+
+- **cli**: diff, baseline-update, interactive fix and fish completion (6885e6c)
+- **gui**: compare analyses, rule details, editing and accessibility (fb5d269)
+
+### Documentation
+
+- diff, baseline-update, interactive fix and the new GUI features (af08d9b)
+
+### Maintenance
+
+- add gitleaks configuration for the test fixtures (3b4d718)
+
 ## 0.21.1 — 2026-10-06
 
 ### Bug fixes
