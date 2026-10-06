@@ -1213,6 +1213,11 @@ analyse complète.
 
 == Intégration continue
 
+Un guide dédié, link:ci.fr.adoc[Guide d'intégration continue], couvre les
+trois niveaux d'adoption (seuil, référence, cliquet), la comparaison d'une
+pull request et des exemples complets pour GitHub, GitLab, Jenkins et
+pre-commit (`doc/ci/`).
+
 GitLab::
 Le format « Code Quality » s'affiche dans le widget des merge requests.
 Exemple complet : `doc/ci/gitlab-ci.yml`.
@@ -1420,6 +1425,16 @@ Les analyses de dossier traitent plusieurs scripts à la fois.
   survit aux changements d'onglet (● devant le nom, bandeau) ; fermer un
   onglet modifié demande confirmation, et l'enregistrement est refusé si le
   fichier a changé sur le disque depuis l'analyse ;
+* *Annulation* : chaque correction, enregistrement de l'éditeur et
+  restauration est enregistré dans l'historique de la session (50
+  entrées). *Annuler* (barre d'outils) remet le script affiché dans l'état
+  d'avant sa dernière modification, octet pour octet, et relance l'analyse ;
+  l'annulation est refusée si le fichier a changé depuis (rien n'est
+  écrasé). *Historique…* liste les modifications (seule la plus récente d'un
+  script s'annule, dans l'ordre), et *Restaurer l'original* remet le script
+  tel qu'il était avant la première modification de la session, d'après sa
+  copie `.orig`, après confirmation (la restauration est elle-même
+  annulable) ;
 * *Accessibilité* : les couleurs des sévérités et des notes ont un contraste
   d'au moins 4,5:1 (WCAG AA) sur tous les fonds, dans les deux thèmes ; la
   couleur n'est jamais le seul indice (libellés, info-bulles) ; la marge du

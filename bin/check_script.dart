@@ -931,14 +931,39 @@ Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
   return code;
 }
 
+/// Options de `check-script explain`.
+ArgParser buildExplainParser() => ArgParser()
+  ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
+  ..addOption('config', abbr: 'c')
+  ..addFlag('help', abbr: 'h', negatable: false);
+
+/// Options de `check-script init`.
+ArgParser buildInitParser() => ArgParser()
+  ..addOption('profile', abbr: 'p', allowed: ['strict', 'default', 'legacy'])
+  ..addMultiOption('context', allowed: ['root', 'cron', 'systemd'])
+  ..addMultiOption('exclude')
+  ..addOption('baseline')
+  ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
+  ..addFlag('force', abbr: 'f', negatable: false)
+  ..addFlag('stdout', negatable: false)
+  ..addFlag('no-analysis', negatable: false)
+  ..addFlag('no-external', negatable: false)
+  ..addFlag('help', abbr: 'h', negatable: false);
+
+/// Options de `check-script diff`.
+ArgParser buildDiffParser() => ArgParser()
+  ..addOption('format', abbr: 'f', allowed: ['text', 'md', 'json'])
+  ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
+  ..addOption('fail-on-new', allowed: ['low', 'medium', 'high', 'critical'])
+  ..addFlag('fail-on-worse', negatable: false)
+  ..addFlag('summary', negatable: false)
+  ..addFlag('help', abbr: 'h', negatable: false);
+
 /// `check-script explain RÈGLE` : description complète d'une règle.
 Future<int> _explain(List<String> args, Lang lang,
     {required IOSink out, required IOSink err}) async {
   String t(String fr, String en) => lang == Lang.fr ? fr : en;
-  final parser = ArgParser()
-    ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
-    ..addOption('config', abbr: 'c')
-    ..addFlag('help', abbr: 'h', negatable: false);
+  final parser = buildExplainParser();
   final ArgResults a;
   try {
     a = parser.parse(args);
@@ -1001,17 +1026,7 @@ Future<int> _explain(List<String> args, Lang lang,
 Future<int> _init(List<String> args, Lang lang,
     {required IOSink out, required IOSink err, CommandRunner? runner}) async {
   String t(String fr, String en) => lang == Lang.fr ? fr : en;
-  final parser = ArgParser()
-    ..addOption('profile', abbr: 'p', allowed: ['strict', 'default', 'legacy'])
-    ..addMultiOption('context', allowed: ['root', 'cron', 'systemd'])
-    ..addMultiOption('exclude')
-    ..addOption('baseline')
-    ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
-    ..addFlag('force', abbr: 'f', negatable: false)
-    ..addFlag('stdout', negatable: false)
-    ..addFlag('no-analysis', negatable: false)
-    ..addFlag('no-external', negatable: false)
-    ..addFlag('help', abbr: 'h', negatable: false);
+  final parser = buildInitParser();
   final ArgResults a;
   try {
     a = parser.parse(args);
@@ -1155,13 +1170,7 @@ Future<int> _init(List<String> args, Lang lang,
 Future<int> _diff(List<String> args, Lang lang,
     {required IOSink out, required IOSink err}) async {
   String t(String fr, String en) => lang == Lang.fr ? fr : en;
-  final parser = ArgParser()
-    ..addOption('format', abbr: 'f', allowed: ['text', 'md', 'json'])
-    ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
-    ..addOption('fail-on-new', allowed: ['low', 'medium', 'high', 'critical'])
-    ..addFlag('fail-on-worse', negatable: false)
-    ..addFlag('summary', negatable: false)
-    ..addFlag('help', abbr: 'h', negatable: false);
+  final parser = buildDiffParser();
   final ArgResults a;
   try {
     a = parser.parse(args);

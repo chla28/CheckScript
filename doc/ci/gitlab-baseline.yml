@@ -1,0 +1,70 @@
+# GitLab CI: adopt check-script on existing code, with a merge request note.
+#
+# - merge request: fails only on NEW issues (the debt in baseline.json is
+#   tolerated), and posts the comparison with the target branch as a note;
+# - default branch: tightens baseline.json after each merge (fixed issues
+#   leave it).
+#
+# Variables to define: CHECK_SCRIPT_URL (archive check_script-VERSION-
+# linux-x86_64.tar.gz, e.g. in the package registry) and, for the note and
+# the baseline commit, GITLAB_TOKEN (project access token, scope api +
+# write_repository).
+#
+# First baseline, once, from the default branch:
+#   check-script -q -o baseline.json scripts/      then commit baseline.json
+
+.check-script-setup: &setup
+  image: registry.fedoraproject.org/fedora:44
+  before_script:
+    - dnf install -y --setopt=install_weak_deps=False ShellCheck shfmt
+      git tar curl
+    - curl -fsSL "$CHECK_SCRIPT_URL" | tar xz
+    - ./check_script-*/install.sh --prefix=/usr/local
+
+check-script:mr:
+  <<: *setup
+  stage: test
+  script:
+    - check-script --no-color --summary -b baseline.json --fail-on-new high
+      -o gl-code-quality-report.json scripts
+  artifacts:
+    when: always
+    reports:
+      codequality: gl-code-quality-report.json
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+check-script:mr-note:
+  <<: *setup
+  stage: test
+  script:
+    # Analyze the target branch in a second work tree, then compare.
+    - git fetch --depth 1 origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - git worktree add ../base FETCH_HEAD
+    - check-script -q -o base.json ../base/scripts
+    - check-script -q -o head.json scripts
+    - check-script diff base.json head.json --lang en -f md > diff.md
+    - |
+      curl --fail --request POST --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+        --data-urlencode "body@diff.md" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes"
+  artifacts:
+    paths: [diff.md]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      allow_failure: true
+
+check-script:tighten:
+  <<: *setup
+  stage: test
+  script:
+    - check-script --no-color -q -b baseline.json --baseline-update scripts
+    - |
+      if ! git diff --quiet -- baseline.json; then
+        git config user.name check-script-bot
+        git config user.email check-script-bot@example.com
+        git commit -m "chore: tighten the check-script baseline [skip ci]" baseline.json
+        git push "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" "HEAD:${CI_COMMIT_BRANCH}"
+      fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

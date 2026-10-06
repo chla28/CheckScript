@@ -215,9 +215,9 @@ fi
 # ── Ressources ───────────────────────────────────────────────────────────────
 echo "▶ Adding resources…"
 cp doc/user.adoc doc/developer.adoc doc/user.fr.adoc doc/developer.fr.adoc \
-  doc/checkscript.example.yaml "${DIST_DIR}/doc/"
+  doc/ci.adoc doc/ci.fr.adoc doc/checkscript.example.yaml "${DIST_DIR}/doc/"
 cp -r doc/ci "${DIST_DIR}/doc/"
-echo "  ✓ doc/ (user.adoc, developer.adoc, checkscript.example.yaml, ci/)"
+echo "  ✓ doc/ (user.adoc, developer.adoc, ci.adoc, checkscript.example.yaml, ci/)"
 cp completions/check-script.bash completions/_check-script completions/check-script.fish \
   "${DIST_DIR}/completions/"
 echo "  ✓ completions/ (bash, zsh, fish)"

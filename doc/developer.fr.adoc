@@ -488,6 +488,8 @@ dart analyze --fatal-infos
 |`improvements_test.dart` |Même règle entre outils, exclusions transmises, `--fix` et règles désactivées, doublons multi-lignes, `# noqa` / `# nosec`, analyses parallèles, cache Semgrep, export YAML (aller-retour), rapport HTML de dossier, calibrage Python
 |`python_test.dart` |Parseurs des outils Python (sorties réelles de `fixtures/outputs/python/`, capturées sur `fixtures/bad.py`), dédoublonnage, secrets, règles intégrées Python (lexer et `ast` réel), `--fix`, découverte, `pythonTarget`
 |`fix_suggestions_test.dart` |Corrections par problème, exemples, rapport HTML
+|`ci_examples_test.dart` |Exemples de CI (`doc/ci/`, `ci.fr.adoc`) : chaque commande `check-script` est acceptée par l'analyseur d'options réel, les entrées de l'action et les hooks pre-commit existent, les versions citées sont à jour
+|`scoring_golden_test.dart` |Non-régression du barème : instantané des notes du corpus pour les trois profils (`test/corpus/expected_scores.txt`, `UPDATE_GOLDEN=1` pour régénérer), constantes du barème = guides utilisateur
 |`tools_test.dart` |`check-script diff`, `--baseline-update`, `--fix --interactive`, `--format gitlab`
 |`subcommands_test.dart` |Motifs `.gitignore`, `--exclude` / `.checkscriptignore` / `exclude:`, `check-script explain` et `check-script init`
 |`integration_test.dart` |Vrais outils (ignorés s'ils sont absents), dont Ruff, Bandit, mypy, Radon, Vermin sur `bad.py` / `good.py`

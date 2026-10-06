@@ -1,0 +1,223 @@
+= check-script — Guide d'intégration continue
+:toc:
+:toc-title: Sommaire
+:lang: fr
+
+Ce guide montre comment lancer check-script dans une chaîne d'intégration
+continue (CI) et comment l'adopter progressivement sur du code existant. Les
+exemples complets, prêts à copier, sont dans `doc/ci/` ; les options sont
+décrites dans le link:user.fr.adoc[guide utilisateur].
+
+== Principe
+
+check-script se termine par un code de sortie qu'une chaîne peut exploiter :
+
+[cols="1,4",options="header"]
+|===
+|Code |Signification
+|0 |Analyse effectuée, aucun seuil franchi.
+|1 |Seuil non atteint (`--fail-under`, `--fail-on-new`, et `diff` avec `--fail-on-new` / `--fail-on-worse`).
+|2 |Erreur d'usage (option invalide, configuration ou rapport invalide).
+|3 |Script introuvable ou illisible, ou fichier de rapport impossible à écrire.
+|===
+
+Il écrit aussi des rapports que les outils de CI savent afficher :
+
+[cols="2,3",options="header"]
+|===
+|Sortie |Utilisée par
+|`-o rapport.json` / `--format json` |Référence, `check-script diff`, tout script (`jq`).
+|`-o rapport.sarif` |GitHub *Code scanning*.
+|`-o gl-code-quality-report.json` (ou `--format gitlab`) |Widget de merge request GitLab (Code Quality).
+|`-o rapport.xml` (JUnit) |Jenkins, onglet *Tests* de GitLab.
+|`--format github` |Annotations GitHub sur les lignes d'une pull request.
+|`-o rapport.html`, `.md`, `.pdf` |Artefacts, résumés de job, rapports d'audit.
+|===
+
+== Choisir une stratégie
+
+[cols="2,3,3",options="header"]
+|===
+|Situation |Stratégie |Exemple
+|Code neuf, ou déjà propre |*Seuil* : le job échoue sous une note. |`doc/ci/github-actions.yml`, `doc/ci/gitlab-ci.yml`
+|Code existant avec beaucoup de dette |*Référence* : la dette est tolérée, seuls les problèmes *nouveaux* font échouer. |`doc/ci/github-baseline.yml`
+|Dette qu'on veut voir diminuer |*Cliquet* : après chaque fusion, la référence est réécrite sans les problèmes corrigés. |`doc/ci/github-baseline.yml`, `doc/ci/gitlab-baseline.yml`
+|Revue d'une pull request |*Comparaison* avec la branche de base, en tableau Markdown. |`doc/ci/github-pr-diff.yml`, `doc/ci/gitlab-baseline.yml`
+|Avant le commit |Hook *pre-commit* sur les scripts modifiés. |`doc/ci/pre-commit-config.yaml`
+|===
+
+== Briques communes
+
+=== Installation
+
+* GitHub : l'action compile check-script et installe ShellCheck et shfmt
+  (voir plus bas).
+* Ailleurs : l'archive de la version contient `install.sh` :
++
+[source,bash]
+----
+curl -fsSL "$CHECK_SCRIPT_URL" | tar xz
+./check_script-*/install.sh --prefix=/usr/local
+----
++
+Installez à côté les outils d'analyse voulus (ShellCheck, shfmt, Ruff,
+Bandit… voir le guide utilisateur) ; un outil absent est simplement ignoré
+et les règles intégrées s'appliquent toujours. `check-script --list-tools`
+montre ce qui a été trouvé.
+
+=== Configuration du projet
+
+[source,bash]
+----
+check-script init                           # écrit .checkscript.yaml, suggère un profil
+check-script init --exclude vendor/ --context cron
+----
+
+Le `.checkscript.yaml` le plus proche s'applique à chaque script : le même
+fichier sert aux développeurs, aux éditeurs et à la CI. Les chemins à ignorer
+vont dans sa clé `exclude:` ou dans un fichier `.checkscriptignore` à la
+racine du dossier analysé (syntaxe `.gitignore`), ou en ligne de commande
+avec `--exclude`.
+
+=== Vitesse et reproductibilité
+
+[source,bash]
+----
+check-script --changed-since origin/main scripts/       # seulement les scripts modifiés sur la branche
+check-script --jobs 4 --no-cache scripts/               # analyse en parallèle, sans cache entre jobs
+check-script --without semgrep scripts/                 # machine sans accès réseau
+----
+
+`--changed-since` a besoin de l'historique : avec GitHub, `fetch-depth: 0` au
+checkout. Le cache des résultats (`~/.cache/check-script`) est facultatif :
+gardez-le entre les jobs pour accélérer un gros dépôt, ou ajoutez
+`--no-cache`.
+
+== GitHub Actions
+
+=== Seuil
+
+[source,yaml]
+----
+- uses: actions/checkout@v7
+- uses: chla28/CheckScript@v0.22.0
+  with:
+    paths: scripts .github
+    fail-under: '6'            # ou security=8,global=6
+----
+
+L'action annote les lignes concernées (visibles dans les pull requests),
+ajoute le rapport au résumé du job et peut produire un SARIF pour *Security →
+Code scanning*. Entrées : `paths`, `fail-under`, `changed-since`, `args`
+(toute option supplémentaire), `lang`, `annotations`, `summary`, `sarif`,
+`install-tools`. Sorties : `score`, `grade`, `scripts`, `sarif`. Exemple
+complet : `doc/ci/github-actions.yml`.
+
+=== Problèmes nouveaux seulement, et cliquet
+
+Créez la référence une fois, validez-la, puis :
+
+[source,yaml]
+----
+- uses: chla28/CheckScript@v0.22.0
+  with:
+    paths: scripts
+    args: -b baseline.json --fail-on-new high --baseline-update
+----
+
+`--fail-on-new high` fait échouer le job si un nouveau problème de sévérité
+high ou pire apparaît ; `--baseline-update` (à n'utiliser que sur la branche
+principale) réécrit `baseline.json` sans les problèmes corrigés : validez-le
+ensuite. Un script qui a des problèmes nouveaux garde son entrée : ils ne
+sont jamais absorbés dans la dette tolérée. Exemple complet, avec l'étape de
+validation : `doc/ci/github-baseline.yml`.
+
+=== Comparaison d'une pull request
+
+[source,bash]
+----
+check-script diff base.json head.json -f md >> "$GITHUB_STEP_SUMMARY"
+check-script diff base.json head.json --summary --fail-on-new high --fail-on-worse
+----
+
+`check-script diff` compare deux rapports JSON (problèmes nouveaux /
+corrigés / inchangés par script, évolution des notes). Les scripts des deux
+extractions (`base/x/a.sh` et `head/x/a.sh`) sont appariés par la fin de leur
+chemin. Le workflow `doc/ci/github-pr-diff.yml` analyse la branche de base et
+la pull request avec l'action, puis écrit le tableau dans le résumé du job.
+
+== GitLab CI
+
+[source,bash]
+----
+check-script --summary -o gl-code-quality-report.json -o check-script.html \
+  --fail-under 6 --fail-under security=8 .
+----
+
+Le rapport Code Quality s'affiche dans le widget de la merge request.
+Exemples : `doc/ci/gitlab-ci.yml` (seuil) et `doc/ci/gitlab-baseline.yml`
+(problèmes nouveaux seulement sur les merge requests, comparaison publiée en
+note, référence resserrée sur la branche par défaut). Le rapport JUnit
+alimente l'onglet *Tests* :
+
+[source,bash]
+----
+check-script -q -o check-script.xml -o gl-code-quality-report.json .
+----
+
+== Jenkins
+
+`doc/ci/Jenkinsfile` lance check-script, publie le rapport JUnit
+(`junit 'check-script.xml'`) et archive le rapport HTML. Un seuil non atteint
+(code de sortie 1) fait échouer l'étape.
+
+== pre-commit
+
+[source,yaml]
+----
+repos:
+  - repo: https://github.com/chla28/CheckScript
+    rev: v0.22.0
+    hooks:
+      - id: check-script
+        args: [--fail-under, "7"]
+----
+
+`check-script-fix` applique les corrections sûres à la place. Sans le
+framework, `scripts/pre-commit-hook.sh` vérifie la version *indexée* des
+scripts modifiés. Voir `doc/ci/pre-commit-config.yaml`.
+
+== Toute autre CI : la recette générique
+
+[source,bash]
+----
+# Une fois, depuis la branche principale : configuration et référence.
+check-script init --baseline baseline.json
+git add .checkscript.yaml baseline.json && git commit -m "chore: check-script"
+
+# Dans la chaîne d'une modification : échec sur les problèmes nouveaux,
+# affichage de ce qui a changé.
+check-script -q -o head.json scripts
+check-script -b baseline.json --fail-on-new high scripts
+check-script diff baseline.json head.json --summary --fail-on-worse
+
+# Sur la branche principale, après la fusion : resserrer la référence.
+check-script -q -b baseline.json --baseline-update scripts
+----
+
+== Pièges
+
+* *Chemins* : la référence garde les chemins tels qu'ils étaient à sa
+  création ; lancez toujours check-script depuis le même dossier (la racine
+  du dépôt). Deux extractions du dépôt (`base/`, `head/`) conviennent à
+  `diff`.
+* *Mettre à jour check-script* peut changer les notes (nouvelles règles,
+  nouveaux poids) sans que les scripts changent : régénérez la référence
+  après une mise à jour, depuis la branche principale.
+* *`--changed-since`* ne note que les scripts modifiés ; combinez-le avec une
+  référence pour le reste.
+* *Secrets* : les rapports ne contiennent jamais la ligne d'un secret
+  détecté, mais ils contiennent des chemins et des noms de règles : traitez
+  les artefacts d'un dépôt privé comme privés.
+* *Code de sortie 3* dans une chaîne : presque toujours un mauvais chemin ou
+  un script qui n'est pas du texte.

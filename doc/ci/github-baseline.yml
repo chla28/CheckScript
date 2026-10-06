@@ -1,0 +1,43 @@
+# GitHub Actions: adopt check-script on existing code.
+#
+# - Pull requests fail only on NEW issues (the current debt is tolerated).
+# - On the main branch, the baseline is tightened after each merge: fixed
+#   issues leave it, so they cannot silently come back.
+#
+# Create the first baseline once, from the main branch:
+#   check-script -q -o baseline.json scripts/      (or: check-script init --baseline baseline.json)
+# and commit baseline.json.
+name: check-script (baseline)
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write    # only needed to commit the tightened baseline
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: ${{ github.event_name == 'push' }}
+      - id: cs
+        uses: chla28/CheckScript@v0.22.0
+        with:
+          paths: scripts
+          sarif: ''
+          # Pull request: new issues only. Main branch: also tighten.
+          args: >-
+            -b baseline.json --fail-on-new high
+            ${{ github.event_name == 'push' && '--baseline-update' || '' }}
+      - name: Commit the tightened baseline
+        if: github.event_name == 'push'
+        run: |
+          if ! git diff --quiet -- baseline.json; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'chore: tighten the check-script baseline' baseline.json
+            git push
+          fi

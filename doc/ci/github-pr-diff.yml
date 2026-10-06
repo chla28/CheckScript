@@ -1,0 +1,47 @@
+# GitHub Actions: on each pull request, compare the scripts of the PR with
+# those of its base branch and write the result (new / fixed issues, score
+# evolution) to the job summary, as a Markdown table.
+#
+# The job fails if the PR introduces a new issue of severity "high" or
+# worse, or lowers the score of a script.
+name: check-script (pull request diff)
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+          persist-credentials: false
+      # One analysis per checkout. The action builds check-script into
+      # $RUNNER_TEMP/check-script and writes the JSON report asked with -o.
+      - uses: chla28/CheckScript@v0.22.0
+        with:
+          paths: base
+          args: -o ${{ github.workspace }}/base.json
+          annotations: 'false'
+          summary: 'false'
+          sarif: ''
+      - uses: chla28/CheckScript@v0.22.0
+        with:
+          paths: head
+          args: -o ${{ github.workspace }}/head.json
+          annotations: 'true'
+          summary: 'false'
+          sarif: ''
+      # The scripts are paired by the end of their path (base/x/a.sh and
+      # head/x/a.sh): no need to strip the checkout folders.
+      - name: Compare
+        run: |
+          "$RUNNER_TEMP/check-script" diff base.json head.json --lang en \
+            -f md >>"$GITHUB_STEP_SUMMARY"
+          "$RUNNER_TEMP/check-script" diff base.json head.json --lang en \
+            --summary --fail-on-new high --fail-on-worse

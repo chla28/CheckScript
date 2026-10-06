@@ -127,8 +127,11 @@ utilisateur, « Intégration continue »).
 - [Guide développeur](doc/developer.fr.adoc) — architecture, analyseurs,
   ajout de règles, tests, packaging, préparation de la version Flutter.
 - [Exemple de configuration](doc/checkscript.example.fr.yaml), [page de manuel](doc/check-script.1.fr.adoc).
-- Intégration continue : [GitLab CI](doc/ci/gitlab-ci.yml), [GitHub Actions](doc/ci/github-actions.yml),
-  [hooks pre-commit](.pre-commit-hooks.yaml).
+- [Guide d'intégration continue](doc/ci.fr.adoc) — seuil, référence, cliquet, comparaison d'une
+  pull request ; exemples : [GitHub Actions](doc/ci/github-actions.yml), [référence](doc/ci/github-baseline.yml),
+  [comparaison de PR](doc/ci/github-pr-diff.yml), [GitLab CI](doc/ci/gitlab-ci.yml),
+  [référence GitLab](doc/ci/gitlab-baseline.yml), [Jenkins](doc/ci/Jenkinsfile),
+  [pre-commit](doc/ci/pre-commit-config.yaml) ([hooks](.pre-commit-hooks.yaml)).
 
 ## Développement
 

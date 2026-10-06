@@ -1201,6 +1201,12 @@ full analysis.
 
 == Continuous integration
 
+A dedicated guide, link:ci.adoc[Continuous integration guide], covers the
+three adoption levels (threshold, baseline, ratchet), the pull request
+comparison and complete examples for GitHub, GitLab, Jenkins and
+pre-commit (`doc/ci/`).
+
+
 GitLab::
 The "Code Quality" format is displayed in the merge request widget.
 Complete example: `doc/ci/gitlab-ci.yml`.
@@ -1400,6 +1406,14 @@ Also in the interface:
   *draft* that survives tab changes (● before the name, banner) and a
   confirmation is asked before closing a modified tab; saving is refused if
   the file changed on disk since the analysis;
+* *Undo*: every fix, save from the editor and restore is recorded in the
+  session history (50 entries). *Undo* (toolbar) puts the displayed script
+  back into its state before its last change, byte for byte, and re-runs
+  the analysis; it is refused if the file changed since (nothing is
+  overwritten). *History…* lists the changes (only the most recent of a
+  script can be undone, in order), and *Restore the original* puts the
+  script back as it was before the first change of the session, from its
+  `.orig` copy, after confirmation (the restore can itself be undone);
 * *Accessibility*: the colors of severities and scores have a contrast of at
   least 4.5:1 (WCAG AA) on all backgrounds in both themes; color is never
   the only cue (labels, tooltips); the code margin, the radar and the

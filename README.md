@@ -128,8 +128,11 @@ Each document also exists in French (`.fr` suffix).
 - [Developer guide](doc/developer.adoc) — architecture, analyzers,
   adding rules, tests, packaging, preparing the Flutter release.
 - [Configuration example](doc/checkscript.example.yaml), [man page](doc/check-script.1.adoc).
-- Continuous integration: [GitLab CI](doc/ci/gitlab-ci.yml), [GitHub Actions](doc/ci/github-actions.yml),
-  [pre-commit hooks](.pre-commit-hooks.yaml).
+- [Continuous integration guide](doc/ci.adoc) — thresholds, baseline, ratchet, pull request
+  comparison; examples: [GitHub Actions](doc/ci/github-actions.yml), [baseline](doc/ci/github-baseline.yml),
+  [PR comparison](doc/ci/github-pr-diff.yml), [GitLab CI](doc/ci/gitlab-ci.yml),
+  [GitLab baseline](doc/ci/gitlab-baseline.yml), [Jenkins](doc/ci/Jenkinsfile),
+  [pre-commit](doc/ci/pre-commit-config.yaml) ([hooks](.pre-commit-hooks.yaml)).
 
 ## Development
 

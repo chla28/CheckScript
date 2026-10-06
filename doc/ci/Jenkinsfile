@@ -1,0 +1,26 @@
+// Jenkins (declarative pipeline): JUnit report (one suite per script, one
+// failed case per issue), HTML report archived, failure below the thresholds.
+//
+// check-script and its tools (ShellCheck, shfmt...) must be installed on the
+// agent (see scripts/install.sh in the release archive).
+pipeline {
+  agent any
+  stages {
+    stage('check-script') {
+      steps {
+        sh '''
+          check-script --no-color --summary \
+            -o check-script.xml -o check-script.html \
+            --fail-under 6 --fail-under security=8 \
+            scripts
+        '''
+      }
+      post {
+        always {
+          junit allowEmptyResults: true, testResults: 'check-script.xml'
+          archiveArtifacts artifacts: 'check-script.html', allowEmptyArchive: true
+        }
+      }
+    }
+  }
+}

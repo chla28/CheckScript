@@ -1,0 +1,12 @@
+# .pre-commit-config.yaml (https://pre-commit.com): check-script on the files
+# of each commit, with a project-specific threshold and profile.
+#
+# check-script must be installed on the machine (language: system).
+repos:
+  - repo: https://github.com/chla28/CheckScript
+    rev: v0.22.0
+    hooks:
+      - id: check-script
+        args: [--fail-under, "7", --profile, strict]
+      # Optional: apply the safe fixes instead of only checking.
+      # - id: check-script-fix

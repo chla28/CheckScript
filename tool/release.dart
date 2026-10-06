@@ -44,8 +44,18 @@ Map<String, String Function(String, String, String)> versionFiles = {
     f: (s, old, v) => s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
   'action.yml': (s, old, v) =>
       s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
-  'doc/ci/github-actions.yml': (s, old, v) =>
-      s.replaceAll('CheckScript@v$old', 'CheckScript@v$v'),
+  // Exemples d'intégration continue : action GitHub et hook pre-commit.
+  for (final f in [
+    'doc/ci/github-actions.yml',
+    'doc/ci/github-pr-diff.yml',
+    'doc/ci/github-baseline.yml',
+    'doc/ci/pre-commit-config.yaml',
+    'doc/ci.adoc',
+    'doc/ci.fr.adoc',
+  ])
+    f: (s, old, v) => s
+        .replaceAll('CheckScript@v$old', 'CheckScript@v$v')
+        .replaceAll('rev: v$old', 'rev: v$v'),
   // Seule la version de check-script (l'exemple contient aussi celle de
   // ShellCheck).
   for (final f in ['doc/developer.adoc', 'doc/developer.fr.adoc'])

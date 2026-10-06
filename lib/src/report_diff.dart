@@ -194,32 +194,51 @@ ReportsDiff diffReports(String beforeJson, String afterJson,
   final before = _parse(beforeJson, beforeName);
   final after = _parse(afterJson, afterName);
 
-  // Apparie les scripts : même chemin, sinon même nom de fichier s'il est
-  // unique de chaque côté.
+  // Apparie les scripts : d'abord le même chemin ; puis, parmi ceux de même
+  // nom de fichier, celui dont la fin du chemin est la plus longue en
+  // commun (`base/scripts/a.sh` ↔ `head/scripts/a.sh`), s'il est seul à
+  // l'être.
   final unmatchedBefore = [...before];
   final pairs = <(_Entry, _Entry)>[];
-  final addedScripts = <String>[];
-  _Entry? take(String path) {
-    for (final e in unmatchedBefore) {
-      if (e.file == path || p.normalize(e.file) == p.normalize(path)) {
-        unmatchedBefore.remove(e);
-        return e;
-      }
+  final matchedAfter = <_Entry, _Entry>{};
+  for (final a in after) {
+    final e = unmatchedBefore.where(
+        (e) => e.file == a.file || p.normalize(e.file) == p.normalize(a.file));
+    if (e.isNotEmpty) {
+      final b = e.first;
+      unmatchedBefore.remove(b);
+      matchedAfter[a] = b;
     }
-    final same = unmatchedBefore
-        .where((e) => p.basename(e.file) == p.basename(path))
-        .toList();
-    final afterSame =
-        after.where((e) => p.basename(e.file) == p.basename(path)).length;
-    if (same.length == 1 && afterSame == 1) {
-      unmatchedBefore.remove(same.first);
-      return same.first;
+  }
+  int commonTail(String x, String y) {
+    final a = p.split(p.normalize(x)).reversed.toList();
+    final b = p.split(p.normalize(y)).reversed.toList();
+    var n = 0;
+    while (n < a.length && n < b.length && a[n] == b[n]) {
+      n++;
     }
-    return null;
+    return n;
   }
 
   for (final a in after) {
-    final b = take(a.file);
+    if (matchedAfter.containsKey(a)) continue;
+    final same = unmatchedBefore
+        .where((e) => p.basename(e.file) == p.basename(a.file))
+        .toList();
+    if (same.isEmpty) continue;
+    final ranked = [...same]..sort((x, y) =>
+        commonTail(y.file, a.file).compareTo(commonTail(x.file, a.file)));
+    final best = commonTail(ranked.first.file, a.file);
+    final unique =
+        ranked.length == 1 || best > commonTail(ranked[1].file, a.file);
+    if (unique) {
+      unmatchedBefore.remove(ranked.first);
+      matchedAfter[a] = ranked.first;
+    }
+  }
+  final addedScripts = <String>[];
+  for (final a in after) {
+    final b = matchedAfter[a];
     if (b == null) {
       addedScripts.add(a.file);
     } else {

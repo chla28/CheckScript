@@ -1,0 +1,218 @@
+= check-script — Continuous integration guide
+:toc:
+:toc-title: Contents
+:lang: en
+
+This guide shows how to run check-script in a CI pipeline and how to adopt
+it progressively on code that already exists. The complete, ready-to-copy
+examples are in `doc/ci/`; the options are described in the
+link:user.adoc[user guide].
+
+== Principle
+
+check-script exits with a code that a pipeline can act on:
+
+[cols="1,4",options="header"]
+|===
+|Code |Meaning
+|0 |Analysis performed, no threshold crossed.
+|1 |Threshold not met (`--fail-under`, `--fail-on-new`, and `diff` with `--fail-on-new` / `--fail-on-worse`).
+|2 |Usage error (invalid option, invalid configuration or report).
+|3 |Script not found or unreadable, or report file impossible to write.
+|===
+
+It also writes reports that CI systems know how to display:
+
+[cols="2,3",options="header"]
+|===
+|Output |Used by
+|`-o report.json` / `--format json` |Baseline, `check-script diff`, any script (`jq`).
+|`-o report.sarif` |GitHub *Code scanning*.
+|`-o gl-code-quality-report.json` (or `--format gitlab`) |GitLab merge request widget (Code Quality).
+|`-o report.xml` (JUnit) |Jenkins, GitLab *Tests* tab.
+|`--format github` |GitHub annotations on the lines of a pull request.
+|`-o report.html`, `.md`, `.pdf` |Artifacts, job summaries, audit reports.
+|===
+
+== Choosing a strategy
+
+[cols="2,3,3",options="header"]
+|===
+|Situation |Strategy |Example
+|New code, or code that is already clean |*Threshold*: the job fails below a score. |`doc/ci/github-actions.yml`, `doc/ci/gitlab-ci.yml`
+|Existing code with a lot of debt |*Baseline*: the debt is tolerated, only *new* issues fail the job. |`doc/ci/github-baseline.yml`
+|Debt you want to see shrink |*Ratchet*: after each merge the baseline is rewritten without the fixed issues. |`doc/ci/github-baseline.yml`, `doc/ci/gitlab-baseline.yml`
+|Review of a pull request |*Comparison* with the base branch, as a Markdown table. |`doc/ci/github-pr-diff.yml`, `doc/ci/gitlab-baseline.yml`
+|Before the commit |*pre-commit* hook on the modified scripts. |`doc/ci/pre-commit-config.yaml`
+|===
+
+== Common building blocks
+
+=== Installation
+
+* GitHub: the action builds check-script and installs ShellCheck and shfmt
+  (see below).
+* Elsewhere: the release archive contains `install.sh`:
++
+[source,bash]
+----
+curl -fsSL "$CHECK_SCRIPT_URL" | tar xz
+./check_script-*/install.sh --prefix=/usr/local
+----
++
+Install the analysis tools you want next to it (ShellCheck, shfmt, Ruff,
+Bandit… see the user guide); a missing tool is simply skipped and the
+built-in rules always apply. `check-script --list-tools` shows what was
+found.
+
+=== Configuration of the project
+
+[source,bash]
+----
+check-script init                           # writes .checkscript.yaml, suggests a profile
+check-script init --exclude vendor/ --context cron
+----
+
+The nearest `.checkscript.yaml` applies to each script, so the same file is
+used by developers, editors and CI. Paths to ignore go in its `exclude:`
+key or in a `.checkscriptignore` file at the root of the analyzed folder
+(`.gitignore` syntax), or on the command line with `--exclude`.
+
+=== Speed and reproducibility
+
+[source,bash]
+----
+check-script --changed-since origin/main scripts/       # only the scripts changed on the branch
+check-script --jobs 4 --no-cache scripts/               # parallel analysis, no cache between jobs
+check-script --without semgrep scripts/                 # machine without network access
+----
+
+`--changed-since` needs the history: with GitHub, `fetch-depth: 0` on
+checkout. The result cache (`~/.cache/check-script`) is optional: keep it
+between jobs to speed up large repositories, or add `--no-cache`.
+
+== GitHub Actions
+
+=== Threshold
+
+[source,yaml]
+----
+- uses: actions/checkout@v7
+- uses: chla28/CheckScript@v0.22.0
+  with:
+    paths: scripts .github
+    fail-under: '6'            # or security=8,global=6
+----
+
+The action annotates the lines concerned (visible in pull requests), adds
+the report to the job summary and can produce a SARIF for *Security → Code
+scanning*. Inputs: `paths`, `fail-under`, `changed-since`, `args` (any
+additional option), `lang`, `annotations`, `summary`, `sarif`,
+`install-tools`. Outputs: `score`, `grade`, `scripts`, `sarif`. Complete
+example: `doc/ci/github-actions.yml`.
+
+=== New issues only, and ratchet
+
+Create the baseline once, commit it, then:
+
+[source,yaml]
+----
+- uses: chla28/CheckScript@v0.22.0
+  with:
+    paths: scripts
+    args: -b baseline.json --fail-on-new high --baseline-update
+----
+
+`--fail-on-new high` fails the job if a new issue of severity high or worse
+appears; `--baseline-update` (to use only on the main branch) rewrites
+`baseline.json` without the issues that were fixed: commit it afterwards.
+A script that has new issues keeps its entry, so they are never absorbed
+into the tolerated debt. Complete example, with the commit step:
+`doc/ci/github-baseline.yml`.
+
+=== Pull request comparison
+
+[source,bash]
+----
+check-script diff base.json head.json -f md >> "$GITHUB_STEP_SUMMARY"
+check-script diff base.json head.json --summary --fail-on-new high --fail-on-worse
+----
+
+`check-script diff` compares two JSON reports (new / fixed / unchanged
+issues per script, score evolution). The scripts of the two checkouts
+(`base/x/a.sh` and `head/x/a.sh`) are paired by the end of their path. The
+workflow `doc/ci/github-pr-diff.yml` analyzes the base branch and the pull
+request with the action, then writes the table to the job summary.
+
+== GitLab CI
+
+[source,bash]
+----
+check-script --summary -o gl-code-quality-report.json -o check-script.html \
+  --fail-under 6 --fail-under security=8 .
+----
+
+The Code Quality report is shown in the merge request widget. Examples:
+`doc/ci/gitlab-ci.yml` (threshold) and `doc/ci/gitlab-baseline.yml` (new
+issues only on merge requests, comparison posted as a note, baseline
+tightened on the default branch). The JUnit report fills the *Tests* tab:
+
+[source,bash]
+----
+check-script -q -o check-script.xml -o gl-code-quality-report.json .
+----
+
+== Jenkins
+
+`doc/ci/Jenkinsfile` runs check-script, publishes the JUnit report
+(`junit 'check-script.xml'`) and archives the HTML report. A threshold
+failure (exit code 1) fails the stage.
+
+== pre-commit
+
+[source,yaml]
+----
+repos:
+  - repo: https://github.com/chla28/CheckScript
+    rev: v0.22.0
+    hooks:
+      - id: check-script
+        args: [--fail-under, "7"]
+----
+
+`check-script-fix` applies the safe fixes instead. Without the framework,
+`scripts/pre-commit-hook.sh` checks the *staged* version of the modified
+scripts. See `doc/ci/pre-commit-config.yaml`.
+
+== Any other CI: the generic recipe
+
+[source,bash]
+----
+# Once, from the main branch: configuration and baseline.
+check-script init --baseline baseline.json
+git add .checkscript.yaml baseline.json && git commit -m "chore: check-script"
+
+# In the pipeline of a change: fail on new issues, show what changed.
+check-script -q -o head.json scripts
+check-script -b baseline.json --fail-on-new high scripts
+check-script diff baseline.json head.json --summary --fail-on-worse
+
+# On the main branch, after the merge: tighten the baseline.
+check-script -q -b baseline.json --baseline-update scripts
+----
+
+== Pitfalls
+
+* *Paths*: the baseline stores the paths as they were when it was created;
+  always run check-script from the same folder (the repository root). Two
+  extractions of the repository (`base/`, `head/`) are fine for `diff`.
+* *Upgrading check-script* can change scores (new rules, new weights)
+  without any change in the scripts: regenerate the baseline after an
+  upgrade, from the main branch.
+* *`--changed-since`* reports scores for the changed scripts only; combine it
+  with a baseline for the rest.
+* *Secrets*: reports never contain the line of a detected secret, but they
+  contain paths and rule names: treat artifacts of a private repository as
+  private.
+* *Exit code 3* in a pipeline almost always means a wrong path or a script
+  that is not text.

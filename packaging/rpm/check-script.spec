@@ -80,7 +80,7 @@ install -Dm644 doc/checkscript.example.yaml \
 %files
 %license LICENSE COPYING
 %doc README.md README.fr.md CHANGELOG.md doc/user.adoc doc/developer.adoc
-%doc doc/user.fr.adoc doc/developer.fr.adoc
+%doc doc/user.fr.adoc doc/developer.fr.adoc doc/ci.adoc doc/ci.fr.adoc
 %{_docdir}/%{name}/checkscript.example.yaml
 %{_bindir}/check-script
 %{_mandir}/man1/check-script.1*

@@ -97,6 +97,41 @@ void main() {
       expect(d.removedScripts, ['gone.sh']);
     });
 
+    test('deux extractions du même dépôt (base/ et head/), noms en double',
+        () async {
+      // Deux « run.sh » dans des dossiers différents : le chemin décide.
+      final before = await reportJson({
+        'base/ci/run.sh': bad,
+        'base/deploy/run.sh': clean,
+        'base/tools/only.sh': bad,
+      });
+      final after = await reportJson({
+        'head/deploy/run.sh': bad,
+        'head/ci/run.sh': bad,
+        'head/tools/only.sh': clean,
+      });
+      final d = diffReports(before, after);
+      expect(d.addedScripts, isEmpty);
+      expect(d.removedScripts, isEmpty);
+      final byFile = {for (final s in d.scripts) s.file: s};
+      expect(byFile.keys.toSet(),
+          {'head/ci/run.sh', 'head/deploy/run.sh', 'head/tools/only.sh'});
+      // ci/run.sh inchangé, deploy/run.sh régresse, tools/only.sh progresse.
+      expect(byFile['head/ci/run.sh']!.delta, 0);
+      expect(byFile['head/deploy/run.sh']!.delta, lessThan(0));
+      expect(byFile['head/tools/only.sh']!.delta, greaterThan(0));
+    });
+
+    test('même nom, chemins sans suffixe commun distinctif : non appariés',
+        () async {
+      final d = diffReports(
+          await reportJson({'a/x/run.sh': bad, 'b/y/run.sh': bad}),
+          await reportJson({'c/z/run.sh': bad}));
+      expect(d.scripts, isEmpty);
+      expect(d.addedScripts, ['c/z/run.sh']);
+      expect(d.removedScripts, hasLength(2));
+    });
+
     test('rapport invalide', () {
       expect(() => diffReports('pas du json', '{}'),
           throwsA(isA<FormatException>()));
