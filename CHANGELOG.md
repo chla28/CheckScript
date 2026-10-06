@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.23.0 — 2026-10-06
+
+### Features
+
+- **gui**: undo changes and restore the original script (3f108e9)
+
+### Documentation
+
+- **ci**: continuous integration guide with checked examples (71bba7a)
+
+### Tests
+
+- scoring regression snapshot and documented constants (ac34cfa)
+
 ## 0.22.0 — 2026-10-06
 
 ### Features

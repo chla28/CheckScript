@@ -98,7 +98,7 @@ between jobs to speed up large repositories, or add `--no-cache`.
 [source,yaml]
 ----
 - uses: actions/checkout@v7
-- uses: chla28/CheckScript@v0.22.0
+- uses: chla28/CheckScript@v0.23.0
   with:
     paths: scripts .github
     fail-under: '6'            # or security=8,global=6
@@ -117,7 +117,7 @@ Create the baseline once, commit it, then:
 
 [source,yaml]
 ----
-- uses: chla28/CheckScript@v0.22.0
+- uses: chla28/CheckScript@v0.23.0
   with:
     paths: scripts
     args: -b baseline.json --fail-on-new high --baseline-update
@@ -174,7 +174,7 @@ failure (exit code 1) fails the stage.
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.22.0
+    rev: v0.23.0
     hooks:
       - id: check-script
         args: [--fail-under, "7"]

@@ -23,14 +23,14 @@ jobs:
           persist-credentials: false
       # One analysis per checkout. The action builds check-script into
       # $RUNNER_TEMP/check-script and writes the JSON report asked with -o.
-      - uses: chla28/CheckScript@v0.22.0
+      - uses: chla28/CheckScript@v0.23.0
         with:
           paths: base
           args: -o ${{ github.workspace }}/base.json
           annotations: 'false'
           summary: 'false'
           sarif: ''
-      - uses: chla28/CheckScript@v0.22.0
+      - uses: chla28/CheckScript@v0.23.0
         with:
           paths: head
           args: -o ${{ github.workspace }}/head.json

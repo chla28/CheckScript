@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: cs
-        uses: chla28/CheckScript@v0.22.0
+        uses: chla28/CheckScript@v0.23.0
         with:
           paths: .
           fail-under: '6'
