@@ -243,9 +243,30 @@ if [[ "$HAVE_SBOM_GENERATOR" == true ]]; then
   find "$PROJECT_DIR" -name pubspec.lock -not -path '*/build/*' \
     -not -path '*/.dart_tool/*' -not -path '*/dist/*' | sort >"$SBOM_REFS"
   [[ "$BUILD_GUI" == true ]] && printf '%s\n' gtk3 glibc >>"$SBOM_REFS"
+  # Les paquets `source: sdk` d'un pubspec.lock (flutter, sky_engine…) sont notés
+  # "0.0.0" par pub : on injecte la vraie version des SDK utilisés pour ce build.
+  # Sans elle, les scanners (Grype…) attribuent TOUTES les CVE du SDK Flutter au
+  # composant `flutter`, quelle que soit leur plage de versions affectées.
+  # `--flutter-root` sert en plus à lire le LICENSE de ces paquets.
+  SDK_ARGS=()
+  _flutter_ver="$(flutter --version 2>/dev/null \
+    | grep -oiE 'flutter[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+' | head -1 \
+    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" || true
+  [[ -n "$_flutter_ver" ]] && SDK_ARGS+=(--sdk-version "flutter=$_flutter_ver")
+  _dart_ver="$(dart --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || true
+  [[ -n "$_dart_ver" ]] && SDK_ARGS+=(--sdk-version "dart=$_dart_ver")
+  _flutter_bin="$(command -v flutter || true)"
+  if [[ -n "$_flutter_bin" ]]; then
+    _flutter_root="$(dirname "$(dirname "$(readlink -f "$_flutter_bin")")")"
+    [[ -d "$_flutter_root/packages/flutter" ]] \
+      && SDK_ARGS+=(--flutter-root "$_flutter_root")
+  fi
+  [[ ${#SDK_ARGS[@]} -gt 0 ]] && echo "  SDK : ${SDK_ARGS[*]}"
+  unset _flutter_ver _dart_ver _flutter_bin _flutter_root
+
   if sbom-generator -i "$SBOM_REFS" -f cyclonedx \
     -o "${DIST_DIR}/sbom.cdx.json" \
-    -n "${DIST_NAME}-sbom" 2>&1 | sed 's/^/  /'; then
+    -n "${DIST_NAME}-sbom" ${SDK_ARGS[@]+"${SDK_ARGS[@]}"} 2>&1 | sed 's/^/  /'; then
     echo "  ✓ sbom.cdx.json (CycloneDX SBOM: pub tree)"
   else
     echo "  ⚠  SBOM generation failed — packaging continues without it." >&2
