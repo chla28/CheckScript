@@ -100,7 +100,7 @@ gardez-le entre les jobs pour accélérer un gros dépôt, ou ajoutez
 [source,yaml]
 ----
 - uses: actions/checkout@v7
-- uses: chla28/CheckScript@v0.23.0
+- uses: chla28/CheckScript@v0.23.1
   with:
     paths: scripts .github
     fail-under: '6'            # ou security=8,global=6
@@ -119,7 +119,7 @@ Créez la référence une fois, validez-la, puis :
 
 [source,yaml]
 ----
-- uses: chla28/CheckScript@v0.23.0
+- uses: chla28/CheckScript@v0.23.1
   with:
     paths: scripts
     args: -b baseline.json --fail-on-new high --baseline-update
@@ -177,7 +177,7 @@ check-script -q -o check-script.xml -o gl-code-quality-report.json .
 ----
 repos:
   - repo: https://github.com/chla28/CheckScript
-    rev: v0.23.0
+    rev: v0.23.1
     hooks:
       - id: check-script
         args: [--fail-under, "7"]

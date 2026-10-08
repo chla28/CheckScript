@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.1 — 2026-10-08
+
+### Build and packaging
+
+- **scripts**: injecte --sdk-version Flutter/Dart dans la génération du SBOM (e38ee85)
+
 ## 0.23.0 — 2026-10-06
 
 ### Features
