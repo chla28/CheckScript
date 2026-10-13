@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.24.0 — 2026-10-13
+
+### Breaking changes
+
+- **cli**: motifs glob et option --recursive (8e26475)
+
+### Features
+
+- **cli**: motifs glob et option --recursive (8e26475)
+
 ## 0.23.1 — 2026-10-08
 
 ### Build and packaging
