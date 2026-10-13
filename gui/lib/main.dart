@@ -9,6 +9,7 @@ library;
 
 import 'dart:io';
 
+import 'package:check_script/check_script.dart' show expandTargets;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -33,14 +34,21 @@ Future<void> main(List<String> args) async {
       settings: await GuiSettings.load(),
       seenRules: await AppState.loadSeenRules());
   runApp(CheckScriptApp(state: state));
-  // Un chemin passé en argument est analysé au démarrage.
+  // Les chemins passés en argument sont analysés au démarrage : motifs
+  // ('*.sh', protégés des guillemets) développés, un onglet par script ; un
+  // dossier est analysé avec le réglage « Sous-dossiers ».
   if (args.isNotEmpty) {
-    final target = args.first;
-    if (await FileSystemEntity.isDirectory(target)) {
-      await state.analyzeFolder(target);
-    } else if (await File(target).exists()) {
-      await state.analyzeFile(target);
+    final targets = await expandTargets(args,
+        recursive: state.settings.recursive);
+    final folders = <String>[];
+    for (final t in targets) {
+      if (await FileSystemEntity.isDirectory(t)) {
+        folders.add(t);
+      } else if (await File(t).exists()) {
+        await state.analyzeFile(t);
+      }
     }
+    if (folders.isNotEmpty) await state.analyzeFolder(folders.first);
   }
 }
 

@@ -98,7 +98,7 @@ void main() {
     });
 
     Future<List<String>> found({List<String> exclude = const []}) async => [
-          for (final f in (await collectScripts(tmp.path, exclude: exclude))!)
+          for (final f in (await collectScripts(tmp.path, exclude: exclude, recursive: true))!)
             f.substring(tmp.path.length + 1)
         ];
 
@@ -115,7 +115,7 @@ void main() {
       write('.checkscriptignore', '# propre\nvendor/\n**/gen/**\n');
       expect(await found(), ['a.sh', 'lib/d.sh']);
       // Désactivable.
-      final all = await collectScripts(tmp.path, useIgnoreFile: false);
+      final all = await collectScripts(tmp.path, useIgnoreFile: false, recursive: true);
       expect(all!.length, 4);
     });
 
@@ -385,7 +385,7 @@ rules:
       write('vendor/x.sh', bad);
       write('vendor/y.sh', bad);
       final (_, _, _) = await run(
-          ['init', tmp.path, '--no-external', '--exclude', 'vendor/']);
+          ['init', tmp.path, '--no-external', '-r', '--exclude', 'vendor/']);
       // Sans l'exclusion, la moyenne serait faible (legacy).
       expect(File('${tmp.path}/.checkscript.yaml').readAsStringSync(),
           isNot(contains('profile: legacy')));

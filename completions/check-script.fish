@@ -27,6 +27,7 @@ complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l wi
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l without -x -a 'shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor commands gitleaks trufflehog syntax builtin custom' -d 'Disable a tool'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l no-external -d 'Built-in rules only'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l ref -x -d 'CWE, OWASP or ANSSI reference'
+complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -s r -l recursive -d 'Also analyse the sub-folders of the given folders'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l exclude -x -d 'Ignore matching paths (.gitignore syntax)'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l embedded -d 'Analyse embedded scripts (default)'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l no-embedded -d 'Skip embedded scripts'
@@ -66,6 +67,7 @@ complete -c check-script -n '__fish_seen_subcommand_from explain' -s c -l config
 # check-script init [DIR]
 complete -c check-script -n '__fish_seen_subcommand_from init' -s p -l profile -x -a 'strict default legacy' -d 'Force the profile'
 complete -c check-script -n '__fish_seen_subcommand_from init' -l context -x -a 'root cron systemd' -d 'Execution context'
+complete -c check-script -n '__fish_seen_subcommand_from init' -s r -l recursive -d 'Also analyse the sub-folders'
 complete -c check-script -n '__fish_seen_subcommand_from init' -l exclude -x -d 'Ignored path (.gitignore syntax)'
 complete -c check-script -n '__fish_seen_subcommand_from init' -l baseline -r -F -d 'Also write the baseline report'
 complete -c check-script -n '__fish_seen_subcommand_from init' -l no-analysis -d 'Analyse nothing'

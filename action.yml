@@ -139,7 +139,8 @@ runs:
         md="$RUNNER_TEMP/check-script.md"
         read -r -a paths <<<"$CS_PATHS"
         read -r -a extra <<<"$CS_ARGS"
-        args=(--lang "$CS_LANG" --no-cache -o "$json" -o "$md")
+        # --recursive : un dossier est parcouru en entier (comportement attendu en CI).
+        args=(--lang "$CS_LANG" --no-cache --recursive -o "$json" -o "$md")
         [ -n "$CS_SARIF" ] && args+=(-o "$CS_SARIF")
         [ -n "$CS_FAIL_UNDER" ] && args+=(--fail-under "$CS_FAIL_UNDER")
         [ -n "$CS_SINCE" ] && args+=(--changed-since "$CS_SINCE")

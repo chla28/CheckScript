@@ -287,7 +287,7 @@ void main() {
     test('CLI : chaque script avec la configuration de son projet', () async {
       final out = StringBuffer();
       final sink = IOSink(_BufferConsumer(out));
-      final code = await cli.run(['-f', 'json', '${root.path}/repo'],
+      final code = await cli.run(['-f', 'json', '-r', '${root.path}/repo'],
           out: sink,
           err: IOSink(_BufferConsumer(StringBuffer())),
           runner: noTools());
@@ -307,7 +307,7 @@ void main() {
       File('${root.path}/repo/a/.checkscript.yaml')
           .writeAsStringSync('profile: inconnu\n');
       final err = StringBuffer();
-      final code = await cli.run(['${root.path}/repo'],
+      final code = await cli.run(['-r', '${root.path}/repo'],
           out: IOSink(_BufferConsumer(StringBuffer())),
           err: IOSink(_BufferConsumer(err)),
           runner: noTools());

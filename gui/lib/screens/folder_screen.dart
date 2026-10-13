@@ -92,6 +92,21 @@ class _FolderScreenState extends State<FolderScreen> {
                 ),
               ),
               tip(
+                tp.subfolders,
+                FilterChip(
+                  label: Text(s.subfolders),
+                  selected: state.settings.recursive,
+                  onSelected: state.busy
+                      ? null
+                      : (v) async {
+                          await state.updateSettings(
+                              state.settings.copyWith(recursive: v));
+                          final dir = state.folderPath;
+                          if (dir != null) await state.analyzeFolder(dir);
+                        },
+                ),
+              ),
+              tip(
                 tp.reanalyze,
                 OutlinedButton.icon(
                   onPressed: state.busy || state.folderPath == null

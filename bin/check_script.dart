@@ -167,6 +167,12 @@ ArgParser buildParser(Lang lang) {
         help: t(
             'Dans un dossier, analyse aussi les scripts intégrés : GitHub Actions, GitLab CI, Dockerfile, Makefile, Ansible.',
             'In a folder, also analyze embedded scripts: GitHub Actions, GitLab CI, Dockerfile, Makefile, Ansible.'))
+    ..addFlag('recursive',
+        abbr: 'r',
+        negatable: false,
+        help: t(
+            'Parcourt les sous-dossiers des dossiers donnés (par défaut, seuls les scripts du dossier lui-même sont analysés). Avec un motif sans « / » (\'*.sh\'), le cherche aussi dans les sous-dossiers.',
+            'Walk the sub-folders of the given folders (by default only the scripts of the folder itself are analysed). With a pattern without "/" (\'*.sh\'), also look for it in sub-folders.'))
     ..addMultiOption('exclude',
         valueHelp: 'MOTIF',
         help: t(
@@ -546,6 +552,11 @@ Future<int> run(List<String> argv,
     return exitUsage;
   }
   final exclude = [...config.exclude, ...(a['exclude'] as List<String>)];
+  // Motifs ('*.sh') développés ici : le shell ne le fait pas quand ils sont
+  // protégés par des guillemets.
+  final recursive = a['recursive'] as bool;
+  final targets = await expandTargets(a.rest,
+      recursive: recursive, embedded: a['embedded'] as bool);
   final fix = a['fix'] as bool;
   final dryRun = a['dry-run'] as bool;
   if ((dryRun || a['backup'] as bool) && !fix) {
@@ -587,6 +598,8 @@ Future<int> run(List<String> argv,
       return exitUsage;
     }
     return _watch(argv, a, lang,
+        targets: targets,
+        recursive: recursive,
         exclude: exclude,
         out: out,
         err: err,
@@ -600,7 +613,7 @@ Future<int> run(List<String> argv,
   if (since != null) {
     // Dépôt de la première cible (fichier ou dossier), pas du dossier
     // courant : la commande marche depuis n'importe où.
-    final first = a.rest.firstWhere((x) => x != '-', orElse: () => '.');
+    final first = targets.firstWhere((x) => x != '-', orElse: () => '.');
     final gitDir =
         FileSystemEntity.isDirectorySync(first) ? first : p.dirname(first);
     final r = await changedSince(since, dir: gitDir, runner: commandRunner);
@@ -664,7 +677,7 @@ Future<int> run(List<String> argv,
 
   // Une configuration de projet invalide arrête l'analyse (code 2).
   try {
-    for (final target in a.rest) {
+    for (final target in targets) {
       if (target == '-') {
         final content = await _readStdin();
         await handle(
@@ -673,7 +686,9 @@ Future<int> run(List<String> argv,
         continue;
       }
       var files = await collectScripts(target,
-          embedded: a['embedded'] as bool, exclude: exclude);
+          embedded: a['embedded'] as bool,
+          exclude: exclude,
+          recursive: recursive);
       if (files != null && changed != null) {
         final all = files.length;
         files = [
@@ -749,7 +764,7 @@ Future<int> run(List<String> argv,
         ? FolderHistory(Directory(historyDir))
         : FolderHistory.standard();
     final repos = <DashboardRepo>[];
-    for (final target in a.rest) {
+    for (final target in targets) {
       if (target == '-' || !FileSystemEntity.isDirectorySync(target)) continue;
       final root = p.absolute(target);
       final reps = [
@@ -874,7 +889,9 @@ Future<int> run(List<String> argv,
 /// enregistrement d'un script — les scripts modifiés seulement, ou toutes
 /// les cibles quand des fichiers de rapport (-o) sont écrits.
 Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
-    {required List<String> exclude,
+    {required List<String> targets,
+    required bool recursive,
+    required List<String> exclude,
     required IOSink out,
     required IOSink err,
     CommandRunner? runner,
@@ -892,16 +909,17 @@ Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
   final embedded = a['embedded'] as bool;
   var code = await run(once, out: out, err: err, runner: runner);
   void waiting() => err.writeln(t(
-      '\nSurveillance de ${a.rest.join(', ')} (Ctrl+C pour arrêter)…',
-      '\nWatching ${a.rest.join(', ')} (Ctrl+C to stop)…'));
+      '\nSurveillance de ${targets.join(', ')} (Ctrl+C pour arrêter)…',
+      '\nWatching ${targets.join(', ')} (Ctrl+C to stop)…'));
   waiting();
   final explicit = {
-    for (final x in a.rest)
+    for (final x in targets)
       if (FileSystemEntity.isFileSync(x)) p.normalize(p.absolute(x)),
   };
   final done = Completer<void>();
   late final StreamSubscription<Set<String>> sub;
-  sub = watchTargets(a.rest, embedded: embedded, exclude: exclude)
+  sub = watchTargets(targets,
+          embedded: embedded, exclude: exclude, recursive: recursive)
       .listen((changed) async {
     sub.pause();
     try {
@@ -942,6 +960,7 @@ ArgParser buildInitParser() => ArgParser()
   ..addOption('profile', abbr: 'p', allowed: ['strict', 'default', 'legacy'])
   ..addMultiOption('context', allowed: ['root', 'cron', 'systemd'])
   ..addMultiOption('exclude')
+  ..addFlag('recursive', abbr: 'r', negatable: false)
   ..addOption('baseline')
   ..addOption('lang', abbr: 'l', allowed: ['fr', 'en'])
   ..addFlag('force', abbr: 'f', negatable: false)
@@ -1043,6 +1062,7 @@ Future<int> _init(List<String> args, Lang lang,
             'exclusions demandés, et des exemples commentés.\n\n'
             '  -p, --profile P        impose le profil (strict | default | legacy) ; pas d\'analyse\n'
             '      --context C        contexte d\'exécution (root, cron, systemd) ; répétable\n'
+            '  -r, --recursive    analyse aussi les sous-dossiers\n'
             '      --exclude MOTIF    chemin à ignorer (syntaxe .gitignore) ; répétable\n'
             '      --baseline FICHIER écrit aussi le rapport JSON de référence (pour --baseline)\n'
             '      --no-analysis      n\'analyse rien : profil default sauf --profile\n'
@@ -1057,6 +1077,7 @@ Future<int> _init(List<String> args, Lang lang,
             'contexts and exclusions, and commented examples.\n\n'
             '  -p, --profile P        force the profile (strict | default | legacy); no analysis\n'
             '      --context C        execution context (root, cron, systemd); repeatable\n'
+            '  -r, --recursive    also analyse the sub-folders\n'
             '      --exclude PATTERN  path to ignore (.gitignore syntax); repeatable\n'
             '      --baseline FILE    also write the baseline JSON report (for --baseline)\n'
             '      --no-analysis      analyse nothing: default profile unless --profile\n'
@@ -1101,7 +1122,9 @@ Future<int> _init(List<String> args, Lang lang,
     if (a['no-external'] as bool) {
       config = config.withToolsDisabled(externalTools);
     }
-    final files = await collectScripts(dir, exclude: exclude) ?? const [];
+    final files = await collectScripts(dir,
+            exclude: exclude, recursive: a['recursive'] as bool) ??
+        const [];
     return Engine(config: config, lang: l, runner: commandRunner, cache: cache)
         .analyzeFiles(files);
   }

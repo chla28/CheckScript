@@ -198,13 +198,32 @@ check-script --watch scripts/                       # re-analyze on every save
 check-script -o report.xml scripts/                 # JUnit XML (Jenkins, GitLab)
 ----
 
-A *folder* is walked recursively; the files kept are `.sh`, `.bash`,
+A *folder* is analysed at its own level only; `--recursive` (`-r`) also walks
+its sub-folders. The files kept are `.sh`, `.bash`,
 `.ksh`, `.dash`, `.zsh`, `.py`, `.pyw` and files without an extension
 whose shebang designates a shell or Python. Hidden folders (`.git`,
 `.venv`…) and dependency folders (`venv`, `site-packages`, `__pycache__`,
 `node_modules`) are ignored, except `.github`, `.gitlab` and
 `.gitlab-ci.yml`. Files that contain embedded scripts are added (see
 <<integres>>), except with `--no-embedded`.
+
+A *pattern* (`'*.sh'`, `'scripts/*.py'`, `'**/*.sh'`, `'backup-[0-9]?.sh'`) is
+expanded by check-script itself, which is useful when the shell does not do
+it (quotes, Windows, CI configuration files). `*` and `?` stay within one
+folder level, `**` crosses folders, `[abc]` is a character class. Without a
+`/`, the pattern applies to the current folder, or to the whole tree with
+`--recursive` (like `find -name`). Only scripts and folders are kept, hidden
+files only when the pattern names them (`.*`), and a pattern without a match
+is reported as not found. The GUI accepts the same patterns as start-up
+arguments.
+
+[source,sh]
+----
+check-script '*.sh'                  # scripts of the current folder
+check-script -r '*.py'               # all the Python scripts of the tree
+check-script scripts/                # scripts/ only, without sub-folders
+check-script -r scripts/             # scripts/ and its sub-folders
+----
 
 === Options
 
@@ -229,6 +248,7 @@ whose shebang designates a shell or Python. Hidden folders (`.git`,
 |`--dashboard FILE.html` |Team dashboard: each target (folder) is a repository; average score, trend (history curve), serious issues, levels, most frequent rules, weakest scripts. The history is recorded on each run.
 |`--history-dir FOLDER` |Where to record the history of analyzed folders (default with `--dashboard`: `~/.local/share/check-script/history`); a versioned folder shares it within the team (same analysis paths, e.g. a nightly CI job).
 |`--changed-since REF` |Analyzes only the scripts modified since the git reference REF (commits, work in progress, new files), in the repository of the first target; no modified script: exit code 0. Ideal in CI (`--changed-since origin/main`) and in pre-commit.
+|`-r`, `--recursive` |Walks the sub-folders of the given folders (by default only the scripts of the folder itself are analysed). With a pattern without `/` (`'*.sh'`), also looks for it in the sub-folders. In the GUI: *Sub-folders* option of the Folder screen.
 |`--exclude PATTERN` |Excludes from a folder analysis the paths matching the pattern (`.gitignore` syntax: `vendor/`, `*.min.sh`, `**/gen/**`); repeatable. Adds to the `exclude` key of the configuration and to the `.checkscriptignore` file of the folder (see <<exclusions>>).
 |`--[no-]cache` |Reuses the report of an unchanged script (default; `~/.cache/check-script/results`). The key covers the script's content and path, the configuration, the language, the versions of check-script and of the tools (and the Semgrep rules); an analysis where a tool failed is not cached; disabled with `--follow-source`.
 |`--explain` |Terminal: what each rule costs (points removed from its category, gain on the overall score if fixed, automatic fix available).

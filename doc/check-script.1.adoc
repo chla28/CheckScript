@@ -37,10 +37,14 @@ it complements them with built-in rules (see *--list-rules*).
 A script is treated as Python if its shebang names *python* or, without a
 shebang, if its extension is *.py* or *.pyw*.
 
-A _FOLDER_ is scanned recursively (*.sh*, *.bash*, *.ksh*,
+A _FOLDER_ is scanned at its own level, or with all its sub-folders with
+*--recursive* (*.sh*, *.bash*, *.ksh*,
 *.dash*, *.zsh*, *.py*, *.pyw* files and extensionless files whose shebang
 names a shell or Python; hidden folders, *venv*, *site-packages*,
 *__pycache__* and *node_modules* are excluded).
+A _PATTERN_ (*'*.sh'*, *'src/*.py'*, *'**/*.sh'*) is expanded by check-script
+itself; without a slash it applies to the current folder, or to the whole tree
+with *--recursive*.
 *-* reads the script from standard input.
 
 == OPTIONS
@@ -110,6 +114,10 @@ names a shell or Python; hidden folders, *venv*, *site-packages*,
 
 *--history-dir* _FOLDER_::
   Stores the history of analyzed folders in _FOLDER_.
+
+*-r, --recursive*::
+  Walks the sub-folders of the given folders (by default only the scripts of
+  the folder itself are analysed).
 
 *--exclude* _PATTERN_::
   Excludes from a folder analysis the paths matching the pattern

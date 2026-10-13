@@ -9,7 +9,7 @@ pipeline {
     stage('check-script') {
       steps {
         sh '''
-          check-script --no-color --summary \
+          check-script --no-color --summary --recursive \
             -o check-script.xml -o check-script.html \
             --fail-under 6 --fail-under security=8 \
             scripts

@@ -37,6 +37,9 @@ class Tips {
   String get reanalyze => _t(
       'Refaire l\'analyse (F5), après une modification du script, des règles ou des réglages',
       'Analyse again (F5), after a change to the script, the rules or the settings');
+  String get subfolders => _t(
+      'Analyser aussi les scripts des sous-dossiers (sinon, seulement ceux du dossier lui-même)',
+      'Also analyse the scripts of the sub-folders (otherwise only those of the folder itself)');
   String get fix => _t(
       'Proposer les corrections automatiques sûres, avec aperçu avant écriture',
       'Propose the safe automatic fixes, with a preview before writing');

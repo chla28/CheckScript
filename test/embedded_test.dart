@@ -243,7 +243,7 @@ endef
       w('s.sh', 'echo\n');
       w('.cache/Makefile', 'all:\n\tls\n');
       final found = [
-        for (final f in (await collectScripts(tmp.path))!)
+        for (final f in (await collectScripts(tmp.path, recursive: true))!)
           f.substring(tmp.path.length + 1)
       ];
       expect(found, [
@@ -253,7 +253,7 @@ endef
         'Makefile',
         's.sh',
       ]);
-      expect(await collectScripts(tmp.path, embedded: false),
+      expect(await collectScripts(tmp.path, embedded: false, recursive: true),
           ['${tmp.path}/s.sh']);
     });
   });

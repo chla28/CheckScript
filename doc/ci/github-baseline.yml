@@ -5,7 +5,7 @@
 #   issues leave it, so they cannot silently come back.
 #
 # Create the first baseline once, from the main branch:
-#   check-script -q -o baseline.json scripts/      (or: check-script init --baseline baseline.json)
+#   check-script -q -r -o baseline.json scripts/   (or: check-script init --baseline baseline.json)
 # and commit baseline.json.
 name: check-script (baseline)
 on:

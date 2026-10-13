@@ -25,7 +25,7 @@ check-script:mr:
   <<: *setup
   stage: test
   script:
-    - check-script --no-color --summary -b baseline.json --fail-on-new high
+    - check-script --no-color --summary --recursive -b baseline.json --fail-on-new high
       -o gl-code-quality-report.json scripts
   artifacts:
     when: always
@@ -41,8 +41,8 @@ check-script:mr-note:
     # Analyze the target branch in a second work tree, then compare.
     - git fetch --depth 1 origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
     - git worktree add ../base FETCH_HEAD
-    - check-script -q -o base.json ../base/scripts
-    - check-script -q -o head.json scripts
+    - check-script -q -r -o base.json ../base/scripts
+    - check-script -q -r -o head.json scripts
     - check-script diff base.json head.json --lang en -f md > diff.md
     - |
       curl --fail --request POST --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
@@ -58,7 +58,7 @@ check-script:tighten:
   <<: *setup
   stage: test
   script:
-    - check-script --no-color -q -b baseline.json --baseline-update scripts
+    - check-script --no-color -q -r -b baseline.json --baseline-update scripts
     - |
       if ! git diff --quiet -- baseline.json; then
         git config user.name check-script-bot

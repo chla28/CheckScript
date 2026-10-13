@@ -200,13 +200,33 @@ check-script --watch scripts/                       # réanalyse à chaque enreg
 check-script -o rapport.xml scripts/                # JUnit XML (Jenkins, GitLab)
 ----
 
-Un *dossier* est parcouru récursivement ; y sont retenus les fichiers
+Un *dossier* est analysé à son seul niveau ; `--recursive` (`-r`) parcourt
+aussi ses sous-dossiers. Y sont retenus les fichiers
 `.sh`, `.bash`, `.ksh`, `.dash`, `.zsh`, `.py`, `.pyw` et les fichiers sans
 extension dont le shebang désigne un shell ou Python. Les dossiers cachés
 (`.git`, `.venv`…) et de dépendances (`venv`, `site-packages`,
 `__pycache__`, `node_modules`) sont ignorés, sauf `.github`, `.gitlab` et
 `.gitlab-ci.yml`. S'y ajoutent les fichiers qui contiennent des scripts
 intégrés (voir <<integres>>), sauf avec `--no-embedded`.
+
+Un *motif* (`'*.sh'`, `'scripts/*.py'`, `'**/*.sh'`, `'sauvegarde-[0-9]?.sh'`)
+est développé par check-script lui-même, ce qui sert quand le shell ne le
+fait pas (guillemets, Windows, fichiers de configuration de CI). `*` et `?`
+restent dans un niveau de dossier, `**` traverse les dossiers, `[abc]` est une
+classe de caractères. Sans `/`, le motif s'applique au dossier courant, ou à
+toute l'arborescence avec `--recursive` (comme `find -name`). Seuls les
+scripts et les dossiers sont retenus, les fichiers cachés uniquement si le
+motif les nomme (`.*`), et un motif sans correspondance est signalé comme
+introuvable. L'interface graphique accepte les mêmes motifs en arguments de
+démarrage.
+
+[source,sh]
+----
+check-script '*.sh'                  # scripts du dossier courant
+check-script -r '*.py'               # tous les scripts Python de l'arborescence
+check-script scripts/                # scripts/ seulement, sans sous-dossiers
+check-script -r scripts/             # scripts/ et ses sous-dossiers
+----
 
 === Options
 
@@ -231,6 +251,7 @@ intégrés (voir <<integres>>), sauf avec `--no-embedded`.
 |`--dashboard FICHIER.html` |Tableau de bord d'équipe : chaque cible (dossier) est un dépôt ; note moyenne, évolution (courbe de l'historique), problèmes graves, niveaux, règles les plus fréquentes, scripts les plus faibles. L'historique est enregistré à chaque exécution.
 |`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
 |`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
+|`-r`, `--recursive` |Parcourt les sous-dossiers des dossiers donnés (par défaut, seuls les scripts du dossier lui-même sont analysés). Avec un motif sans `/` (`'*.sh'`), le cherche aussi dans les sous-dossiers. Dans l'interface : option *Sous-dossiers* de l'écran Dossier.
 |`--exclude MOTIF` |Exclut de l'analyse d'un dossier les chemins correspondant au motif (syntaxe `.gitignore` : `vendor/`, `*.min.sh`, `**/gen/**`) ; répétable. S'ajoute à la clé `exclude` de la configuration et au fichier `.checkscriptignore` du dossier (voir <<exclusions>>).
 |`--[no-]cache` |Réutilise le rapport d'un script inchangé (défaut ; `~/.cache/check-script/results`). La clé couvre le contenu et le chemin du script, la configuration, la langue, les versions de check-script et des outils (et les règles Semgrep) ; une analyse où un outil a échoué n'est pas mise en cache ; désactivé avec `--follow-source`.
 |`--explain` |Terminal : ce que coûte chaque règle (points retirés à sa catégorie, gain sur la note globale en la corrigeant, correction automatique disponible).

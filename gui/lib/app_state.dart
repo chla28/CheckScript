@@ -44,6 +44,10 @@ class GuiSettings {
   /// Relancer l'analyse quand le script ouvert est enregistré.
   final bool watchFile;
 
+  /// Analyser aussi les sous-dossiers d'un dossier (sinon, ses scripts
+  /// seulement).
+  final bool recursive;
+
   /// Ruff suit la configuration du projet du script (ruff.toml,
   /// pyproject.toml) plutôt que les réglages de check-script.
   final bool ruffProjectConfig;
@@ -82,6 +86,7 @@ class GuiSettings {
     this.disabledRules = const {},
     this.useCache = true,
     this.watchFile = true,
+    this.recursive = false,
     this.editorCommand,
     this.ruffProjectConfig = false,
     this.recent = const [],
@@ -135,6 +140,7 @@ class GuiSettings {
     Set<String>? disabledRules,
     bool? useCache,
     bool? watchFile,
+    bool? recursive,
     String? Function()? editorCommand,
     bool? ruffProjectConfig,
     List<String>? recent,
@@ -156,6 +162,7 @@ class GuiSettings {
         disabledRules: disabledRules ?? this.disabledRules,
         useCache: useCache ?? this.useCache,
         watchFile: watchFile ?? this.watchFile,
+        recursive: recursive ?? this.recursive,
         editorCommand:
             editorCommand == null ? this.editorCommand : editorCommand(),
         ruffProjectConfig: ruffProjectConfig ?? this.ruffProjectConfig,
@@ -190,6 +197,7 @@ class GuiSettings {
           (p.getStringList('disabledRules') ?? const <String>[]).toSet(),
       useCache: p.getBool('useCache') ?? true,
       watchFile: p.getBool('watchFile') ?? true,
+      recursive: p.getBool('recursive') ?? false,
       editorCommand: p.getString('editorCommand'),
       ruffProjectConfig: p.getBool('ruffProjectConfig') ?? false,
       recent: p.getStringList('recent') ?? const [],
@@ -227,6 +235,7 @@ class GuiSettings {
     await p.setStringList('disabledRules', disabledRules.toList()..sort());
     await p.setBool('useCache', useCache);
     await p.setBool('watchFile', watchFile);
+    await p.setBool('recursive', recursive);
     await p.setBool('ruffProjectConfig', ruffProjectConfig);
     await p.setStringList('recent', recent);
     if (codeFont == null) {
@@ -355,7 +364,8 @@ class AppState extends ChangeNotifier {
   void _watchFolder(String path) {
     _unwatchFolder();
     if (!watchFiles || !_settings.watchFile) return;
-    _folderSub = watchTargets([path], debounce: watchDelay)
+    _folderSub = watchTargets([path],
+            debounce: watchDelay, recursive: _settings.recursive)
         .listen((changed) => _onFolderChanged(path, changed));
   }
 
@@ -671,6 +681,7 @@ class AppState extends ChangeNotifier {
       narrowSplit: _settings.narrowSplit,
       useCache: _settings.useCache,
       watchFile: _settings.watchFile,
+      recursive: _settings.recursive,
       editorCommand: _settings.editorCommand,
       ruffProjectConfig: _settings.ruffProjectConfig,
       configPath: path,
@@ -797,7 +808,8 @@ class AppState extends ChangeNotifier {
     folderHistory = await history?.load(path) ?? [];
     try {
       final config = await buildConfig(near: path);
-      final files = await collectScripts(path, exclude: config.exclude) ??
+      final files = await collectScripts(path,
+              exclude: config.exclude, recursive: _settings.recursive) ??
           const <String>[];
       final engine = await _engine(near: path);
       // Plusieurs scripts à la fois ; fichiers illisibles ou non textuels

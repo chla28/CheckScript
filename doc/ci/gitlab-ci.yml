@@ -17,7 +17,7 @@ check-script:
     - curl -fsSL "$CHECK_SCRIPT_URL" | tar xz
     - ./check_script-*/install.sh --prefix=/usr/local
   script:
-    - check-script --no-color --summary
+    - check-script --no-color --summary --recursive
       -o gl-code-quality-report.json
       -o check-script.html
       --fail-under 6 --fail-under security=8

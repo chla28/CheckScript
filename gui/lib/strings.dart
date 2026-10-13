@@ -136,6 +136,7 @@ class S {
   String get openScript => _t('Ouvrir un script', 'Open a script');
   String get openFolder => _t('Ouvrir un dossier', 'Open a folder');
   String get reanalyze => _t('Relancer l\'analyse', 'Re-run analysis');
+  String get subfolders => _t('Sous-dossiers', 'Sub-folders');
   String get fix => _t('Corriger…', 'Fix…');
   String get export => _t('Exporter…', 'Export…');
   String get loadBaseline => _t('Charger une référence…', 'Load a baseline…');

@@ -37,10 +37,14 @@ il les complète par des règles intégrées (voir *--list-rules*).
 Un script est traité comme Python si son shebang désigne *python* ou, sans
 shebang, si son extension est *.py* ou *.pyw*.
 
-Un _DOSSIER_ est parcouru récursivement (fichiers *.sh*, *.bash*, *.ksh*,
+Un _DOSSIER_ est parcouru à son seul niveau, ou avec tous ses sous-dossiers
+avec *--recursive* (fichiers *.sh*, *.bash*, *.ksh*,
 *.dash*, *.zsh*, *.py*, *.pyw* et fichiers sans extension dont le shebang
 désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
 *__pycache__* et *node_modules* exclus).
+Un _MOTIF_ (*'*.sh'*, *'src/*.py'*, *'**/*.sh'*) est développé par check-script
+lui-même ; sans « / », il s'applique au dossier courant, ou à toute
+l'arborescence avec *--recursive*.
 *-* lit le script sur l'entrée standard.
 
 == OPTIONS
@@ -110,6 +114,10 @@ désigne un shell ou Python ; dossiers cachés, *venv*, *site-packages*,
 
 *--history-dir* _DOSSIER_::
   Enregistre l'historique des dossiers analysés dans _DOSSIER_.
+
+*-r, --recursive*::
+  Parcourt les sous-dossiers des dossiers donnés (par défaut, seuls les
+  scripts du dossier lui-même sont analysés).
 
 *--exclude* _MOTIF_::
   Exclut de l'analyse d'un dossier les chemins correspondant au motif

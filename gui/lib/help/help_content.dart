@@ -308,6 +308,8 @@ List<HelpPage> helpPages(Lang lang) {
         HelpBullets([
           t('**Ouvrir un dossier** ou déposez-le sur la fenêtre ; plusieurs scripts sont analysés en parallèle, et le dossier est surveillé (scripts créés ou enregistrés réanalysés).',
               '**Open a folder** or drop it on the window; several scripts are analysed in parallel, and the folder is watched (created or saved scripts are re-analysed).'),
+          t('**Sous-dossiers** : décoché par défaut, seuls les scripts du dossier lui-même sont analysés ; cochez l\'option pour parcourir aussi ses sous-dossiers.',
+              '**Sub-folders**: off by default, only the scripts of the folder itself are analysed; tick the option to also walk its sub-folders.'),
           t('Cliquez sur un **en-tête de colonne** pour trier ; un second clic inverse l\'ordre.',
               'Click a **column header** to sort; a second click reverses the order.'),
           t('La colonne **Tendance** apparaît quand une référence est chargée : évolution de la note de chaque script.',

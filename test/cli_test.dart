@@ -137,7 +137,7 @@ void main() {
     File('${tmp.path}/notes.txt').writeAsStringSync('texte\n');
     Directory('${tmp.path}/.git').createSync();
     File('${tmp.path}/.git/hook.sh').writeAsStringSync('echo c\n');
-    final files = await collectScripts(tmp.path);
+    final files = await collectScripts(tmp.path, recursive: true);
     expect(files!.map((f) => f.split('/').last), ['a.sh', 'tool']);
   });
 

@@ -10,6 +10,7 @@ if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init|diff) ]]; then
       {-p,--profile}'[profile]:profile:(strict default legacy)' \
       '*--context[execution context]:context:(root cron systemd)' \
       '*--exclude[ignored path (.gitignore syntax)]:pattern:' \
+      {-r,--recursive}'[also analyse the sub-folders]' \
       '--baseline[write the baseline JSON report]:file:_files -g "*.json"' \
       '--no-analysis[analyse nothing]' \
       '--no-external[built-in rules only]' \
@@ -54,6 +55,7 @@ _arguments -s \
   {-w,--watch}'[re-analyze on every save]' \
   '(--embedded --no-embedded)'{--embedded,--no-embedded}'[embedded scripts (CI, Dockerfile, Makefile, Ansible)]' \
   {-j,--jobs}'[scripts analyzed concurrently]:number:' \
+  {-r,--recursive}'[walk the sub-folders of the given folders]' \
   '*--exclude[ignore matching paths (.gitignore syntax)]:pattern:' \
   '--all[with --list-rules: also the tool codes]' \
   '--changed-since[scripts modified since the git reference]:reference:' \

@@ -22,8 +22,9 @@ const _vendorDirs = {'venv', 'site-packages', '__pycache__', 'node_modules'};
 const _hiddenHosts = {'.github', '.gitlab', '.gitlab-ci.yml'};
 
 /// Fichier → [fichier] ; dossier → scripts shell et Python qu'il contient
-/// (extension ou shebang), récursivement, dossiers cachés et de dépendances
-/// exclus ; null si introuvable. Avec [embedded], aussi les fichiers
+/// (extension ou shebang) : ceux de son niveau seulement, ou de toute son
+/// arborescence avec [recursive] (dossiers cachés et de dépendances exclus) ;
+/// null si introuvable. Avec [embedded], aussi les fichiers
 /// contenant des scripts intégrés (Dockerfile, Makefile, CI, Ansible) qui
 /// en ont au moins un.
 ///
@@ -34,7 +35,8 @@ const _hiddenHosts = {'.github', '.gitlab', '.gitlab-ci.yml'};
 Future<List<String>?> collectScripts(String target,
     {bool embedded = true,
     Iterable<String> exclude = const [],
-    bool useIgnoreFile = true}) async {
+    bool useIgnoreFile = true,
+    bool recursive = false}) async {
   final type = await FileSystemEntity.type(target);
   if (type == FileSystemEntityType.file) return [target];
   if (type != FileSystemEntityType.directory) return null;
@@ -44,7 +46,7 @@ Future<List<String>?> collectScripts(String target,
   ]);
   final found = <String>[];
   await for (final e
-      in Directory(target).list(recursive: true, followLinks: false)) {
+      in Directory(target).list(recursive: recursive, followLinks: false)) {
     if (e is! File) continue;
     final relative = p.relative(e.path, from: target);
     if (isExcluded(relative, embedded: embedded)) continue;
@@ -98,4 +100,125 @@ Future<bool> _hasEmbedded(File f) async {
   } on Object {
     return false; // illisible ou non textuel
   }
+}
+
+/// La cible contient un joker (`*`, `?`, `[…]`).
+bool hasGlob(String target) => target.contains(RegExp(r'[*?\[]'));
+
+/// Développe les jokers des [targets] (le shell ne le fait pas quand le motif
+/// est protégé par des guillemets, ou sous Windows). Une cible sans joker, ou
+/// qui existe telle quelle, est conservée ; `-` (entrée standard) aussi.
+///
+/// Motifs : `*` et `?` ne franchissent pas un `/`, `**` traverse les
+/// dossiers, `[abc]` est une classe de caractères. Un motif sans `/` ne
+/// s'applique qu'au dossier courant, ou à toute l'arborescence avec
+/// [recursive] (comme `find -name`). Seuls les dossiers et les scripts sont
+/// retenus. Les fichiers et dossiers cachés ne sont
+/// retenus que si le motif les nomme explicitement (`.*`).
+///
+/// Retourne les chemins correspondants (triés, sans doublon) ; un motif sans
+/// résultat est conservé tel quel pour que l'appelant signale « Introuvable ».
+Future<List<String>> expandTargets(Iterable<String> targets,
+    {bool recursive = false, bool embedded = true}) async {
+  final out = <String>[];
+  void add(String path) {
+    if (!out.contains(path)) out.add(path);
+  }
+
+  for (final t in targets) {
+    if (t == '-' ||
+        !hasGlob(t) ||
+        await FileSystemEntity.type(t) != FileSystemEntityType.notFound) {
+      add(t);
+      continue;
+    }
+    // Un motif large (`*`) ne ramène que des dossiers et des scripts.
+    final found = <String>[
+      for (final m in await _expandGlob(t, recursive))
+        if (await FileSystemEntity.isDirectory(m) ||
+            await isScriptFile(m, embedded: embedded))
+          m
+    ];
+    if (found.isEmpty) {
+      add(t);
+    } else {
+      found.forEach(add);
+    }
+  }
+  return out;
+}
+
+Future<List<String>> _expandGlob(String pattern, bool recursive) async {
+  // Racine de la recherche : segments sans joker en tête du motif.
+  final parts = p.split(pattern);
+  var i = 0;
+  while (i < parts.length - 1 && !hasGlob(parts[i])) {
+    i++;
+  }
+  final root = i == 0 ? '.' : p.joinAll(parts.sublist(0, i));
+  final rest = parts.sublist(i);
+  final anywhere = recursive && rest.length == 1;
+  final re = _globToRegExp(rest.join('/'));
+  final prefix = i == 0 ? '' : '${p.joinAll(parts.sublist(0, i))}/';
+  if (!await Directory(root).exists()) return const [];
+  final deep = anywhere || rest.contains('**');
+  final matches = <String>[];
+  await for (final e
+      in Directory(root).list(recursive: deep, followLinks: false)) {
+    final relative = p.posix.joinAll(p.split(p.relative(e.path, from: root)));
+    final name = p.basename(relative);
+    final ok = anywhere
+        ? _globToRegExp(rest.first).hasMatch(name)
+        : re.hasMatch(relative);
+    if (!ok) continue;
+    // Chemins cachés ou de dépendances traversés par une recherche en
+    // profondeur : exclus, sauf si le motif nomme le dossier caché.
+    if (deep &&
+        isExcluded(p.dirname(relative) == '.' ? '' : p.dirname(relative))) {
+      continue;
+    }
+    if (name.startsWith('.') && !rest.last.startsWith('.')) continue;
+    matches.add(i == 0
+        ? p.normalize(e.path).replaceFirst('./', '')
+        : '$prefix$relative');
+  }
+  matches.sort();
+  return matches;
+}
+
+RegExp _globToRegExp(String glob) {
+  final b = StringBuffer('^');
+  for (var i = 0; i < glob.length; i++) {
+    final c = glob[i];
+    if (c == '*') {
+      if (i + 1 < glob.length && glob[i + 1] == '*') {
+        i++;
+        // `**/` : zéro ou plusieurs dossiers.
+        if (i + 1 < glob.length && glob[i + 1] == '/') {
+          i++;
+          b.write('(?:.*/)?');
+        } else {
+          b.write('.*');
+        }
+      } else {
+        b.write('[^/]*');
+      }
+    } else if (c == '?') {
+      b.write('[^/]');
+    } else if (c == '[') {
+      final end = glob.indexOf(']', i + 1);
+      if (end < 0) {
+        b.write(r'\[');
+      } else {
+        var cls = glob.substring(i + 1, end);
+        if (cls.startsWith('!')) cls = '^${cls.substring(1)}';
+        b.write('[${cls.replaceAll(r'\', r'\\')}]');
+        i = end;
+      }
+    } else {
+      b.write(RegExp.escape(c));
+    }
+  }
+  b.write(r'$');
+  return RegExp(b.toString());
 }

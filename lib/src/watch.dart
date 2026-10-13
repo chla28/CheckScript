@@ -18,10 +18,12 @@ import 'ignore.dart';
 /// Émet, après [debounce] sans nouvel événement, les chemins absolus des
 /// fichiers créés, modifiés ou renommés sous [targets] (fichiers ou
 /// dossiers). Les dossiers cachés et de dépendances sont ignorés, comme
-/// par la découverte des scripts.
+/// par la découverte des scripts. Avec [recursive] faux, seuls les fichiers
+/// d'un dossier cible lui-même sont surveillés.
 Stream<Set<String>> watchTargets(List<String> targets,
     {Duration debounce = const Duration(milliseconds: 400),
     bool embedded = true,
+    bool recursive = true,
     Iterable<String> exclude = const []}) {
   final subs = <String, StreamSubscription<FileSystemEvent>>{};
   final pending = <String>{};
@@ -36,6 +38,8 @@ Stream<Set<String>> watchTargets(List<String> targets,
     if (files.contains(path)) return true;
     for (final r in roots) {
       if (p.isWithin(r, path)) {
+        // Sans récursion : les fichiers du dossier lui-même seulement.
+        if (!recursive && p.dirname(path) != r) continue;
         final relative = p.relative(path, from: r);
         return !isExcluded(relative, embedded: embedded) &&
             !(ignores[r]?.ignores(p.posix.joinAll(p.split(relative))) ?? false);
@@ -61,7 +65,7 @@ Stream<Set<String>> watchTargets(List<String> targets,
   void onEvent(FileSystemEvent e) {
     final path = e is FileSystemMoveEvent ? e.destination ?? e.path : e.path;
     if (e.isDirectory) {
-      if (e.type == FileSystemEvent.create && wanted(path)) {
+      if (recursive && e.type == FileSystemEvent.create && wanted(path)) {
         watchDir(path);
         // Fichiers déjà présents (dossier copié d'un bloc).
         try {
@@ -99,10 +103,12 @@ Stream<Set<String>> watchTargets(List<String> targets,
             ...exclude
           ]);
           watchDir(abs);
-          for (final d in Directory(abs)
-              .listSync(recursive: true, followLinks: false)
-              .whereType<Directory>()) {
-            if (wanted(d.path)) watchDir(d.path);
+          if (recursive) {
+            for (final d in Directory(abs)
+                .listSync(recursive: true, followLinks: false)
+                .whereType<Directory>()) {
+              if (wanted(d.path)) watchDir(d.path);
+            }
           }
         } else {
           files.add(abs);

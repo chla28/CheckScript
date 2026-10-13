@@ -300,7 +300,7 @@ void main() {
       File('${d.path}/notes.txt').writeAsStringSync('x\n');
       Directory('${d.path}/venv/lib').createSync(recursive: true);
       File('${d.path}/venv/lib/dep.py').writeAsStringSync('x = 1\n');
-      final found = await collectScripts(d.path);
+      final found = await collectScripts(d.path, recursive: true);
       expect(found!.map((f) => f.split('/').last), ['a.py', 'tool']);
     });
   });
