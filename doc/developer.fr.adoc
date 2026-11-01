@@ -134,7 +134,7 @@ test/                              Tests ; fixtures/ (dont sorties réelles des 
 completions/                       Complétions bash et zsh
 doc/                               Guides, page de manuel (check-script.1.fr.adoc), exemples CI
 packaging/rpm/                     Specs RPM (CLI, interface)
-scripts/                           build-dist.sh, build-rpm.sh, install.sh, uninstall.sh,
+scripts/                           build-dist.sh, build-rpm.sh, build-editors.sh, install.sh, uninstall.sh,
                                    pre-commit-hook.sh
 .pre-commit-hooks.yaml             Hooks pour le framework pre-commit
 ----
@@ -533,13 +533,18 @@ Types : `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
 
 == Build et packaging
 
-`scripts/build-dist.sh [VERSION] [--rpm] [--install] [--skip-tests] [--no-gui]`
+`scripts/build-dist.sh [VERSION] [--rpm] [--editors] [--install] [--skip-tests] [--no-gui]`
 (appelé aussi par l'orchestrateur `AuditTools/scripts/build-dist.sh`) :
 analyse et tests (Dart et Flutter), binaire CLI, bundle Flutter (version
 injectée par `--build-name`), page de manuel (asciidoctor), complétions,
 documentation et exemples CI, `.desktop` et icône, SBOM et rapport CVE si
 `sbom-generator` est présent, archive, RPM (`scripts/build-rpm.sh`, depuis
 `git archive HEAD` : seul le contenu commité est empaqueté).
+
+`scripts/build-editors.sh [VERSION] [--skip-tests] [--no-vscode] [--no-eclipse]` :
+extension VS Code (`npm ci`, tests de bout en bout sous `xvfb-run` ou `DISPLAY`,
+`vsce package`) et site de mise à jour Eclipse (Tycho) →
+`dist/check-script-VERSION.vsix` et `dist/check-script-eclipse-VERSION.zip`.
 
 `scripts/build-appimage.sh [--skip-build]` : bundle Flutter et CLI
 compilée dans un AppDir (`AppRun` : interface par défaut, CLI avec `--cli`

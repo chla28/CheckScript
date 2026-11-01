@@ -5,6 +5,8 @@
 #              `sbom-generator` est présent)
 #
 #           dist/rpm/<distrib>/*.rpm  (avec --rpm)
+#           dist/check-script-VERSION.vsix et check-script-eclipse-VERSION.zip
+#             (avec --editors, via scripts/build-editors.sh)
 #
 # Archive contents:
 #   bin/check-script        CLI (Dart, binaire autonome)
@@ -21,9 +23,10 @@
 # produit (dist/…-scan-report.pdf) via `sbom-generator scan` +
 # Grype/OSV-Scanner/Trivy — best-effort, sauté si aucun scanner n'est installé.
 #
-# Usage : ./scripts/build-dist.sh [VERSION] [--rpm] [--install] [--skip-tests] [--no-gui]
+# Usage : ./scripts/build-dist.sh [VERSION] [--rpm] [--editors] [--install] [--skip-tests] [--no-gui]
 #   VERSION      numéro de version (défaut : version de pubspec.yaml)
 #   --rpm        génère aussi les RPM (scripts/build-rpm.sh, build natif)
+#   --editors    génère aussi les extensions VS Code (.vsix) et Eclipse (.zip)
 #   --install    après un build réussi, installe le livrable dans ~/.local
 #                (lance dist/<paquet>/install.sh)
 #   --skip-tests ne lance pas analyse statique et tests avant la compilation
@@ -39,6 +42,7 @@ VERSION="$DEFAULT_VERSION"
 DO_INSTALL=false
 RUN_TESTS=true
 BUILD_RPM=false
+BUILD_EDITORS=false
 BUILD_GUI=true
 
 for _arg in "$@"; do
@@ -46,11 +50,13 @@ for _arg in "$@"; do
   --install) DO_INSTALL=true ;;
   --skip-tests) RUN_TESTS=false ;;
   --rpm) BUILD_RPM=true ;;
+  --editors) BUILD_EDITORS=true ;;
   --no-gui) BUILD_GUI=false ;;
   --help | -h)
-    echo "Usage: $0 [VERSION] [--rpm] [--install] [--skip-tests] [--no-gui]"
+    echo "Usage: $0 [VERSION] [--rpm] [--editors] [--install] [--skip-tests] [--no-gui]"
     echo "  VERSION       version number (default: ${DEFAULT_VERSION}, read from pubspec.yaml)"
     echo "  --rpm         also builds the RPMs (scripts/build-rpm.sh)"
+    echo "  --editors     also builds the VS Code (.vsix) and Eclipse (.zip) extensions"
     echo "  --install     after the build, installs the package into ~/.local (dist/<package>/install.sh)"
     echo "  --skip-tests  skips static analysis and tests before compiling"
     echo "  --no-gui      ne construit pas l'interface Flutter"
@@ -296,6 +302,15 @@ if [[ "$BUILD_RPM" == true ]]; then
   echo ""
 fi
 
+# ── Extensions d'éditeurs (--editors) ────────────────────────────────────────
+if [[ "$BUILD_EDITORS" == true ]]; then
+  _editor_args=()
+  [[ "$RUN_TESTS" == true ]] || _editor_args+=(--skip-tests)
+  "${SCRIPT_DIR}/build-editors.sh" "$VERSION" "${_editor_args[@]+"${_editor_args[@]}"}"
+  unset _editor_args
+  echo ""
+fi
+
 # ── Installation locale (--install) ──────────────────────────────────────────
 if [[ "$DO_INSTALL" == true ]]; then
   echo "▶ Local installation (~/.local)…"
@@ -318,6 +333,10 @@ fi
 if [[ "$BUILD_RPM" == true ]]; then
   find "${PROJECT_DIR}/dist/rpm" -name '*.rpm' 2>/dev/null | sort |
     while IFS= read -r r; do echo "  ${r#"${PROJECT_DIR}"/}"; done
+fi
+if [[ "$BUILD_EDITORS" == true ]]; then
+  echo "  dist/check-script-${VERSION#v}.vsix"
+  echo "  dist/check-script-eclipse-${VERSION#v}.zip"
 fi
 echo ""
 echo "Archive contents:"
