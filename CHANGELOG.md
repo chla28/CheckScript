@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.24.1 — 2026-11-01
+
+### Build and packaging
+
+- **scripts**: reconstruit les extensions VS Code et Eclipse (--editors) (00d4d95)
+
+### Continuous integration
+
+- supprime les workflows GitHub Actions (08e99b9)
+
+### Maintenance
+
+- **deps**: met à jour les dépendances (Flutter 3.47, Dart 3.13) (9351c5f)
+
 ## 0.24.0 — 2026-10-13
 
 ### Breaking changes
