@@ -1,7 +1,7 @@
 name: check_script_gui
 description: Graphical interface of check-script (evaluation of shell and Python scripts).
 publish_to: 'none'
-version: 0.24.1+43
+version: 0.24.2+44
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -14,7 +14,7 @@ dependencies:
   file_picker: ^11.0.3
   shared_preferences: ^2.3.5
   url_launcher: ^6.3.1
-  desktop_drop: ^0.7.1
+  desktop_drop: ^0.8.4
   path: ^1.9.1
 
 dev_dependencies:
