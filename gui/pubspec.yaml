@@ -1,7 +1,7 @@
 name: check_script_gui
 description: Graphical interface of check-script (evaluation of shell and Python scripts).
 publish_to: 'none'
-version: 0.24.2+44
+version: 0.24.3+44
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  material_ui: ^1.11.0
   check_script:
     path: ../
   file_picker: ^11.0.3

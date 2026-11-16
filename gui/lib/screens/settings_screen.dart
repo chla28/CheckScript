@@ -5,7 +5,7 @@ import 'dart:io';
 
 import 'package:check_script/check_script.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../app_state.dart';
 import '../code_style.dart';

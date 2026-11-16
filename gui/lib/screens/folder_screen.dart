@@ -4,7 +4,7 @@ library;
 
 import 'package:check_script/check_script.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 
 import '../app_state.dart';

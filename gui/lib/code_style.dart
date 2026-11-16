@@ -4,7 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:check_script/check_script.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Police embarquée (JetBrains Mono, variante sans ligatures).
 const defaultCodeFont = 'JetBrains Mono';

@@ -3,7 +3,7 @@
 /// boutons pour replier l'un ou l'autre panneau.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Panneau replié.
 enum SplitCollapse { none, first, second }

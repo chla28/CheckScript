@@ -3,7 +3,7 @@
 library;
 
 import 'package:check_script/check_script.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../help/help_content.dart';
 import '../help/help_screen.dart';

@@ -5,7 +5,7 @@ import 'package:check_script_gui/widgets/common.dart';
 import 'package:check_script_gui/widgets/history_chart.dart';
 import 'package:check_script_gui/widgets/radar_chart.dart';
 import 'package:check_script_gui/widgets/source_view.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 

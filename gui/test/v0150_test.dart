@@ -4,7 +4,7 @@ import 'package:check_script_gui/code_style.dart';
 import 'package:check_script_gui/main.dart';
 import 'package:check_script_gui/widgets/source_view.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' hide Baseline;
+import 'package:material_ui/material_ui.dart' hide Baseline;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

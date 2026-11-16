@@ -12,7 +12,7 @@ import 'package:check_script_gui/widgets/radar_chart.dart';
 import 'package:check_script_gui/widgets/score_panel.dart';
 import 'package:check_script_gui/widgets/source_view.dart';
 import 'package:check_script_gui/widgets/split_view.dart';
-import 'package:flutter/material.dart' hide Baseline;
+import 'package:material_ui/material_ui.dart' hide Baseline;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

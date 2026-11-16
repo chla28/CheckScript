@@ -2,7 +2,7 @@
 library;
 
 import 'package:check_script/check_script.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Couleurs des sévérités. Thème clair comme sombre, chaque couleur a un
 /// rapport de contraste d'au moins 4,5:1 (WCAG AA) avec les fonds de

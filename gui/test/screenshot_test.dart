@@ -14,7 +14,7 @@ import 'package:check_script/check_script.dart';
 import 'package:check_script_gui/app_state.dart';
 import 'package:check_script_gui/main.dart';
 import 'package:check_script_gui/screens/compare_dialog.dart';
-import 'package:flutter/material.dart' hide Baseline;
+import 'package:material_ui/material_ui.dart' hide Baseline;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

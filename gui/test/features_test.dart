@@ -5,7 +5,7 @@ import 'package:check_script/check_script.dart';
 import 'package:check_script_gui/app_state.dart';
 import 'package:check_script_gui/main.dart';
 import 'package:check_script_gui/widgets/findings_list.dart';
-import 'package:flutter/material.dart' hide Baseline;
+import 'package:material_ui/material_ui.dart' hide Baseline;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:check_script/check_script.dart';
-import 'package:flutter/material.dart' hide Baseline;
+import 'package:material_ui/material_ui.dart' hide Baseline;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'code_style.dart';
