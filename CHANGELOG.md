@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.24.3 — 2026-11-15
+
+### Maintenance
+
+- **release**: synchronise les fichiers de version (docs CI, éditeurs, packaging) avec 0.24.2
+
+## 0.24.2 — 2026-11-14
+
+### Maintenance
+
+- **deps**: met à jour les dépendances (Dart 3.14, Flutter 3.50)
+
 ## 0.24.1 — 2026-11-01
 
 ### Build and packaging
