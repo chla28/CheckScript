@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.25.0 — 2026-11-23
+
+### Features
+
+- **lang**: analyse Perl, Ruby, Lua, Node.js, systemd, crontab, sudoers (8110379)
+
+### Documentation
+
+- langages et fichiers d'administration pris en charge (c4eac8f)
+
 ## 0.24.3 — 2026-11-15
 
 ### Maintenance
