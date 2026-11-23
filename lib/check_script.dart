@@ -38,6 +38,7 @@ export 'src/engine.dart';
 export 'src/explain.dart';
 export 'src/feedback.dart';
 export 'src/git.dart';
+export 'src/hook.dart';
 export 'src/history.dart';
 export 'src/fixer.dart';
 export 'src/highlight.dart';

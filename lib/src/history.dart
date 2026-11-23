@@ -132,3 +132,47 @@ class FolderHistory {
     return kept;
   }
 }
+
+/// Historique en CSV : une ligne par analyse (date, note moyenne, nombre de
+/// scripts, effectif de chaque niveau A à E).
+String historyCsv(List<HistoryEntry> entries) {
+  final b = StringBuffer('date,average,scripts,A,B,C,D,E\n');
+  for (final e in entries) {
+    b.writeln([
+      e.date.toIso8601String(),
+      e.average,
+      e.scripts,
+      for (final g in const ['A', 'B', 'C', 'D', 'E']) e.grades[g] ?? 0,
+    ].join(','));
+  }
+  return b.toString();
+}
+
+/// Historique en CSV « long » : une ligne par analyse et par script (date,
+/// script, note), pour suivre un script dans le temps.
+String historyScriptsCsv(List<HistoryEntry> entries) {
+  String q(String s) =>
+      s.contains(RegExp(r'[",\n]')) ? '"${s.replaceAll('"', '""')}"' : s;
+  final b = StringBuffer('date,script,score\n');
+  for (final e in entries) {
+    for (final s in e.scores.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key))) {
+      b.writeln('${e.date.toIso8601String()},${q(s.key)},${s.value}');
+    }
+  }
+  return b.toString();
+}
+
+/// Scripts dont la note a le plus évolué entre la première et la dernière
+/// analyse : (script, note initiale, note finale), triés du plus fort recul
+/// au plus fort progrès. Les scripts absents de l'une des deux sont écartés.
+List<(String, double, double)> scoreChanges(List<HistoryEntry> entries) {
+  if (entries.length < 2) return const [];
+  final first = entries.first.scores, last = entries.last.scores;
+  final out = [
+    for (final e in last.entries)
+      if (first[e.key] != null && first[e.key] != e.value)
+        (e.key, first[e.key]!, e.value)
+  ]..sort((a, b) => (a.$3 - a.$2).compareTo(b.$3 - b.$2));
+  return out;
+}

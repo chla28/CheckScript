@@ -106,6 +106,9 @@ class Tips {
   String get restoreOriginal => _t(
       'Remettre le script tel qu\'il était avant la première modification (copie .orig)',
       'Put the script back as it was before the first change (.orig copy)');
+  String get exportHistory => _t(
+      'Écrit l\'historique des analyses de ce dossier en CSV : une ligne par analyse, ou une ligne par script et par analyse',
+      'Writes the analysis history of this folder as CSV: one row per analysis, or one row per script and analysis');
   String get historyButton => _t(
       'Historique des corrections et modifications de la session : annulation, restauration de l\'original',
       'History of the session\'s fixes and edits: undo, restore the original');

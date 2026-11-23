@@ -2,6 +2,8 @@
 /// des notes, tendance par rapport à la référence.
 library;
 
+import 'dart:io';
+
 import 'package:check_script/check_script.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
@@ -162,6 +164,23 @@ class _FolderScreenState extends State<FolderScreen> {
                                 state.folderHistory.last.average,
                                 state.folderHistory.first.average,
                                 state.lang))),
+                        const SizedBox(height: 4),
+                        tip(
+                          tp.exportHistory,
+                          Wrap(spacing: 4, children: [
+                            TextButton.icon(
+                              onPressed: () => exportHistory(context, state),
+                              icon: const Icon(Icons.table_view, size: 18),
+                              label: Text(s.exportHistory),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => exportHistory(context, state,
+                                  perScript: true),
+                              icon: const Icon(Icons.list_alt, size: 18),
+                              label: Text(s.exportHistoryScripts),
+                            ),
+                          ]),
+                        ),
                       ]),
                 ),
                 Expanded(
@@ -234,5 +253,31 @@ class _FolderScreenState extends State<FolderScreen> {
               ),
       ),
     ]);
+  }
+}
+
+/// Écrit l'historique du dossier en CSV : une ligne par analyse, ou par
+/// script et par analyse avec [perScript].
+Future<void> exportHistory(BuildContext context, AppState state,
+    {bool perScript = false}) async {
+  final s = S(state.lang);
+  final messenger = ScaffoldMessenger.of(context);
+  final path = await FilePicker.saveFile(
+    dialogTitle: perScript ? s.exportHistoryScripts : s.exportHistory,
+    fileName: perScript
+        ? 'check-script-history-scripts.csv'
+        : 'check-script-history.csv',
+    type: FileType.custom,
+    allowedExtensions: ['csv'],
+  );
+  if (path == null) return;
+  final csv = perScript
+      ? historyScriptsCsv(state.folderHistory)
+      : historyCsv(state.folderHistory);
+  try {
+    await File(path).writeAsString(csv);
+    messenger.showSnackBar(SnackBar(content: Text(s.exported(path))));
+  } on FileSystemException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(s.error(e.message))));
   }
 }

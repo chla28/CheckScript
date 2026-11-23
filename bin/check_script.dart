@@ -151,6 +151,16 @@ ArgParser buildParser(Lang lang) {
         help: t(
             'N\'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers).',
             'Only analyse scripts changed since git reference REF (commits, pending changes, new files).'))
+    ..addFlag('changed-lines',
+        negatable: false,
+        help: t(
+            'Avec --changed-since : ne signale que les problèmes situés sur les lignes ajoutées ou modifiées (nouveau code), pas ceux du code existant.',
+            'With --changed-since: only report issues on added or modified lines (new code), not those of existing code.'))
+    ..addFlag('staged',
+        negatable: false,
+        help: t(
+            'Analyse la version indexée (git add) des scripts modifiés du dépôt courant (ou du dépôt donné) : pour un hook pre-commit (voir install-hook).',
+            'Analyse the staged (git add) version of the changed scripts of the current (or given) repository: for a pre-commit hook (see install-hook).'))
     ..addFlag('cache',
         defaultsTo: true,
         help: t(
@@ -354,6 +364,13 @@ Future<int> run(List<String> argv,
   if (argv.isNotEmpty && argv.first == 'diff') {
     return _diff(argv.skip(1).toList(), lang, out: out, err: err);
   }
+  if (argv.isNotEmpty && argv.first == 'install-hook') {
+    return _installHook(argv.skip(1).toList(), lang,
+        out: out, err: err, runner: runner);
+  }
+  if (argv.isNotEmpty && argv.first == 'history') {
+    return _history(argv.skip(1).toList(), lang, out: out, err: err);
+  }
   if (argv.isNotEmpty && argv.first == 'init') {
     return _init(argv.skip(1).toList(), lang,
         out: out, err: err, runner: runner);
@@ -384,12 +401,16 @@ Future<int> run(List<String> argv,
             '  check-script init [DOSSIER]  génère un .checkscript.yaml (profil suggéré, exclusions) ;\n'
             '                               --help pour ses options\n'
             '  check-script diff A.json B.json  compare deux rapports JSON (nouveaux, corrigés, notes)\n'
+            '  check-script install-hook [DÉPÔT]  installe un hook git pre-commit (--staged)\n'
+            '  check-script history [DOSSIER]  évolution des notes d\'un dossier (--csv)\n'
             '  check-script lsp             serveur LSP pour les éditeurs',
         '\nSubcommands:\n'
             '  check-script explain RULE    describes a rule (example, references, how to ignore it)\n'
             '  check-script init [DIR]      generates a .checkscript.yaml (suggested profile, exclusions);\n'
             '                               --help for its options\n'
             '  check-script diff A.json B.json  compares two JSON reports (new, fixed, scores)\n'
+            '  check-script install-hook [REPO]  installs a git pre-commit hook (--staged)\n'
+            '  check-script history [DIR]   score evolution of a folder (--csv)\n'
             '  check-script lsp             LSP server for editors'));
     out.writeln(t(
         '\nDirectives dans le script : # check-script disable=RÈGLE[,…] '
@@ -550,7 +571,23 @@ Future<int> run(List<String> argv,
     return exitOk;
   }
 
-  if (a.rest.isEmpty) {
+  final staged = a['staged'] as bool;
+  if (staged &&
+      (a.rest.length > 1 ||
+          a['fix'] as bool ||
+          a['watch'] as bool ||
+          a['changed-since'] != null)) {
+    err.writeln(t(
+        '--staged s\'utilise avec au plus un dépôt, sans --fix, --watch ni --changed-since.',
+        '--staged is used with at most one repository, without --fix, --watch or --changed-since.'));
+    return exitUsage;
+  }
+  if ((a['changed-lines'] as bool) && a['changed-since'] == null) {
+    err.writeln(t('--changed-lines nécessite --changed-since.',
+        '--changed-lines requires --changed-since.'));
+    return exitUsage;
+  }
+  if (a.rest.isEmpty && !staged) {
     err.writeln(t('Aucun script à analyser. Voir check-script --help.',
         'No script to analyse. See check-script --help.'));
     return exitUsage;
@@ -681,7 +718,33 @@ Future<int> run(List<String> argv,
 
   // Une configuration de projet invalide arrête l'analyse (code 2).
   try {
-    for (final target in targets) {
+    if (staged) {
+      final s = await stagedFiles(
+          dir: a.rest.isEmpty ? '.' : a.rest.first, runner: commandRunner);
+      if (s.root == null) {
+        err.writeln('--staged : ${s.error}');
+        return exitUsage;
+      }
+      final ignore = IgnoreRules(exclude);
+      for (final rel in s.files) {
+        final abs = p.join(s.root!, rel);
+        if (ignore.ignores(rel) ||
+            !await isScriptFile(abs, embedded: a['embedded'] as bool)) {
+          continue;
+        }
+        final content = await indexContent(s.root!, rel, runner: commandRunner);
+        if (content == null) continue;
+        // Contenu indexé analysé tel quel (fichier temporaire pour les outils).
+        reports.add(await engineFor(abs).analyze(
+            ScriptInfo.fromContent(abs, content, forcedDialect: dialect)));
+      }
+      if (reports.isEmpty) {
+        err.writeln(t(
+            'Aucun script indexé à analyser.', 'No staged script to analyse.'));
+        return exitOk;
+      }
+    }
+    for (final target in staged ? const <String>[] : targets) {
       if (target == '-') {
         final content = await _readStdin();
         await handle(
@@ -803,6 +866,30 @@ Future<int> run(List<String> argv,
     return exitOk;
   }
   if (reports.isEmpty) return inputError ? exitInput : exitUsage;
+  if (a['changed-lines'] as bool) {
+    final first = targets.firstWhere((x) => x != '-', orElse: () => '.');
+    final gitDir =
+        FileSystemEntity.isDirectorySync(first) ? first : p.dirname(first);
+    final lines =
+        await changedLines(since!, dir: gitDir, runner: commandRunner);
+    if (lines == null) {
+      err.writeln('--changed-lines : git diff ${t('impossible', 'failed')}');
+      return exitUsage;
+    }
+    for (var i = 0; i < reports.length; i++) {
+      final set = lines[normalizedPath(reports[i].script.path)];
+      // Fichier absent du diff (non modifié) : rien à signaler ; fichier
+      // non suivi (null) : tout est nouveau.
+      if (!lines.containsKey(normalizedPath(reports[i].script.path))) {
+        reports[i] = reports[i].withFindings(const []);
+      } else if (set != null) {
+        reports[i] = reports[i].withFindings([
+          for (final f in reports[i].findings)
+            if (set.contains(f.line)) f
+        ]);
+      }
+    }
+  }
   final refFilter = a['ref'] as List<String>;
   if (refFilter.isNotEmpty) {
     for (var i = 0; i < reports.length; i++) {
@@ -1043,6 +1130,209 @@ Future<int> _explain(List<String> args, Lang lang,
     }
   }
   return code;
+}
+
+ArgParser buildInstallHookParser() => ArgParser()
+  ..addFlag('help', abbr: 'h', negatable: false)
+  ..addOption('fail-under', defaultsTo: '6')
+  ..addFlag('force', abbr: 'f', negatable: false)
+  ..addFlag('uninstall', negatable: false)
+  ..addFlag('stdout', negatable: false)
+  ..addOption('lang', abbr: 'l', allowed: ['fr', 'en']);
+
+/// `check-script install-hook [DOSSIER]` : installe le hook git pre-commit.
+Future<int> _installHook(List<String> args, Lang lang,
+    {required IOSink out, required IOSink err, CommandRunner? runner}) async {
+  String t(String fr, String en) => lang == Lang.fr ? fr : en;
+  final ArgResults a;
+  try {
+    a = buildInstallHookParser().parse(args);
+  } on FormatException catch (e) {
+    err.writeln(e.message);
+    return exitUsage;
+  }
+  if (a['help'] as bool) {
+    out.writeln(t(
+        'Usage : check-script install-hook [options] [DÉPÔT]\n\n'
+            'Installe un hook git pre-commit qui analyse la version indexée des scripts '
+            '(tous langages reconnus) et bloque le commit sous la note minimale. '
+            'Respecte core.hooksPath. Un hook existant qui n\'est pas le sien n\'est '
+            'remplacé qu\'avec --force.\n\n'
+            '      --fail-under N   note minimale (défaut : 6)\n'
+            '  -f, --force          remplace un autre hook pre-commit\n'
+            '      --uninstall      retire le hook (seulement s\'il est de check-script)\n'
+            '      --stdout         affiche le hook au lieu de l\'installer',
+        'Usage: check-script install-hook [options] [REPO]\n\n'
+            'Installs a git pre-commit hook that analyses the staged version of the scripts '
+            '(every recognized language) and blocks the commit under the minimum score. '
+            'Honours core.hooksPath. An existing hook that is not its own is replaced '
+            'only with --force.\n\n'
+            '      --fail-under N   minimum score (default: 6)\n'
+            '  -f, --force          replace another pre-commit hook\n'
+            '      --uninstall      remove the hook (only if it is check-script\'s)\n'
+            '      --stdout         print the hook instead of installing it'));
+    return exitOk;
+  }
+  final score = a['fail-under'] as String;
+  final n = double.tryParse(score);
+  if (n == null || n < 0 || n > 10) {
+    err.writeln(t('--fail-under : note entre 0 et 10 attendue.',
+        '--fail-under: a score between 0 and 10 is expected.'));
+    return exitUsage;
+  }
+  final content = preCommitHook(failUnder: score);
+  if (a['stdout'] as bool) {
+    out.write(content);
+    return exitOk;
+  }
+  if (a.rest.length > 1) {
+    err.writeln(t('Un seul dépôt attendu.', 'Only one repository expected.'));
+    return exitUsage;
+  }
+  final dir = a.rest.isEmpty ? '.' : a.rest.first;
+  final r = await (runner ?? const ProcessCommandRunner())
+      .run('git', ['-C', dir, 'rev-parse', '--git-path', 'hooks']);
+  if (r == null || r.exitCode != 0) {
+    err.writeln(t('Pas un dépôt git : $dir', 'Not a git repository: $dir'));
+    return exitInput;
+  }
+  final hooks = r.stdout.trim();
+  final hookFile = File(
+      p.join(p.isAbsolute(hooks) ? hooks : p.join(dir, hooks), 'pre-commit'));
+  final existing = hookFile.existsSync() ? hookFile.readAsStringSync() : null;
+  final ours = existing != null && isCheckScriptHook(existing);
+  if (a['uninstall'] as bool) {
+    if (existing == null) {
+      err.writeln(t('Aucun hook pre-commit : ${hookFile.path}',
+          'No pre-commit hook: ${hookFile.path}'));
+      return exitOk;
+    }
+    if (!ours && !(a['force'] as bool)) {
+      err.writeln(t(
+          '${hookFile.path} n\'est pas un hook de check-script (--force pour le retirer).',
+          '${hookFile.path} is not a check-script hook (--force to remove it).'));
+      return exitUsage;
+    }
+    hookFile.deleteSync();
+    out.writeln(
+        t('Hook retiré : ${hookFile.path}', 'Hook removed: ${hookFile.path}'));
+    return exitOk;
+  }
+  if (existing != null && !ours && !(a['force'] as bool)) {
+    err.writeln(t(
+        '${hookFile.path} existe déjà et n\'est pas de check-script (--force pour le remplacer).',
+        '${hookFile.path} already exists and is not check-script\'s (--force to replace it).'));
+    return exitUsage;
+  }
+  try {
+    hookFile.parent.createSync(recursive: true);
+    hookFile.writeAsStringSync(content);
+    await Process.run('chmod', ['755', hookFile.path]);
+  } on FileSystemException catch (e) {
+    err.writeln(t('Écriture impossible : ${hookFile.path} (${e.message})',
+        'Cannot write: ${hookFile.path} (${e.message})'));
+    return exitInput;
+  }
+  out.writeln(t('Hook installé : ${hookFile.path} (note minimale $score)',
+      'Hook installed: ${hookFile.path} (minimum score $score)'));
+  return exitOk;
+}
+
+ArgParser buildHistoryParser() => ArgParser()
+  ..addFlag('help', abbr: 'h', negatable: false)
+  ..addOption('history-dir')
+  ..addFlag('csv', negatable: false)
+  ..addFlag('scripts', negatable: false)
+  ..addOption('last')
+  ..addOption('lang', abbr: 'l', allowed: ['fr', 'en']);
+
+/// `check-script history [DOSSIER]` : évolution des notes d'un dossier.
+Future<int> _history(List<String> args, Lang lang,
+    {required IOSink out, required IOSink err}) async {
+  String t(String fr, String en) => lang == Lang.fr ? fr : en;
+  final ArgResults a;
+  try {
+    a = buildHistoryParser().parse(args);
+  } on FormatException catch (e) {
+    err.writeln(e.message);
+    return exitUsage;
+  }
+  if (a['help'] as bool) {
+    out.writeln(t(
+        'Usage : check-script history [options] [DOSSIER]\n\n'
+            'Affiche l\'historique des analyses enregistrées d\'un dossier (--history-dir ou '
+            '--dashboard à l\'analyse, ou l\'interface graphique) : date, note moyenne, '
+            'répartition des niveaux, puis les scripts dont la note a le plus changé.\n\n'
+            '      --csv              écrit l\'historique en CSV\n'
+            '      --scripts          avec --csv : une ligne par analyse et par script\n'
+            '      --last N           ne garde que les N dernières analyses\n'
+            '      --history-dir DIR  dossier de l\'historique (défaut : ~/.local/share/check-script/history)',
+        'Usage: check-script history [options] [DIR]\n\n'
+            'Shows the recorded analysis history of a folder (--history-dir or --dashboard '
+            'when analysing, or the graphical interface): date, average score, grade '
+            'distribution, then the scripts whose score changed the most.\n\n'
+            '      --csv              write the history as CSV\n'
+            '      --scripts          with --csv: one row per analysis and per script\n'
+            '      --last N           keep only the last N analyses\n'
+            '      --history-dir DIR  history folder (default: ~/.local/share/check-script/history)'));
+    return exitOk;
+  }
+  if (a.rest.length > 1) {
+    err.writeln(t('Un seul dossier attendu.', 'Only one folder expected.'));
+    return exitUsage;
+  }
+  final last = a['last'] == null ? null : int.tryParse(a['last'] as String);
+  if (a['last'] != null && (last == null || last < 1)) {
+    err.writeln(t('--last : nombre entier positif attendu.',
+        '--last: a positive integer is expected.'));
+    return exitUsage;
+  }
+  final dir = a.rest.isEmpty ? '.' : a.rest.first;
+  final store = a['history-dir'] != null
+      ? FolderHistory(Directory(a['history-dir'] as String))
+      : FolderHistory.standard();
+  var entries = await store?.load(dir) ?? [];
+  if (last != null && entries.length > last) {
+    entries = entries.sublist(entries.length - last);
+  }
+  if (entries.isEmpty) {
+    err.writeln(t('Aucun historique pour : $dir', 'No history for: $dir'));
+    return exitInput;
+  }
+  if (a['csv'] as bool) {
+    out.write((a['scripts'] as bool)
+        ? historyScriptsCsv(entries)
+        : historyCsv(entries));
+    return exitOk;
+  }
+  out.writeln(
+      '${t('Date', 'Date').padRight(21)}${t('Moyenne', 'Average').padRight(9)}'
+      '${t('Scripts', 'Scripts').padRight(9)}A B C D E');
+  for (final e in entries) {
+    final d = e.date.toIso8601String().substring(0, 16).replaceFirst('T', ' ');
+    out.writeln('${d.padRight(21)}${fmtScore(e.average, lang).padRight(9)}'
+        '${'${e.scripts}'.padRight(9)}'
+        '${[
+      for (final g in const ['A', 'B', 'C', 'D', 'E']) e.grades[g] ?? 0
+    ].join(' ')}');
+  }
+  final first = entries.first.average, lastAvg = entries.last.average;
+  out.writeln('\n${t('Évolution', 'Change')} : ${fmtScore(first, lang)} → '
+      '${fmtScore(lastAvg, lang)} (${fmtDelta(lastAvg, first, lang)})');
+  final changes = scoreChanges(entries);
+  if (changes.isNotEmpty) {
+    out.writeln(
+        '\n${t('Scripts dont la note a le plus changé', 'Scripts whose score changed the most')} :');
+    final shown = [
+      ...changes.take(5).where((c) => c.$3 < c.$2),
+      ...changes.reversed.take(5).where((c) => c.$3 > c.$2),
+    ];
+    for (final c in shown) {
+      out.writeln('  ${c.$1.padRight(40)}${fmtScore(c.$2, lang)} → '
+          '${fmtScore(c.$3, lang)} (${fmtDelta(c.$3, c.$2, lang)})');
+    }
+  }
+  return exitOk;
 }
 
 /// `check-script init [DOSSIER]` : génère un `.checkscript.yaml`.

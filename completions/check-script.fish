@@ -5,12 +5,14 @@
 # or system-wide:
 #   sudo cp completions/check-script.fish /usr/share/fish/vendor_completions.d/
 
-set -l subcommands explain init diff lsp
+set -l subcommands explain init diff install-hook history lsp
 
 # Sous-commandes (premier argument seulement).
 complete -c check-script -f -n "not __fish_seen_subcommand_from $subcommands" -a explain -d 'Describe a rule (example, references)'
 complete -c check-script -f -n "not __fish_seen_subcommand_from $subcommands" -a init -d 'Write a .checkscript.yaml'
 complete -c check-script -f -n "not __fish_seen_subcommand_from $subcommands" -a diff -d 'Compare two JSON reports'
+complete -c check-script -f -n "not __fish_seen_subcommand_from $subcommands" -a install-hook -d 'Install a git pre-commit hook'
+complete -c check-script -f -n "not __fish_seen_subcommand_from $subcommands" -a history -d 'Score evolution of a folder'
 complete -c check-script -f -n "not __fish_seen_subcommand_from $subcommands" -a lsp -d 'LSP server for editors'
 
 # Options communes.
@@ -34,6 +36,8 @@ complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l no
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -s w -l watch -d 'Re-analyse on every save'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -s j -l jobs -x -d 'Scripts analysed concurrently'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l changed-since -x -d 'Only scripts changed since a git reference'
+complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l changed-lines -d 'Only issues on added or modified lines'
+complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l staged -d 'Analyse the staged version of changed scripts'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l dashboard -r -F -d 'Team dashboard (HTML)'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l history-dir -r -a '(__fish_complete_directories)' -d 'History of analysed folders'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l cache -d 'Reuse results (default)'
@@ -82,3 +86,13 @@ complete -c check-script -n '__fish_seen_subcommand_from diff' -l summary -d 'Wi
 complete -c check-script -n '__fish_seen_subcommand_from diff' -l fail-on-new -x -a 'low medium high critical' -d 'Fail on a new issue'
 complete -c check-script -n '__fish_seen_subcommand_from diff' -l fail-on-worse -d 'Fail if a score dropped'
 complete -c check-script -n '__fish_seen_subcommand_from diff' -F
+
+# check-script install-hook [REPO] / history [DIR]
+complete -c check-script -n '__fish_seen_subcommand_from install-hook' -l fail-under -x -d 'Minimum score'
+complete -c check-script -n '__fish_seen_subcommand_from install-hook' -s f -l force -d 'Replace another pre-commit hook'
+complete -c check-script -n '__fish_seen_subcommand_from install-hook' -l uninstall -d 'Remove the hook'
+complete -c check-script -n '__fish_seen_subcommand_from install-hook' -l stdout -d 'Print the hook'
+complete -c check-script -n '__fish_seen_subcommand_from history' -l csv -d 'CSV output'
+complete -c check-script -n '__fish_seen_subcommand_from history' -l scripts -d 'One row per script (with --csv)'
+complete -c check-script -n '__fish_seen_subcommand_from history' -l last -x -d 'Keep the last N analyses'
+complete -c check-script -n '__fish_seen_subcommand_from history' -l history-dir -r -F -d 'History folder'

@@ -4,7 +4,23 @@
 #   autoload -Uz compinit && compinit
 
 # Sous-commandes : check-script explain RULE | init [DIR] | lsp
-if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init|diff) ]]; then
+if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init|diff|install-hook|history) ]]; then
+  if [[ ${words[2]} == install-hook ]]; then
+    _arguments -s \
+      '--fail-under[minimum score]:score:' \
+      {-f,--force}'[replace another pre-commit hook]' \
+      '--uninstall[remove the hook]' \
+      '--stdout[print the hook]' \
+      '1:repository:_files -/' && return
+  fi
+  if [[ ${words[2]} == history ]]; then
+    _arguments -s \
+      '--csv[CSV output]' \
+      '--scripts[one row per script (with --csv)]' \
+      '--last[keep only the last N analyses]:count:' \
+      '--history-dir[history folder]:dir:_files -/' \
+      '1:folder:_files -/' && return
+  fi
   if [[ ${words[2]} == init ]]; then
     _arguments -s \
       {-p,--profile}'[profile]:profile:(strict default legacy)' \
@@ -35,7 +51,7 @@ if (( CURRENT > 2 )) && [[ ${words[2]} == (explain|init|diff) ]]; then
   return
 fi
 if (( CURRENT == 2 )); then
-  _alternative 'subcommands:subcommand:(explain init diff lsp)' 'files:script:_files' && return
+  _alternative 'subcommands:subcommand:(explain init diff install-hook history lsp)' 'files:script:_files' && return
 fi
 
 _arguments -s \
@@ -59,6 +75,8 @@ _arguments -s \
   '*--exclude[ignore matching paths (.gitignore syntax)]:pattern:' \
   '--all[with --list-rules: also the tool codes]' \
   '--changed-since[scripts modified since the git reference]:reference:' \
+  '--changed-lines[only issues on added or modified lines (with --changed-since)]' \
+  '--staged[analyse the staged version of the changed scripts]' \
   '--dashboard[team dashboard]:file:_files -g "*.html"' \
   '--history-dir[history of analyzed folders]:folder:_files -/' \
   '(--no-cache)--cache[reuse results (default)]' \

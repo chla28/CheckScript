@@ -230,7 +230,8 @@ class S {
   String get trend => _t('Tendance', 'Trend');
   String get issues => _t('Problèmes', 'Issues');
   String get openInAnalysis => _t('Ouvrir dans l\'analyse', 'Open in analysis');
-  String get noScripts => _t('Aucun script reconnu trouvé.', 'No recognized script found.');
+  String get noScripts =>
+      _t('Aucun script reconnu trouvé.', 'No recognized script found.');
   String get shellTools => _t('Scripts shell', 'Shell scripts');
   String get pythonTools => _t('Scripts Python', 'Python scripts');
   String get commonTools => _t('Tous les scripts', 'All scripts');
@@ -277,6 +278,11 @@ class S {
       'Réutiliser les résultats d\'un script inchangé (cache)',
       'Reuse results of an unchanged script (cache)');
   String get history => _t('Historique', 'History');
+  String get exportHistory =>
+      _t('Exporter l\'historique (CSV)', 'Export history (CSV)');
+  String get exportHistoryScripts => _t(
+      'Exporter l\'historique par script (CSV)',
+      'Export history per script (CSV)');
   String historyLine(int n, String first, String last, String delta) => _t(
       '$n analyses : note moyenne $first → $last ($delta)',
       '$n analyses: average score $first → $last ($delta)');

@@ -38,8 +38,8 @@ Future<void> main(List<String> args) async {
   // ('*.sh', protégés des guillemets) développés, un onglet par script ; un
   // dossier est analysé avec le réglage « Sous-dossiers ».
   if (args.isNotEmpty) {
-    final targets = await expandTargets(args,
-        recursive: state.settings.recursive);
+    final targets =
+        await expandTargets(args, recursive: state.settings.recursive);
     final folders = <String>[];
     for (final t in targets) {
       if (await FileSystemEntity.isDirectory(t)) {

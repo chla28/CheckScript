@@ -717,10 +717,9 @@ class AppState extends ChangeNotifier {
         if (seenRules.containsKey(key) || seenRules.length >= maxSeenRules) {
           continue;
         }
-        seenRules[key] =
-            RuleEntry.fromFinding(f,
-                language: ToolLanguage.values
-                    .byName(r.script.dialect.languageName));
+        seenRules[key] = RuleEntry.fromFinding(f,
+            language:
+                ToolLanguage.values.byName(r.script.dialect.languageName));
         changed = true;
       }
     }

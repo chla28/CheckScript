@@ -10,10 +10,10 @@
 # check-script doit être installé sur le poste (language: system).
 - id: check-script
   name: check-script
-  description: Scores shell and Python scripts (security, robustness, maintainability…)
+  description: Scores shell, Python, Perl, Ruby and Lua scripts (security, robustness, maintainability…)
   entry: check-script --quiet --no-color --fail-under 6
   language: system
-  types_or: [shell, python]
+  types_or: [shell, python, perl, ruby, lua]
   require_serial: true
 - id: check-script-fix
   name: check-script (automatic fixes)

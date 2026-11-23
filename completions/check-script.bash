@@ -13,7 +13,7 @@ _check_script() {
   prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
   opts="--output -o --format -f --lang -l --shell -s --python-target --profile -p --context \
---follow-source --config -c --with --without --no-external --ref --embedded --no-embedded --watch -w --jobs -j --recursive -r --exclude --all --changed-since --dashboard --history-dir --cache --no-cache --explain --sort --baseline -b --baseline-update --fail-on-new \
+--follow-source --config -c --with --without --no-external --ref --embedded --no-embedded --watch -w --jobs -j --recursive -r --exclude --all --changed-since --changed-lines --staged --dashboard --history-dir --cache --no-cache --explain --sort --baseline -b --baseline-update --fail-on-new \
 --fix --interactive -i --dry-run --backup --details --summary --source --no-source --color --no-color --quiet -q \
 --fail-under --list-tools --list-rules --version -v --help -h"
 
@@ -67,11 +67,19 @@ _check_script() {
 
   # Sous-commandes : explain RÈGLE, init [DOSSIER], lsp.
   if [[ $COMP_CWORD -eq 1 && "$cur" != -* ]]; then
-    mapfile -t COMPREPLY < <(compgen -W "explain init diff lsp" -- "$cur"; compgen -f -- "$cur")
+    mapfile -t COMPREPLY < <(compgen -W "explain init diff install-hook history lsp" -- "$cur"; compgen -f -- "$cur")
     return 0
   fi
   if [[ "${COMP_WORDS[1]}" == init ]]; then
     mapfile -t COMPREPLY < <(compgen -W "--profile -p --context --exclude --recursive -r --baseline --no-analysis --no-external --force -f --stdout --lang -l --help -h" -- "$cur"; compgen -d -- "$cur")
+    return 0
+  fi
+  if [[ "${COMP_WORDS[1]}" == install-hook ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "--fail-under --force -f --uninstall --stdout --lang -l --help -h" -- "$cur"; compgen -d -- "$cur")
+    return 0
+  fi
+  if [[ "${COMP_WORDS[1]}" == history ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "--csv --scripts --last --history-dir --lang -l --help -h" -- "$cur"; compgen -d -- "$cur")
     return 0
   fi
   if [[ "${COMP_WORDS[1]}" == diff ]]; then
