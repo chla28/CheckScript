@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.27.0 — 2026-11-23
+
+### Features
+
+- **lang**: analyse du code Dart et Flutter (dart analyze, dart format) (46b6dfa)
+
+### Documentation
+
+- code Dart et Flutter pris en charge (ef90384)
+
 ## 0.26.0 — 2026-11-23
 
 ### Features
