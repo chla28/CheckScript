@@ -24,7 +24,7 @@ jobs:
         with:
           persist-credentials: ${{ github.event_name == 'push' }}
       - id: cs
-        uses: chla28/CheckScript@v0.25.0
+        uses: chla28/CheckScript@v0.26.0
         with:
           paths: scripts
           sarif: ''

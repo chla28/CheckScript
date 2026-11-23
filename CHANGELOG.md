@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.0 — 2026-11-23
+
+### Features
+
+- **cli**: hook pre-commit, --staged, --changed-lines et history (48ed228)
+
+### Documentation
+
+- hook git, code neuf, historique et IDE JetBrains (7d58fd2)
+
 ## 0.25.0 — 2026-11-23
 
 ### Features
