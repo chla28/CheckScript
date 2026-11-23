@@ -6,7 +6,7 @@
 
 == NAME
 
-check-script - evaluates the quality and security of shell, Python, Perl, Ruby, Lua and Node.js scripts, and of systemd, crontab and sudoers files
+check-script - evaluates the quality and security of shell, Python, Perl, Ruby, Lua, Node.js and Dart scripts, and of systemd, crontab and sudoers files
 
 == SYNOPSIS
 
@@ -26,7 +26,7 @@ check-script - evaluates the quality and security of shell, Python, Perl, Ruby, 
 
 == DESCRIPTION
 
-*check-script* scores shell, Python 3, Perl, Ruby, Lua or Node.js scripts, and systemd unit, crontab or sudoers files, over five categories (Security,
+*check-script* scores shell, Python 3, Perl, Ruby, Lua, Node.js or Dart scripts, and systemd unit, crontab or sudoers files, over five categories (Security,
 Robustness, Maintainability, Portability, Performance), each out of 10, with the
 number of issues by severity (Critical, High, Medium, Low), an overall score
 and a grade from A to E.
@@ -43,9 +43,9 @@ shebang, if its extension is *.py* or *.pyw*.
 
 A _FOLDER_ is scanned at its own level, or with all its sub-folders with
 *--recursive* (*.sh*, *.bash*, *.ksh*,
-*.dash*, *.zsh*, *.py*, *.pyw*, *.pl*, *.rb*, *.lua*, *.service*, *.timer* files,
+*.dash*, *.zsh*, *.py*, *.pyw*, *.pl*, *.rb*, *.lua*, *.service*, *.timer* files, *.dart* with a shebang,
 *crontab* and *sudoers* files, and extensionless (or *.js*) files whose shebang
-names a shell, Python, Perl, Ruby, Lua or Node.js; hidden folders, *venv*, *site-packages*,
+names a shell, Python, Perl, Ruby, Lua, Node.js or Dart; hidden folders, *venv*, *site-packages*,
 *__pycache__* and *node_modules* are excluded).
 A _PATTERN_ (*'*.sh'*, *'src/*.py'*, *'**/*.sh'*) is expanded by check-script
 itself; without a slash it applies to the current folder, or to the whole tree
@@ -73,7 +73,7 @@ with *--recursive*.
 
 *-s, --shell* _DIALECT_::
   Forces the dialect (*sh*, *bash*, *dash*, *ksh*, *zsh*, *python*, *perl*,
-  *ruby*, *lua*, *node*, *systemd*, *crontab*, *sudoers*).
+  *ruby*, *lua*, *node*, *dart*, *systemd*, *crontab*, *sudoers*).
 
 *--python-target* _VERSION_::
   Minimum Python version the scripts must support (default:

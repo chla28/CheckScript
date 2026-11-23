@@ -27,6 +27,11 @@ tools:
   trufflehog: true              # secrets, sans vérification réseau (si installé)
   syntax: true                  # contrôle bash -n / sh -n / compilation Python
   builtin: true                 # règles intégrées
+  # ── Code Dart / Flutter (outils du SDK) ──
+  dart-analyze:
+    enabled: true
+    exclude: [avoid_print]      # lints à ignorer (dart analyze)
+  dart-format: true             # contrôle du formatage (dart format)
   # ── Scripts Python ──
   ruff:
     exclude: [PLR2004, S603]    # transmis à ruff --ignore

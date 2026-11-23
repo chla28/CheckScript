@@ -2,7 +2,7 @@
 
 *[English version](README.md)*
 
-Évalue des scripts shell, Python 3, Perl, Ruby, Lua et Node.js (et des
+Évalue des scripts shell, Python 3, Perl, Ruby, Lua, Node.js et Dart (et des
 fichiers d'unités systemd, de crontab et de sudoers) et produit un classement sur cinq catégories notées
 sur 10 — **Sécurité, Robustesse, Maintenabilité, Portabilité, Performance** —
 avec, pour chacune, le nombre de problèmes par sévérité (Critical / High /
@@ -17,7 +17,7 @@ Ce repo github (ainsi que plusieurs autres) est le résultat de cette recherche.
 gitleaks, trufflehog et `bash -n` pour le shell, **Ruff, Bandit, Semgrep,
 mypy, Radon, Vermin**, pip-audit (et sur demande Pylint, Pyright) pour Python,
 lorsqu'ils sont installés, et les complète par des règles intégrées (86 pour
-le shell, 10 pour Python, 55 pour les autres langages et fichiers
+le shell, 10 pour Python, 70 pour les autres langages et fichiers
 d'administration : secrets, `curl | sh`, permissions, PATH,
 `subprocess` sans timeout, dépendances non déclarées, structure…) avec un
 conseil de correction pour chacune, et par les règles personnalisées du

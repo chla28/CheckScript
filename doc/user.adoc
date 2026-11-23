@@ -10,7 +10,7 @@
 == Overview
 
 `check-script` evaluates one or more *shell*, *Python 3*, *Perl*, *Ruby*,
-*Lua* or *Node.js* scripts, or *systemd unit*, *crontab* and *sudoers* files
+*Lua*, *Node.js* or *Dart* (Flutter) scripts, or *systemd unit*, *crontab* and *sudoers* files
 (see <<languages>>), and produces a *ranking across five categories*, each scored out of 10:
 
 [cols="1,3",options="header"]
@@ -32,7 +32,7 @@ The tool uses the reference analyzers when they are installed (ShellCheck,
 shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n` for shell;
 Ruff, Bandit, Semgrep, mypy, Radon, Vermin — and optionally Pylint,
 Pyright — for Python, see <<python>>) and complements them with *built-in
-rules* that always work (86 for shell, 10 for Python, 55 for the other
+rules* that always work (86 for shell, 10 for Python, 70 for the other
 languages and administration files), and with the
 project's *custom rules*. It also analyzes the shell *embedded* in GitHub
 Actions and GitLab CI workflows, Dockerfiles, Makefiles and Ansible tasks.
@@ -167,7 +167,7 @@ checkbashisms   shell     available           2.26.5
 pydeps          python    available           3.14.7
 pip-audit       python    not installed       (install : pipx install pip-audit)
 custom          all       built in            0 custom rule(s)
-builtin         all       built in            86 + 10 + 55 rules (shell + Python + others)
+builtin         all       built in            86 + 10 + 70 rules (shell + Python + others)
 shfmt           shell     available           ?
 bashate         shell     available           2.1.1
 ----
@@ -205,8 +205,8 @@ its sub-folders. The files kept are `.sh`, `.bash`,
 `.ksh`, `.dash`, `.zsh`, `.py`, `.pyw`, `.pl`, `.pm`, `.rb`, `.lua`,
 `.service`, `.timer`, `.socket`, `.cron`, the files `crontab` and `sudoers` (and
 those of `cron.d/` and `sudoers.d/`), and files without an extension (or
-`.js` / `.mjs` / `.cjs`) whose shebang designates a shell, Python, Perl, Ruby,
-Lua or Node.js. Hidden folders (`.git`,
+`.js` / `.mjs` / `.cjs` / `.dart`) whose shebang designates a shell, Python, Perl, Ruby,
+Lua, Node.js or Dart. Hidden folders (`.git`,
 `.venv`…) and dependency folders (`venv`, `site-packages`, `__pycache__`,
 `node_modules`) are ignored, except `.github`, `.gitlab` and
 `.gitlab-ci.yml`. Files that contain embedded scripts are added (see
@@ -634,6 +634,17 @@ is not penalized, its inconsistencies are). Its *syntax tree*
 in a string is not a command; a `mkdir` in the condition of an `if` is
 checked).
 
+Dart (`dart-analyze`, `dart-format`)::
+`dart analyze --format=machine` (errors, warnings and lints; the codes are
+classified: `use_build_context_synchronously` and `unawaited_futures` →
+Robustness, `prefer_const_*` → Performance, `avoid_print` and unused elements →
+Maintainability…) and `dart format --set-exit-if-changed` (a file to reformat
+is one low issue). Syntax errors come from `dart format` once. On a Flutter
+project, run `flutter pub get` first: without resolved packages, `dart analyze`
+reports every `package:` import as missing. Content analyzed outside the
+project (standard input, `--staged`) drops the errors caused by unresolved
+packages. A lint is excluded with `tools.dart-analyze.exclude: [avoid_print]`.
+
 bashate::
 Style; E003 ignored for a script indented otherwise than with 4 spaces.
 
@@ -898,14 +909,16 @@ otherwise from the extension or the file name; `--shell` forces it.
 |`ruby` |`#!/usr/bin/ruby`, `env ruby`, `.rb`, `.rake` |`ruby -c`
 |`lua` |`#!/usr/bin/lua`, `luajit`, `.lua` |`luac -p` (or `luac5.4`…)
 |`node` |`#!/usr/bin/env node`, `.js`, `.mjs`, `.cjs` |`node --check`
+|`dart` |`#!/usr/bin/env dart`, `.dart` |`dart format` (syntax errors)
 |`systemd` |`.service`, `.timer`, `.socket`, `.mount`, `.path`, `.target` |none
 |`crontab` |`crontab`, `/etc/cron.d/*`, `.cron` |none
 |`sudoers` |`sudoers`, `/etc/sudoers.d/*` |`visudo -c -f`
 |===
 
 NOTE: In a folder, a `.js` file is only analyzed when it has a `node`
-shebang (a web project holds hundreds of front-end files that are not
-administration scripts). A file given explicitly is always analyzed.
+shebang, and a `.dart` file when it has a `dart` shebang (a web or Flutter
+project holds hundreds of source files that are not administration scripts).
+A file given explicitly is always analyzed.
 
 The shell and Python tools are not run on these files. The report lists the
 syntax check (when the interpreter is installed), gitleaks, trufflehog and the
@@ -924,6 +937,7 @@ languages; directives are written with the comment of the language
 |`PL` (Perl) |`PLSEC001`–`PLSEC006` secrets, command injection, string `eval`, TLS, `chmod 777`, two-argument `open`; `PLROB001`/`002` `use strict` / `use warnings`; `PLMNT001`; `PLPOR001`
 |`RB` (Ruby) |`RBSEC001`–`RBSEC007` secrets, injection, `eval`, TLS, `chmod`, unsafe deserialization (`Marshal.load`, `YAML.load`), `Kernel#open`; `RBROB001` `rescue Exception`; `RBMNT001`; `RBPOR001`
 |`LU` (Lua) |`LUSEC001`–`LUSEC005` secrets, `os.execute` / `io.popen` injection, `load` / `dofile`, TLS, `chmod`; `LUMNT001`; `LUPOR001`
+|`DT` (Dart / Flutter) |`DTSEC001`–`DTSEC010` secrets, `Process.run('sh', ['-c', …])` injection, `Isolate.spawnUri` / `dart:mirrors`, `badCertificateCallback` returning `true`, `chmod`, `Random()` for tokens, cleartext `http://`, SQL built by interpolation (`rawQuery`), secrets in `print` / `log`, secrets in `SharedPreferences`; `DTROB001` empty `catch`, `DTROB002` `stdin.readLineSync` without terminal, `DTROB003` `http` call without `.timeout`; `DTMNT001`; `DTPOR001`
 |`JS` (Node.js) |`JSSEC001`–`JSSEC006` secrets, `exec` injection, `eval` / `new Function`, `rejectUnauthorized: false`, `chmod`, `Math.random` for tokens; `JSROB001` CommonJS without `use strict`; `JSMNT001`; `JSPOR001`
 |`SD` (systemd) |`SDSEC001` service run as root, `SDSEC002` no hardening, `SDSEC003` secret in `Environment=`; `SDROB001` non-absolute `Exec*`, `SDROB002` `Restart=always` without `RestartSec`, `SDROB003` timer without `Persistent=true`; `SDMNT001`
 |`CR` (crontab) |`CRROB001` relative command, `CRROB002` unescaped `%`, `CRROB003` output neither redirected nor mailed, `CRROB004` every-minute job without lock; `CRSEC001` `curl \| sh`, `CRSEC002` script run from `/tmp` or root's `/home`, `CRSEC003` password on the command line
