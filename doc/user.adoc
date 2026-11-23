@@ -9,8 +9,9 @@
 
 == Overview
 
-`check-script` evaluates one or more *shell* or *Python 3* scripts and
-produces a *ranking across five categories*, each scored out of 10:
+`check-script` evaluates one or more *shell*, *Python 3*, *Perl*, *Ruby*,
+*Lua* or *Node.js* scripts, or *systemd unit*, *crontab* and *sudoers* files
+(see <<languages>>), and produces a *ranking across five categories*, each scored out of 10:
 
 [cols="1,3",options="header"]
 |===
@@ -31,7 +32,8 @@ The tool uses the reference analyzers when they are installed (ShellCheck,
 shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n` for shell;
 Ruff, Bandit, Semgrep, mypy, Radon, Vermin — and optionally Pylint,
 Pyright — for Python, see <<python>>) and complements them with *built-in
-rules* that always work (82 for shell, 10 for Python), and with the
+rules* that always work (86 for shell, 10 for Python, 55 for the other
+languages and administration files), and with the
 project's *custom rules*. It also analyzes the shell *embedded* in GitHub
 Actions and GitLab CI workflows, Dockerfiles, Makefiles and Ansible tasks.
 It can also *fix* safe defects (`--fix`), *compare* two analyses
@@ -165,7 +167,7 @@ checkbashisms   shell     available           2.26.5
 pydeps          python    available           3.14.7
 pip-audit       python    not installed       (install : pipx install pip-audit)
 custom          all       built in            0 custom rule(s)
-builtin         all       built in            82 + 10 rules
+builtin         all       built in            86 + 10 + 55 rules (shell + Python + others)
 shfmt           shell     available           ?
 bashate         shell     available           2.1.1
 ----
@@ -200,8 +202,11 @@ check-script -o report.xml scripts/                 # JUnit XML (Jenkins, GitLab
 
 A *folder* is analysed at its own level only; `--recursive` (`-r`) also walks
 its sub-folders. The files kept are `.sh`, `.bash`,
-`.ksh`, `.dash`, `.zsh`, `.py`, `.pyw` and files without an extension
-whose shebang designates a shell or Python. Hidden folders (`.git`,
+`.ksh`, `.dash`, `.zsh`, `.py`, `.pyw`, `.pl`, `.pm`, `.rb`, `.lua`,
+`.service`, `.timer`, `.socket`, `.cron`, the files `crontab` and `sudoers` (and
+those of `cron.d/` and `sudoers.d/`), and files without an extension (or
+`.js` / `.mjs` / `.cjs`) whose shebang designates a shell, Python, Perl, Ruby,
+Lua or Node.js. Hidden folders (`.git`,
 `.venv`…) and dependency folders (`venv`, `site-packages`, `__pycache__`,
 `node_modules`) are ignored, except `.github`, `.gitlab` and
 `.gitlab-ci.yml`. Files that contain embedded scripts are added (see
@@ -233,7 +238,7 @@ check-script -r scripts/             # scripts/ and its sub-folders
 |`-o`, `--output FILE` |Writes the report to FILE; format according to the extension: `.md`, `.adoc`, `.html`, `.pdf` (see <<pdf>>), `.json`, `.sarif`, `.codeclimate.json` (or `gl-code-quality-report.json`), `.xml` (JUnit), `.txt`. Repeatable.
 |`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate` (alias `gitlab`: GitLab Code Quality), `junit` (JUnit XML), `github` (GitHub Actions annotations): format of the standard output, and of `-o` files without a recognized extension (the extension takes precedence).
 |`-l`, `--lang fr\|en` |Report language. Default: `LC_ALL`, `LC_MESSAGES` then `LANG`.
-|`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Forces the dialect instead of inferring it from the shebang (or from the `.py` extension).
+|`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python\|perl\|ruby\|lua\|node\|systemd\|crontab\|sudoers` |Forces the dialect instead of inferring it from the shebang (or from the extension or file name).
 |`--python-target VERSION` |Minimum Python version the scripts must support (default: `3.9`, see <<python>>).
 |`-p`, `--profile strict\|default\|legacy` |Scoring profile (see <<profils>>).
 |`--context root\|cron\|systemd\|interactive` |Execution context (see <<contextes>>). Repeatable.
@@ -849,6 +854,55 @@ compilation; a disabled rule is not fixed. The directives
 in <<directives>>.
 
 [[exclusions]]
+[[languages]]
+== Other languages and administration files
+
+Beyond shell and Python, `check-script` handles four more scripting languages
+and three kinds of administration files. The dialect comes from the shebang,
+otherwise from the extension or the file name; `--shell` forces it.
+
+[cols="1,2,2",options="header"]
+|===
+|Dialect |Recognized by |Syntax check
+|`perl` |`#!/usr/bin/perl`, `env perl`, `.pl`, `.pm` |`perl -c`
+|`ruby` |`#!/usr/bin/ruby`, `env ruby`, `.rb`, `.rake` |`ruby -c`
+|`lua` |`#!/usr/bin/lua`, `luajit`, `.lua` |`luac -p` (or `luac5.4`…)
+|`node` |`#!/usr/bin/env node`, `.js`, `.mjs`, `.cjs` |`node --check`
+|`systemd` |`.service`, `.timer`, `.socket`, `.mount`, `.path`, `.target` |none
+|`crontab` |`crontab`, `/etc/cron.d/*`, `.cron` |none
+|`sudoers` |`sudoers`, `/etc/sudoers.d/*` |`visudo -c -f`
+|===
+
+NOTE: In a folder, a `.js` file is only analyzed when it has a `node`
+shebang (a web project holds hundreds of front-end files that are not
+administration scripts). A file given explicitly is always analyzed.
+
+The shell and Python tools are not run on these files. The report lists the
+syntax check (when the interpreter is installed), gitleaks, trufflehog and the
+built-in rules of the language. These rules are lexical (comments are
+ignored, strings are respected): they cover what matters for administration
+scripts — command injection, dynamic code, disabled TLS, hard-coded secrets,
+dangerous permissions — and do not replace a language linter (perlcritic,
+RuboCop, luacheck, ESLint). No automatic fix (`--fix`) is offered for these
+languages; directives are written with the comment of the language
+(`# check-script disable=RBSEC003`, `-- check-script disable=LUSEC002`,
+`// check-script disable=JSSEC003`).
+
+[cols="1,4",options="header"]
+|===
+|Prefix |Built-in rules
+|`PL` (Perl) |`PLSEC001`–`PLSEC006` secrets, command injection, string `eval`, TLS, `chmod 777`, two-argument `open`; `PLROB001`/`002` `use strict` / `use warnings`; `PLMNT001`; `PLPOR001`
+|`RB` (Ruby) |`RBSEC001`–`RBSEC007` secrets, injection, `eval`, TLS, `chmod`, unsafe deserialization (`Marshal.load`, `YAML.load`), `Kernel#open`; `RBROB001` `rescue Exception`; `RBMNT001`; `RBPOR001`
+|`LU` (Lua) |`LUSEC001`–`LUSEC005` secrets, `os.execute` / `io.popen` injection, `load` / `dofile`, TLS, `chmod`; `LUMNT001`; `LUPOR001`
+|`JS` (Node.js) |`JSSEC001`–`JSSEC006` secrets, `exec` injection, `eval` / `new Function`, `rejectUnauthorized: false`, `chmod`, `Math.random` for tokens; `JSROB001` CommonJS without `use strict`; `JSMNT001`; `JSPOR001`
+|`SD` (systemd) |`SDSEC001` service run as root, `SDSEC002` no hardening, `SDSEC003` secret in `Environment=`; `SDROB001` non-absolute `Exec*`, `SDROB002` `Restart=always` without `RestartSec`, `SDROB003` timer without `Persistent=true`; `SDMNT001`
+|`CR` (crontab) |`CRROB001` relative command, `CRROB002` unescaped `%`, `CRROB003` output neither redirected nor mailed, `CRROB004` every-minute job without lock; `CRSEC001` `curl \| sh`, `CRSEC002` script run from `/tmp` or root's `/home`, `CRSEC003` password on the command line
+|`SU` (sudoers) |`SUSEC001` `NOPASSWD: ALL`, `SUSEC002` full access for an individual account, `SUSEC003` wildcard in a command, `SUSEC004` weakening `Defaults`, `SUSEC005` shell escape (editor, pager, interpreter — see GTFOBins)
+|===
+
+`check-script --list-rules` lists them all, `check-script explain RBSEC003`
+describes one with an example.
+
 == Excluding paths
 
 In a folder, hidden folders (`.git`, `.venv`…) and dependency folders

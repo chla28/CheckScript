@@ -9,8 +9,9 @@
 
 == Présentation
 
-`check-script` évalue un ou plusieurs scripts *shell* ou *Python 3* et
-produit un *classement sur cinq catégories*, chacune notée sur 10 :
+`check-script` évalue un ou plusieurs scripts *shell*, *Python 3*, *Perl*,
+*Ruby*, *Lua* ou *Node.js*, ou des fichiers *d'unités systemd*, de *crontab* et
+de *sudoers* (voir <<languages>>), et produit un *classement sur cinq catégories*, chacune notée sur 10 :
 
 [cols="1,3",options="header"]
 |===
@@ -32,8 +33,8 @@ L'outil exploite les analyseurs de référence lorsqu'ils sont installés
 (ShellCheck, shfmt, bashate, checkbashisms, gitleaks, trufflehog, `bash -n`
 pour le shell ; Ruff, Bandit, Semgrep, mypy, Radon, Vermin — et en option
 Pylint, Pyright — pour Python, voir <<python>>) et les complète par des
-*règles intégrées* qui fonctionnent toujours (82 pour le shell, 10 pour
-Python), et par les *règles personnalisées* du projet. Il analyse aussi le
+*règles intégrées* qui fonctionnent toujours (86 pour le shell, 10 pour
+Python, 55 pour les autres langages et fichiers d'administration), et par les *règles personnalisées* du projet. Il analyse aussi le
 shell *intégré* aux workflows GitHub Actions, à GitLab CI, aux Dockerfile,
 aux Makefile et aux tâches Ansible.
 Il sait aussi *corriger* les défauts sûrs (`--fix`), *comparer* deux analyses
@@ -167,7 +168,7 @@ checkbashisms   shell     disponible          2.26.5
 pydeps          python    disponible          3.14.7
 pip-audit       python    absent              (installer : pipx install pip-audit)
 custom          tous      intégré             0 règle(s) personnalisée(s)
-builtin         tous      intégré             82 + 10 règles
+builtin         tous      intégré             86 + 10 + 55 règles (shell + Python + autres)
 shfmt           shell     disponible          ?
 bashate         shell     disponible          2.1.1
 ----
@@ -202,8 +203,11 @@ check-script -o rapport.xml scripts/                # JUnit XML (Jenkins, GitLab
 
 Un *dossier* est analysé à son seul niveau ; `--recursive` (`-r`) parcourt
 aussi ses sous-dossiers. Y sont retenus les fichiers
-`.sh`, `.bash`, `.ksh`, `.dash`, `.zsh`, `.py`, `.pyw` et les fichiers sans
-extension dont le shebang désigne un shell ou Python. Les dossiers cachés
+`.sh`, `.bash`, `.ksh`, `.dash`, `.zsh`, `.py`, `.pyw`, `.pl`, `.pm`, `.rb`,
+`.lua`, `.service`, `.timer`, `.socket`, `.cron`, les fichiers `crontab` et
+`sudoers` (et ceux de `cron.d/` et `sudoers.d/`), et les fichiers sans
+extension (ou `.js` / `.mjs` / `.cjs`) dont le shebang désigne un shell,
+Python, Perl, Ruby, Lua ou Node.js. Les dossiers cachés
 (`.git`, `.venv`…) et de dépendances (`venv`, `site-packages`,
 `__pycache__`, `node_modules`) sont ignorés, sauf `.github`, `.gitlab` et
 `.gitlab-ci.yml`. S'y ajoutent les fichiers qui contiennent des scripts
@@ -236,7 +240,7 @@ check-script -r scripts/             # scripts/ et ses sous-dossiers
 |`-o`, `--output FICHIER` |Écrit le rapport dans FICHIER ; format selon l'extension : `.md`, `.adoc`, `.html`, `.pdf` (voir <<pdf>>), `.json`, `.sarif`, `.codeclimate.json` (ou `gl-code-quality-report.json`), `.xml` (JUnit), `.txt`. Répétable.
 |`-f`, `--format FORMAT` |`terminal`, `md`, `adoc`, `html`, `pdf`, `json`, `sarif`, `codeclimate` (alias `gitlab` : GitLab Code Quality), `junit` (JUnit XML), `github` (annotations GitHub Actions) : format de la sortie standard, et des fichiers `-o` sans extension reconnue (l'extension prime).
 |`-l`, `--lang fr\|en` |Langue du rapport. Défaut : `LC_ALL`, `LC_MESSAGES` puis `LANG`.
-|`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python` |Force le dialecte au lieu de le déduire du shebang (ou de l'extension `.py`).
+|`-s`, `--shell sh\|bash\|dash\|ksh\|zsh\|python\|perl\|ruby\|lua\|node\|systemd\|crontab\|sudoers` |Force le dialecte au lieu de le déduire du shebang (ou de l'extension ou du nom de fichier).
 |`--python-target VERSION` |Version minimale de Python que les scripts doivent supporter (défaut : `3.9`, voir <<python>>).
 |`-p`, `--profile strict\|default\|legacy` |Profil de notation (voir <<profils>>).
 |`--context root\|cron\|systemd\|interactive` |Contexte d'exécution (voir <<contextes>>). Répétable.
@@ -861,6 +865,56 @@ compilation Python ; une règle désactivée n'est pas corrigée. Les directives
 dans <<directives>>.
 
 [[exclusions]]
+[[languages]]
+== Autres langages et fichiers d'administration
+
+Outre le shell et Python, `check-script` prend en charge quatre autres langages
+de script et trois types de fichiers d'administration. Le dialecte vient du
+shebang, sinon de l'extension ou du nom du fichier ; `--shell` le force.
+
+[cols="1,2,2",options="header"]
+|===
+|Dialecte |Reconnu par |Contrôle syntaxique
+|`perl` |`#!/usr/bin/perl`, `env perl`, `.pl`, `.pm` |`perl -c`
+|`ruby` |`#!/usr/bin/ruby`, `env ruby`, `.rb`, `.rake` |`ruby -c`
+|`lua` |`#!/usr/bin/lua`, `luajit`, `.lua` |`luac -p` (ou `luac5.4`…)
+|`node` |`#!/usr/bin/env node`, `.js`, `.mjs`, `.cjs` |`node --check`
+|`systemd` |`.service`, `.timer`, `.socket`, `.mount`, `.path`, `.target` |aucun
+|`crontab` |`crontab`, `/etc/cron.d/*`, `.cron` |aucun
+|`sudoers` |`sudoers`, `/etc/sudoers.d/*` |`visudo -c -f`
+|===
+
+NOTE: Dans un dossier, un fichier `.js` n'est analysé que s'il porte un
+shebang `node` (un projet web contient des centaines de fichiers côté client
+qui ne sont pas des scripts d'administration). Un fichier donné
+explicitement est toujours analysé.
+
+Les outils shell et Python ne sont pas lancés sur ces fichiers. Le rapport
+liste le contrôle syntaxique (si l'interpréteur est installé), gitleaks,
+trufflehog et les règles intégrées du langage. Ces règles sont lexicales (les
+commentaires sont ignorés, les chaînes respectées) : elles couvrent l'essentiel
+pour des scripts d'administration — injection de commande, code dynamique, TLS
+désactivé, secrets en dur, droits dangereux — et ne remplacent pas un linter du
+langage (perlcritic, RuboCop, luacheck, ESLint). Aucune correction automatique
+(`--fix`) n'est proposée pour ces langages ; les directives s'écrivent avec le
+commentaire du langage (`# check-script disable=RBSEC003`,
+`-- check-script disable=LUSEC002`, `// check-script disable=JSSEC003`).
+
+[cols="1,4",options="header"]
+|===
+|Préfixe |Règles intégrées
+|`PL` (Perl) |`PLSEC001`–`PLSEC006` secrets, injection de commande, `eval` de chaîne, TLS, `chmod 777`, `open` à deux arguments ; `PLROB001`/`002` `use strict` / `use warnings` ; `PLMNT001` ; `PLPOR001`
+|`RB` (Ruby) |`RBSEC001`–`RBSEC007` secrets, injection, `eval`, TLS, `chmod`, désérialisation non sûre (`Marshal.load`, `YAML.load`), `Kernel#open` ; `RBROB001` `rescue Exception` ; `RBMNT001` ; `RBPOR001`
+|`LU` (Lua) |`LUSEC001`–`LUSEC005` secrets, injection `os.execute` / `io.popen`, `load` / `dofile`, TLS, `chmod` ; `LUMNT001` ; `LUPOR001`
+|`JS` (Node.js) |`JSSEC001`–`JSSEC006` secrets, injection `exec`, `eval` / `new Function`, `rejectUnauthorized: false`, `chmod`, `Math.random` pour un jeton ; `JSROB001` CommonJS sans `use strict` ; `JSMNT001` ; `JSPOR001`
+|`SD` (systemd) |`SDSEC001` service lancé en root, `SDSEC002` aucun durcissement, `SDSEC003` secret dans `Environment=` ; `SDROB001` `Exec*` sans chemin absolu, `SDROB002` `Restart=always` sans `RestartSec`, `SDROB003` minuteur sans `Persistent=true` ; `SDMNT001`
+|`CR` (crontab) |`CRROB001` commande relative, `CRROB002` `%` non échappé, `CRROB003` sortie ni redirigée ni envoyée par courriel, `CRROB004` tâche chaque minute sans verrou ; `CRSEC001` `curl \| sh`, `CRSEC002` script lancé depuis `/tmp` ou `/home` en root, `CRSEC003` mot de passe en ligne de commande
+|`SU` (sudoers) |`SUSEC001` `NOPASSWD: ALL`, `SUSEC002` accès complet pour un compte nominatif, `SUSEC003` joker dans une commande, `SUSEC004` `Defaults` affaiblissant la protection, `SUSEC005` évasion vers un shell (éditeur, pager, interpréteur — voir GTFOBins)
+|===
+
+`check-script --list-rules` les liste toutes, `check-script explain RBSEC003`
+en décrit une avec un exemple.
+
 == Exclure des chemins
 
 Dans un dossier, les dossiers cachés (`.git`, `.venv`…) et de dépendances

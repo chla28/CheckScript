@@ -11,7 +11,8 @@
 
 `check-script` est une bibliothèque Dart (`lib/`) exposée par un CLI
 (`bin/check_script.dart`) et une interface Flutter (`gui/`). Elle orchestre
-des analyseurs de scripts shell et Python 3 (outils externes et règles
+des analyseurs de scripts shell, Python 3, Perl, Ruby, Lua et Node.js et de
+fichiers systemd, crontab et sudoers (outils externes et règles
 intégrées),
 normalise leurs résultats en *problèmes* (`Finding`) classés par catégorie et
 sévérité, les dédoublonne, applique directives, contextes et configuration,
@@ -62,6 +63,9 @@ lib/src/
   rules/catalog.dart               Catalogue des règles intégrées (titre, conseil, contexte),
                                    ExecContext, escalades de sévérité par contexte
   rules/examples.dart              Exemples « à éviter / à écrire » par règle (shell et Python)
+  rules/lang_catalog.dart          Règles, exemples et références de Perl, Ruby, Lua, Node.js,
+                                   systemd, crontab et sudoers (préfixes PL RB LU JS SD CR SU)
+  analyzers/lang_rules.dart        Détection de ces règles (lexicale, commentaires retirés)
   rules/custom_rules.dart          CustomRule (rules.custom), CustomRulesAnalyzer
   rules/references.dart            Références CWE / OWASP / ANSSI des règles (ruleReferences),
                                    intitulés, liens, findingReferences, matchesReference (--ref)
