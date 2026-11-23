@@ -663,10 +663,14 @@ void main() {
       final total = RulesScreenTestAccess.count(state);
       expect(find.textContaining('/ $total règles'), findsOneWidget);
 
-      // La recherche porte sur des sous-chaînes : SEC001 et PYSEC001.
+      // La recherche porte sur des sous-chaînes : SEC001, PYSEC001, PLSEC001…
       await tester.enterText(find.byType(TextField).first, 'SEC001');
       await tester.pumpAndSettle();
-      expect(find.byType(CheckboxListTile), findsNWidgets(2));
+      final withSec001 = knownRules(Lang.fr)
+          .where((e) => e.id.toUpperCase().contains('SEC001'))
+          .length;
+      expect(withSec001, greaterThan(2));
+      expect(find.byType(CheckboxListTile), findsNWidgets(withSec001));
       await tester.tap(find.descendant(
           of: find.byKey(const ValueKey('SEC001')),
           matching: find.byType(Checkbox)));

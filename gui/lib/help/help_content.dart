@@ -131,8 +131,8 @@ List<HelpPage> helpPages(Lang lang) {
       [
         HelpHeading(t('Barre d\'outils', 'Toolbar')),
         HelpBullets([
-          t('**Ouvrir un script** : choisit un script shell ou Python à analyser.',
-              '**Open a script**: picks a shell or Python script to analyse.'),
+          t('**Ouvrir un script** : choisit un script (shell, Python, Perl, Ruby, Lua, Node.js, fichier systemd, crontab ou sudoers) à analyser.',
+              '**Open a script**: picks a script (shell, Python, Perl, Ruby, Lua, Node.js, systemd, crontab or sudoers file) to analyse.'),
           t('**Relancer l\'analyse** : refait l\'analyse (après une modification du script, des règles ou des réglages).',
               '**Re-run analysis**: analyses again (after a change to the script, the rules or the settings).'),
           t('**Corriger…** : propose les corrections automatiques sûres, avec aperçu.',

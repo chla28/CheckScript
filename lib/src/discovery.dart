@@ -9,9 +9,33 @@ import 'package:path/path.dart' as p;
 import 'embedded.dart';
 import 'ignore.dart';
 
-final _scriptShebang =
-    RegExp(r'^#!.*\b(?:(?:ba|da|k|mk|z)?sh|python[23]?(?:\.\d+)?)\b');
-const _scriptExt = {'.sh', '.bash', '.ksh', '.dash', '.zsh', '.py', '.pyw'};
+final _scriptShebang = RegExp(r'^#!.*\b(?:(?:ba|da|k|mk|z)?sh|'
+    r'python[23]?(?:\.\d+)?|perl\d*|ruby\d*|luajit|lua[\d.]*|nodejs|node)\b');
+
+/// Extensions de scripts reconnues d'office dans un dossier.
+const _scriptExt = {
+  '.sh', '.bash', '.ksh', '.dash', '.zsh', '.py', '.pyw', //
+  '.pl', '.pm', '.rb', '.lua',
+  // Fichiers d'administration.
+  '.service', '.timer', '.socket', '.cron',
+};
+
+/// Extensions JavaScript : trop courantes dans un projet web pour être
+/// analysées sans shebang `node` (un fichier donné explicitement l'est
+/// toujours).
+const _jsExt = {'.js', '.mjs', '.cjs'};
+
+/// Fichiers d'administration reconnus à leur nom : `crontab`, `sudoers`,
+/// et le contenu de `cron.d/` et `sudoers.d/`.
+bool _isAdminFile(String path) {
+  final unix = path.replaceAll('\\', '/');
+  final name = p.basename(unix).toLowerCase();
+  if (name == 'crontab' || name == 'sudoers') return true;
+  final dir = p.basename(p.dirname(unix));
+  return (dir == 'cron.d' || dir == 'sudoers.d') &&
+      !name.startsWith('.') &&
+      !name.contains('~');
+}
 
 /// Dossiers de dépendances tierces, jamais parcourus (les dossiers cachés,
 /// dont `.venv` et `.git`, sont déjà exclus).
@@ -71,10 +95,10 @@ bool isExcluded(String relative, {bool embedded = true}) =>
 /// Python pour un fichier sans extension.
 Future<bool> isScriptFile(String path, {bool embedded = true}) async {
   final ext = p.extension(path).toLowerCase();
-  if (_scriptExt.contains(ext)) return true;
+  if (_scriptExt.contains(ext) || _isAdminFile(path)) return true;
   final f = File(path);
   if (embedded && await _hasEmbedded(f)) return true;
-  if (ext.isNotEmpty) return false;
+  if (ext.isNotEmpty && !_jsExt.contains(ext)) return false;
   try {
     final head = await f.openRead(0, 128).first;
     return _scriptShebang

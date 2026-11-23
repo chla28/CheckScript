@@ -117,14 +117,20 @@ class Messages {
   String get maskedSecret => _t('(ligne non reproduite : secret potentiel)',
       '(line not shown: potential secret)');
   String get language_ => _t('Langage', 'Language');
-  String toolLanguage(ToolLanguage l) => switch (l) {
-        ToolLanguage.shell => 'shell',
-        ToolLanguage.python => 'python',
-        ToolLanguage.any => _t('tous', 'all'),
-      };
-  String scriptsOverview(int n, int shell, int python) => _t(
-      '$n scripts ($shell shell, $python Python)',
-      '$n scripts ($shell shell, $python Python)');
+  String toolLanguage(ToolLanguage l) =>
+      l == ToolLanguage.any ? _t('tous', 'all') : l.name;
+
+  /// `3 scripts (2 shell, 1 Python)` : [byLanguage] associe le nom du langage
+  /// d'outil (`shell`, `python`, `node`…) au nombre de scripts.
+  String scriptsOverview(int n, Map<String, int> byLanguage) {
+    const names = {'python': 'Python', 'node': 'Node.js', 'perl': 'Perl'};
+    final parts = [
+      for (final e in byLanguage.entries)
+        if (e.value > 0) '${e.value} ${names[e.key] ?? e.key}'
+    ];
+    return '$n scripts (${parts.join(', ')})';
+  }
+
   String get averageScore => _t('Note moyenne', 'Average score');
   String get gradeDistribution => _t('Niveaux', 'Grades');
   String get issuesBySeverity => _t('Problèmes', 'Issues');

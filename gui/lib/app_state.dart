@@ -718,7 +718,9 @@ class AppState extends ChangeNotifier {
           continue;
         }
         seenRules[key] =
-            RuleEntry.fromFinding(f, python: r.script.dialect.isPython);
+            RuleEntry.fromFinding(f,
+                language: ToolLanguage.values
+                    .byName(r.script.dialect.languageName));
         changed = true;
       }
     }

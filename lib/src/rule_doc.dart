@@ -47,11 +47,9 @@ String renderRuleDoc(RuleEntry e, Lang lang) {
   final b = StringBuffer();
   b.writeln('${e.id}${e.title.isEmpty ? '' : ' — ${e.title}'}');
   b.writeln();
-  final lng = switch (e.language) {
-    ToolLanguage.shell => 'shell',
-    ToolLanguage.python => 'python',
-    ToolLanguage.any => t('shell, python', 'shell, python'),
-  };
+  final lng = e.language == ToolLanguage.any
+      ? t('tous les langages', 'all languages')
+      : e.language.name;
   b.writeln('${t('Catégorie', 'Category')} : ${m.category(e.category)}');
   b.writeln('${t('Sévérité', 'Severity')} : '
       '${e.severity?.label ?? t('variable (selon l\'outil)', 'varies (by tool)')}');

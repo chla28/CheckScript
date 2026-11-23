@@ -40,13 +40,29 @@ class SyntaxAnalyzer extends Analyzer {
 
   /// Commande de contrôle : exécutable et arguments, auxquels on ajoute le
   /// fichier (ou rien : lecture de l'entrée standard).
-  static (String, List<String>) commandFor(Dialect d) => d.isPython
-      ? (pythonExecutable, ['-c', pythonCompileScript])
-      : (interpreterFor(d), ['-n']);
+  static (String, List<String>) commandFor(Dialect d) => switch (d) {
+        Dialect.python => (pythonExecutable, ['-c', pythonCompileScript]),
+        Dialect.perl => ('perl', ['-c']),
+        Dialect.ruby => ('ruby', ['-c']),
+        Dialect.lua => ('luac', ['-p']),
+        Dialect.node => ('node', ['--check']),
+        Dialect.sudoers => ('visudo', ['-c', '-f']),
+        _ => (interpreterFor(d), ['-n']),
+      };
 
   /// Libellé de la commande (rapports, `--list-tools`).
-  static String labelFor(Dialect d) =>
-      d.isPython ? '$pythonExecutable compile()' : '${interpreterFor(d)} -n';
+  static String labelFor(Dialect d) {
+    if (d.isPython) return '$pythonExecutable compile()';
+    final (exe, args) = commandFor(d);
+    return '$exe ${args.join(' ')}';
+  }
+
+  /// Pas de contrôle syntaxique pour les unités systemd et les crontabs
+  /// (leur format est trop permissif pour qu'un outil les rejette sans
+  /// contexte).
+  @override
+  bool appliesTo(ScriptInfo script) =>
+      script.dialect != Dialect.systemd && script.dialect != Dialect.crontab;
 
   /// Interpréteur utilisé pour `-n` selon le dialecte.
   static String interpreterFor(Dialect d) => switch (d) {
@@ -61,7 +77,14 @@ class SyntaxAnalyzer extends Analyzer {
     final d = ctx.script.dialect;
     final (exe, args) = commandFor(d);
     final label = labelFor(d);
-    final r = await ctx.run(exe, [...args, ctx.filePath]);
+    var r = await ctx.run(exe, [...args, ctx.filePath]);
+    // Lua : le compilateur porte souvent le numéro de version (luac5.4).
+    if (r == null && d == Dialect.lua) {
+      for (final alt in const ['luac5.4', 'luac5.3', 'luac5.2', 'luac5.1']) {
+        r = await ctx.run(alt, [...args, ctx.filePath]);
+        if (r != null) break;
+      }
+    }
     if (r == null) {
       return AnalyzerResult(ToolRun(name, ToolStatus.missing, detail: label));
     }
@@ -69,7 +92,9 @@ class SyntaxAnalyzer extends Analyzer {
         ? <Finding>[]
         : (d.isPython
             ? parsePythonSyntaxError(r.stderr)
-            : parseSyntaxErrors(r.stderr));
+            : d.isShell
+                ? parseSyntaxErrors(r.stderr)
+                : parseLangSyntaxError(d, '${r.stderr}\n${r.stdout}'));
     if (r.exitCode != 0 && findings.isEmpty) {
       findings.add(Finding(
           tool: name,
@@ -109,6 +134,63 @@ List<Finding> parsePythonSyntaxError(String stderr) {
       column: int.parse(m.group(2)!),
       message: m.group(3)!.trim(),
       equivalents: pythonSyntaxEquivalents,
+    ),
+  ];
+}
+
+/// Première erreur de syntaxe d'un interpréteur autre que shell et Python :
+///   Perl    `syntax error at x.pl line 3, near "}"`
+///   Ruby    `x.rb:3: syntax error, unexpected end-of-input`
+///   Lua     `luac: x.lua:3: unexpected symbol near '='`
+///   Node.js `/chemin/x.js:3` puis, plus bas, `SyntaxError: Unexpected token`
+///   visudo  `x:3:5: syntax error` ou `>>> x: syntax error near line 3 <<<`
+/// Une sortie illisible donne une erreur sans numéro de ligne.
+List<Finding> parseLangSyntaxError(Dialect d, String output) {
+  final text = output.trim();
+  if (text.isEmpty) return [];
+  int? line;
+  var message = text.split('\n').first.trim();
+  switch (d) {
+    case Dialect.perl:
+      final m =
+          RegExp(r'^(.*) at \S+ line (\d+)', multiLine: true).firstMatch(text);
+      if (m != null) {
+        line = int.parse(m[2]!);
+        message = m[1]!.trim();
+      }
+    case Dialect.node:
+      final at = RegExp(r'^[^\n]*:(\d+)\s*$', multiLine: true).firstMatch(text);
+      final err =
+          RegExp(r'^(?:\w*Error): (.*)$', multiLine: true).firstMatch(text);
+      if (at != null) line = int.parse(at[1]!);
+      if (err != null) message = err[1]!.trim();
+    case Dialect.sudoers:
+      final m =
+          RegExp(r':(\d+):\d+:\s*(.*)$', multiLine: true).firstMatch(text);
+      final near = RegExp(r'(.*)near line (\d+)').firstMatch(text);
+      if (m != null) {
+        line = int.parse(m[1]!);
+        message = m[2]!.trim();
+      } else if (near != null) {
+        line = int.parse(near[2]!);
+        message = near[1]!.replaceAll('>>>', '').trim();
+      }
+    default:
+      final m =
+          RegExp(r'^[^\n]*?:(\d+):\s*(.*)$', multiLine: true).firstMatch(text);
+      if (m != null) {
+        line = int.parse(m[1]!);
+        message = m[2]!.trim();
+      }
+  }
+  return [
+    Finding(
+      tool: 'syntax',
+      ruleId: 'SYNTAX',
+      category: Category.robustness,
+      severity: Severity.critical,
+      line: line ?? 0,
+      message: message,
     ),
   ];
 }

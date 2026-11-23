@@ -24,7 +24,7 @@ final _noqa = RegExp(
 final _nosec = RegExp(r'#\s*nosec\b(?:[\s:]+([Bb]\d{3}(?:[\s,]+[Bb]\d{3})*))?');
 
 final _directive = RegExp(
-    r'#\s*check-script\s+(disable|disable-file|disable-next-line)\s*=\s*([\w*,\s-]+)',
+    r'(?:#|//|--|;)\s*check-script\s+(disable|disable-file|disable-next-line)\s*=\s*([\w*,\s-]+)',
     caseSensitive: false);
 
 /// Une directive `# check-script disable…` du script.

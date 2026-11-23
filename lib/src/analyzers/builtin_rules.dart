@@ -23,6 +23,7 @@ import '../rules/catalog.dart';
 import '../script_info.dart';
 import 'analyzer.dart';
 import 'ast.dart';
+import 'lang_rules.dart';
 import 'python_rules.dart';
 import 'shell_lexer.dart';
 
@@ -117,8 +118,12 @@ final List<LineRule> lineRules = [
       equivalents: ['SC2114', 'SC2115']),
   LineRule('SEC009',
       r'''(?:>>?\s*|\b(?:tee|touch)\s+(?:-\w+\s+)*)["']?/(?:var/)?tmp/[A-Za-z0-9_.${}-]+'''),
-  LineRule('SEC010',
-      r'\becho\b.*\|\s*sudo\s+(?:-\w+\s+)*-S\b|\bsshpass\s+-p|\bmysql(?:dump|admin)?\b.*\s-p[^\s-]|--password[= ]\S',
+  LineRule(
+      'SEC010',
+      r'\becho\b.*\|\s*sudo\s+(?:-\w+\s+)*-S\b|\bsshpass\s+-p|\bmysql(?:dump|admin)?\b.*\s-p[^\s-]|--password[= ]\S'
+          r'|\bopenssl\b[^|;&]*\s-(?:pass|passin|passout)\s+pass:\S|\bopenssl\b[^|;&]*\s-k\s+\S'
+          r'|\bgpg2?\b[^|;&]*--passphrase[= ]\S|\b7za?\b[^|;&]*\s-p\S|\b(?:zip|unzip)\b[^|;&]*\s-P\s*\S'
+          r'|\bcurl\b[^|;&]*\s(?:-u|--user)[= ]?\S+:\S',
       hideSnippet: true),
   LineRule(
       'SEC011', '$_cmd(?:source|\\.)\\s+["\']?(?:/tmp/|/var/tmp/|https?://)'),
@@ -159,6 +164,26 @@ final List<LineRule> lineRules = [
       when: (s) => !RegExp(
               r'\bgit\s+(?:-C\s+\S+\s+)?(?:checkout|switch\s+--detach|reset\s+--hard)\s+\S')
           .hasMatch(s.content)),
+  LineRule(
+      'SEC027',
+      r'\b(?:ba|da|z|k)?sh\b[^;|]*(?:>&|&>)\s*/dev/(?:tcp|udp)/'
+          r'|(?:>&|&>)\s*/dev/(?:tcp|udp)/\S+\s+[0-2]?[<>]&[0-2]'
+          r'|\b(?:nc|ncat|netcat)\b[^|;&]*\s-[a-zA-Z]*[ec]\s'
+          r'|\bsocat\b[^|;&]*\b(?:EXEC|SYSTEM):',
+      caseSensitive: false),
+  LineRule('SEC028', r'\bumask\s+0{1,4}(?=\s|;|$)', onBare: true),
+  LineRule(
+      'SEC029',
+      r'^(?=.*\$\{?RANDOM\b)'
+          r'(?=.*(?:token|secret|pass(?:word|wd)?|api_?key|nonce|salt|session|csrf))',
+      caseSensitive: false),
+  LineRule(
+      'SEC030',
+      r'\bsetenforce\s+(?:0|permissive)\b'
+          r'|\biptables\s+(?:-t\s+\w+\s+)?(?:-F|--flush)\b'
+          r'|\bufw\s+disable\b'
+          r'|\bsystemctl\s+(?:stop|disable|mask)\s+(?:--now\s+)?(?:firewalld|auditd|apparmor|fail2ban|ufw)\b'
+          r'|\bsed\b[^|;&]*SELINUX=(?:disabled|permissive)'),
 
   // ── Robustesse ────────────────────────────────────────────────────────────
   LineRule('ROB005', '${_cmd}cd(?:\\s+[^;&|]*)?\\s*\$',
@@ -252,6 +277,13 @@ class BuiltinAnalyzer extends Analyzer {
           ToolRun(name, ToolStatus.ok,
               detail: facts == null ? 'lexer' : 'ast',
               findings: findings.length),
+          findings);
+    }
+    if (!ctx.script.dialect.isShell) {
+      final findings = runLangRules(ctx.script, ctx.config, ctx.lang);
+      return AnalyzerResult(
+          ToolRun(name, ToolStatus.ok,
+              detail: 'lexer', findings: findings.length),
           findings);
     }
     final ast = await loadAst(ctx);

@@ -321,7 +321,11 @@ String _fixHtml(Finding f, List<String> lines, Messages t, Lang lang) {
 /// les plus fréquentes.
 void _folderSummary(
     StringBuffer b, List<ScriptReport> reports, Messages t, Lang lang) {
-  final python = reports.where((r) => r.script.dialect.isPython).length;
+  final byLanguage = <String, int>{};
+  for (final r in reports) {
+    final l = r.script.dialect.languageName;
+    byLanguage[l] = (byLanguage[l] ?? 0) + 1;
+  }
   final avg =
       reports.map((r) => r.global).reduce((a, x) => a + x) / reports.length;
   final grades = <String, int>{};
@@ -337,7 +341,7 @@ void _folderSummary(
 
   b.writeln('<div class="card kpi" id="summary">'
       '<div><span class="muted">${_e(t.scriptsAffected)}</span><strong>${reports.length}</strong>'
-      '<span class="muted">${_e(t.scriptsOverview(reports.length, reports.length - python, python))}</span></div>'
+      '<span class="muted">${_e(t.scriptsOverview(reports.length, byLanguage))}</span></div>'
       '<div><span class="muted">${_e(t.averageScore)}</span>'
       '<strong style="color:${_color(avg)}">${fmtScore(avg, lang)}/10</strong></div>'
       '<div><span class="muted">${_e(t.gradeDistribution)}</span><strong>'

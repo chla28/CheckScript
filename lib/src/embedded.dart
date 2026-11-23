@@ -108,7 +108,10 @@ class EmbeddedScript {
       ];
 }
 
-const _scriptExt = {'.sh', '.bash', '.ksh', '.dash', '.zsh', '.py', '.pyw'};
+const _scriptExt = {
+  '.sh', '.bash', '.ksh', '.dash', '.zsh', '.py', '.pyw', //
+  '.pl', '.pm', '.rb', '.lua', '.js', '.mjs', '.cjs',
+};
 
 final _ansibleShell = RegExp(
     r'^\s*(?:-\s+)?(?:ansible\.(?:builtin|legacy)\.)?shell\s*:',

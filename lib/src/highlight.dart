@@ -46,7 +46,14 @@ enum HighlightLanguage {
   python,
   yaml,
   dockerfile,
-  makefile;
+  makefile,
+  perl,
+  ruby,
+  lua,
+  node,
+
+  /// Unités systemd, crontab et sudoers.
+  admin;
 
   /// Langage d'affichage d'un script (fichier hôte compris).
   static HighlightLanguage of(ScriptInfo s) => switch (s.embedded?.kind) {
@@ -56,7 +63,15 @@ enum HighlightLanguage {
           yaml,
         EmbeddedKind.dockerfile => dockerfile,
         EmbeddedKind.makefile => makefile,
-        null => s.dialect.isPython ? python : shell,
+        null => switch (s.dialect) {
+            Dialect.python => python,
+            Dialect.perl => perl,
+            Dialect.ruby => ruby,
+            Dialect.lua => lua,
+            Dialect.node => node,
+            Dialect.systemd || Dialect.crontab || Dialect.sudoers => admin,
+            _ => shell,
+          },
       };
 }
 
@@ -74,6 +89,16 @@ List<List<Token>> highlightLines(List<String> lines, HighlightLanguage lang) {
       for (var i = 0; i < lines.length; i++) {
         out.add(py.line(lines[i], first: i == 0));
       }
+    case HighlightLanguage.perl:
+    case HighlightLanguage.ruby:
+    case HighlightLanguage.lua:
+    case HighlightLanguage.node:
+      final g = _Generic.of(lang);
+      for (var i = 0; i < lines.length; i++) {
+        out.add(g.line(lines[i], first: i == 0));
+      }
+    case HighlightLanguage.admin:
+      out.addAll(lines.map(_admin));
     case HighlightLanguage.yaml:
       out.addAll(lines.map(_yaml));
     case HighlightLanguage.dockerfile:
@@ -372,6 +397,161 @@ class _Python {
     }
     return out;
   }
+}
+
+// ── Perl, Ruby, Lua, Node.js ─────────────────────────────────────────────────
+
+const _perlWords = {
+  'my', 'our', 'local', 'sub', 'if', 'elsif', 'else', 'unless', 'while', //
+  'until', 'for', 'foreach', 'return', 'last', 'next', 'use', 'no', 'package',
+  'require', 'and', 'or', 'not', 'eq', 'ne', 'lt', 'gt', 'le', 'ge', 'do',
+  'eval', 'die', 'warn', 'print', 'printf', 'open', 'close', 'system', 'exec',
+};
+const _rubyWords = {
+  'def', 'end', 'class', 'module', 'if', 'elsif', 'else', 'unless', 'while', //
+  'until', 'for', 'in', 'do', 'begin', 'rescue', 'ensure', 'raise', 'return',
+  'yield', 'case', 'when', 'then', 'and', 'or', 'not', 'nil', 'true', 'false',
+  'self', 'require', 'require_relative', 'puts', 'print', 'eval', 'system',
+};
+const _luaWords = {
+  'local', 'function', 'end', 'if', 'then', 'elseif', 'else', 'for', 'while', //
+  'do', 'repeat', 'until', 'return', 'break', 'in', 'and', 'or', 'not', 'nil',
+  'true', 'false', 'require', 'print', 'load', 'dofile', 'pairs', 'ipairs',
+};
+const _nodeWords = {
+  'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', //
+  'do', 'switch', 'case', 'break', 'continue', 'try', 'catch', 'finally',
+  'throw', 'new', 'class', 'extends', 'import', 'export', 'from', 'default',
+  'async', 'await', 'typeof', 'in', 'of', 'null', 'undefined', 'true', 'false',
+  'require', 'eval',
+};
+
+/// Colorateur léger commun aux langages de script : commentaires de ligne et
+/// de bloc, chaînes, nombres, mots-clés et, en Perl, les variables à sigil.
+class _Generic {
+  final String comment;
+  final String? blockOpen, blockClose;
+  final Set<String> keywords;
+  final bool sigils;
+  final bool backtick;
+
+  /// Un commentaire de bloc est ouvert.
+  bool _inBlock = false;
+
+  _Generic(this.comment, this.keywords,
+      {this.blockOpen,
+      this.blockClose,
+      this.sigils = false,
+      this.backtick = false});
+
+  factory _Generic.of(HighlightLanguage l) => switch (l) {
+        HighlightLanguage.perl => _Generic('#', _perlWords, sigils: true),
+        HighlightLanguage.ruby => _Generic('#', _rubyWords),
+        HighlightLanguage.lua =>
+          _Generic('--', _luaWords, blockOpen: '--[[', blockClose: ']]'),
+        _ => _Generic('//', _nodeWords,
+            blockOpen: '/*', blockClose: '*/', backtick: true),
+      };
+
+  List<Token> line(String l, {bool first = false}) {
+    final out = <Token>[];
+    if (first && l.startsWith('#!')) {
+      return [Token(0, l.length, TokenKind.shebang)];
+    }
+    var i = 0;
+    while (i < l.length) {
+      if (_inBlock) {
+        final end = l.indexOf(blockClose!, i);
+        final stop = end < 0 ? l.length : end + blockClose!.length;
+        out.add(Token(i, stop, TokenKind.comment));
+        _inBlock = end < 0;
+        i = stop;
+        continue;
+      }
+      final c = l[i];
+      if (blockOpen != null && l.startsWith(blockOpen!, i)) {
+        _inBlock = true;
+        final end = l.indexOf(blockClose!, i + blockOpen!.length);
+        final stop = end < 0 ? l.length : end + blockClose!.length;
+        out.add(Token(i, stop, TokenKind.comment));
+        _inBlock = end < 0;
+        i = stop;
+        continue;
+      }
+      if (l.startsWith(comment, i) && !(sigils && i > 0 && l[i - 1] == r'$')) {
+        out.add(Token(i, l.length, TokenKind.comment));
+        break;
+      }
+      if (c == '"' || c == "'" || (backtick && c == '`')) {
+        var j = i + 1;
+        while (j < l.length && l[j] != c) {
+          j += l[j] == '\\' ? 2 : 1;
+        }
+        j = j < l.length ? j + 1 : l.length;
+        out.add(Token(i, j, TokenKind.string));
+        i = j;
+        continue;
+      }
+      if (sigils && (c == r'$' || c == '@' || c == '%') && i + 1 < l.length) {
+        final m = RegExp(r'[\$@%]#?\{?\w+\}?').matchAsPrefix(l, i);
+        if (m != null && m.end > i + 1) {
+          out.add(Token(i, m.end, TokenKind.variable));
+          i = m.end;
+          continue;
+        }
+      }
+      if (_isWord(c)) {
+        var j = i;
+        while (j < l.length && _isWord(l[j])) {
+          j++;
+        }
+        final w = l.substring(i, j);
+        if (keywords.contains(w)) {
+          out.add(Token(i, j, TokenKind.keyword));
+        } else if (RegExp(r'^\d').hasMatch(w)) {
+          out.add(Token(i, j, TokenKind.number));
+        }
+        i = j;
+        continue;
+      }
+      i++;
+    }
+    return out;
+  }
+}
+
+/// Unité systemd, crontab ou sudoers : sections et clés, planification,
+/// mots-clés de sudoers.
+List<Token> _admin(String l) {
+  final t = l.trimLeft();
+  final lead = l.length - t.length;
+  if (t.startsWith('#') || t.startsWith(';')) {
+    return [Token(lead, l.length, TokenKind.comment)];
+  }
+  final section = RegExp(r'^\[[^\]]+\]').firstMatch(t);
+  if (section != null) {
+    return [Token(lead, lead + section.end, TokenKind.key)];
+  }
+  final key = RegExp(r'^([A-Za-z][\w.-]*)\s*=').firstMatch(t);
+  if (key != null && !RegExp(r'^\S+\s+\S+\s*=').hasMatch(t)) {
+    return [Token(lead, lead + key[1]!.length, TokenKind.key)];
+  }
+  final out = <Token>[];
+  // Planification d'une tâche cron : cinq champs ou @mot.
+  final sched =
+      RegExp(r'^(@\w+|(?:[\d*/,\-?]+\s+){4}[\d*/,\-?A-Za-z]+)\s').firstMatch(t);
+  if (sched != null) {
+    out.add(Token(lead, lead + sched[1]!.length, TokenKind.number));
+  }
+  for (final m in RegExp(
+          r'\b(?:Defaults|ALL|NOPASSWD|PASSWD|SETENV|Cmnd_Alias|User_Alias|Runas_Alias|Host_Alias)\b')
+      .allMatches(l)) {
+    out.add(Token(m.start, m.end, TokenKind.keyword));
+  }
+  for (final m in RegExp(r'"(?:\\.|[^"\\])*"|\x27[^\x27]*\x27').allMatches(l)) {
+    out.add(Token(m.start, m.end, TokenKind.string));
+  }
+  return _sorted(out);
 }
 
 // ── Fichiers hôtes ──────────────────────────────────────────────────────────

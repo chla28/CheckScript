@@ -4,7 +4,9 @@ library;
 import 'embedded.dart';
 
 /// Dialecte déduit du shebang ou de l'extension (ou forcé par l'utilisateur) :
-/// un shell, ou Python 3.
+/// un shell, Python 3, un autre langage de script (Perl, Ruby, Lua, Node.js)
+/// ou un fichier de configuration d'administration (unité systemd, crontab,
+/// sudoers).
 enum Dialect {
   sh,
   bash,
@@ -12,6 +14,13 @@ enum Dialect {
   ksh,
   zsh,
   python,
+  perl,
+  ruby,
+  lua,
+  node,
+  systemd,
+  crontab,
+  sudoers,
   unknown;
 
   static Dialect? tryParse(String s) {
@@ -43,6 +52,50 @@ enum Dialect {
 
   /// Script Python (analysé par les outils Python, pas par les outils shell).
   bool get isPython => this == Dialect.python;
+
+  /// Script shell (dialecte inconnu compris : les outils shell s'y appliquent).
+  bool get isShell => switch (this) {
+        Dialect.python ||
+        Dialect.perl ||
+        Dialect.ruby ||
+        Dialect.lua ||
+        Dialect.node ||
+        Dialect.systemd ||
+        Dialect.crontab ||
+        Dialect.sudoers =>
+          false,
+        _ => true,
+      };
+
+  /// Fichier de configuration d'administration, pas un programme.
+  bool get isConfig =>
+      this == Dialect.systemd ||
+      this == Dialect.crontab ||
+      this == Dialect.sudoers;
+
+  /// Nom du langage tel que le désignent les outils et les règles : `shell`
+  /// pour tous les shells, sinon le nom du dialecte.
+  String get languageName => isShell ? 'shell' : name;
+
+  /// Début d'un commentaire de ligne.
+  String get commentPrefix => switch (this) {
+        Dialect.lua => '--',
+        Dialect.node => '//',
+        _ => '#',
+      };
+
+  /// Extension du fichier temporaire écrit pour les outils externes.
+  String get fileExtension => switch (this) {
+        Dialect.python => 'py',
+        Dialect.perl => 'pl',
+        Dialect.ruby => 'rb',
+        Dialect.lua => 'lua',
+        Dialect.node => 'js',
+        Dialect.systemd => 'service',
+        Dialect.crontab => 'cron',
+        Dialect.sudoers => 'sudoers',
+        _ => 'sh',
+      };
 }
 
 class ScriptInfo {
@@ -93,11 +146,38 @@ class ScriptInfo {
     final shebang =
         lines.isNotEmpty && lines.first.startsWith('#!') ? lines.first : null;
     var dialect = forcedDialect ?? dialectFromShebang(shebang);
-    if (dialect == Dialect.unknown && isPythonPath(path)) {
-      dialect = Dialect.python;
-    }
+    if (dialect == Dialect.unknown) dialect = dialectFromPath(path);
     return ScriptInfo._(
         path, normalized, List.unmodifiable(lines), shebang, dialect, hasCrlf);
+  }
+
+  /// Dialecte déduit du nom du fichier seul ([Dialect.unknown] si le nom ne
+  /// dit rien : un shell sans extension, par exemple).
+  static Dialect dialectFromPath(String path) {
+    final lower = path.toLowerCase().replaceAll('\\', '/');
+    final name = lower.split('/').last;
+    final ext = name.contains('.') ? name.substring(name.lastIndexOf('.')) : '';
+    if (isPythonPath(path)) return Dialect.python;
+    if (name == 'crontab' || lower.contains('/cron.d/') || ext == '.cron') {
+      return Dialect.crontab;
+    }
+    if (name == 'sudoers' || lower.contains('/sudoers.d/')) {
+      return Dialect.sudoers;
+    }
+    return switch (ext) {
+      '.pl' || '.pm' || '.t' => Dialect.perl,
+      '.rb' || '.rake' || '.gemspec' => Dialect.ruby,
+      '.lua' => Dialect.lua,
+      '.js' || '.mjs' || '.cjs' => Dialect.node,
+      '.service' ||
+      '.timer' ||
+      '.socket' ||
+      '.mount' ||
+      '.path' ||
+      '.target' =>
+        Dialect.systemd,
+      _ => Dialect.unknown,
+    };
   }
 
   /// Extension d'un script Python (`.py`, `.pyw`).
@@ -125,6 +205,12 @@ class ScriptInfo {
       'zsh' => Dialect.zsh,
       _ when RegExp(r'^python(?:[23](?:\.\d+)?)?$').hasMatch(interp) =>
         Dialect.python,
+      _ when RegExp(r'^perl(?:\d+(?:\.\d+)*)?$').hasMatch(interp) =>
+        Dialect.perl,
+      _ when RegExp(r'^ruby(?:\d+(?:\.\d+)*)?$').hasMatch(interp) =>
+        Dialect.ruby,
+      _ when RegExp(r'^(?:lua|luajit)[\d.-]*$').hasMatch(interp) => Dialect.lua,
+      'node' || 'nodejs' || 'deno' || 'bun' => Dialect.node,
       _ => Dialect.unknown,
     };
   }
@@ -137,15 +223,27 @@ class ScriptInfo {
       ? _pythonCounts().$1
       : lines.where((l) {
           final t = l.trim();
-          return t.isNotEmpty && !t.startsWith('#');
+          return t.isNotEmpty && !_isComment(t);
         }).length;
 
   /// Lignes de commentaire (et, en Python, de docstring), shebang exclu.
   int get commentLines => dialect.isPython
       ? _pythonCounts().$2
       : lines.skip(shebang == null ? 0 : 1).where((l) {
-          return l.trim().startsWith('#');
+          return _isComment(l.trim());
         }).length;
+
+  /// Ligne (déjà épurée) de commentaire : préfixe du langage, plus `;` pour
+  /// les unités systemd et `*` des blocs `/* … */` de JavaScript.
+  bool _isComment(String t) {
+    final p = dialect.commentPrefix;
+    if (t.startsWith(p)) return true;
+    return switch (dialect) {
+      Dialect.systemd => t.startsWith(';'),
+      Dialect.node => t.startsWith('/*') || t.startsWith('*'),
+      _ => false,
+    };
+  }
 
   static final _docOpen = RegExp(r'''^[rRuUbB]?("\"\"|\'\'\')''');
 

@@ -42,7 +42,7 @@ _arguments -s \
   '*'{-o,--output}'[report file]:file:_files' \
   {-f,--format}'[format]:format:(terminal md adoc html pdf json sarif codeclimate gitlab junit github)' \
   {-l,--lang}'[language]:language:(fr en)' \
-  {-s,--shell}'[dialect]:dialect:(sh bash dash ksh zsh python)' \
+  {-s,--shell}'[dialect]:dialect:(sh bash dash ksh zsh python perl ruby lua node systemd crontab sudoers)' \
   '--python-target[minimum Python version]:version:(3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14)' \
   {-p,--profile}'[profile]:profile:(strict default legacy)' \
   '*--context[execution context]:context:(root cron systemd interactive)' \

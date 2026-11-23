@@ -306,13 +306,17 @@ Future<String?> syntaxRegression(ScriptInfo script, String fixed,
   return (b.toString(), n);
 }
 
+/// Correction automatique disponible : shell et Python seulement (les autres
+/// langages et fichiers d'administration ne sont que signalés).
+bool _hasAutofix(Dialect d) => d.isShell || d.isPython;
+
 /// Corrige un script. [filePath] sert de nom dans les messages ; le contenu
 /// passé aux outils est toujours [script.content].
 Future<FixResult> fixScript(ScriptInfo script,
     {CheckConfig config = const CheckConfig(),
     CommandRunner runner = const ProcessCommandRunner()}) async {
   // Fichier hôte (Dockerfile, CI…) : pas de réécriture automatique.
-  if (script.embedded != null) {
+  if (script.embedded != null || !_hasAutofix(script.dialect)) {
     return FixResult(script.content, script.content, const {});
   }
   final r = script.dialect.isPython
@@ -495,7 +499,7 @@ Future<FixResult> _fixPython(ScriptInfo script,
 Future<String?> formatScript(ScriptInfo script,
     {CheckConfig config = const CheckConfig(),
     CommandRunner runner = const ProcessCommandRunner()}) async {
-  if (script.embedded != null) return null;
+  if (script.embedded != null || !_hasAutofix(script.dialect)) return null;
   final text = script.content;
   final CommandResult? r;
   if (script.dialect.isPython) {

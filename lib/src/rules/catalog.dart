@@ -4,8 +4,10 @@
 /// syntaxique de shfmt est disponible).
 library;
 
+import '../analyzers/analyzer.dart' show ToolLanguage;
 import '../i18n.dart';
 import '../model/finding.dart';
+import 'lang_catalog.dart';
 
 /// Contexte d'exécution déclaré du script (`--context`) : durcit certaines
 /// sévérités et active des règles spécifiques.
@@ -41,8 +43,11 @@ class RuleInfo {
   const RuleInfo(this.id, this.category, this.severity, this.title, this.fix,
       {this.contexts = const {}});
 
+  /// Langage visé par la règle (déduit du préfixe de l'identifiant).
+  ToolLanguage get language => languageOfRule(id);
+
   /// Règle propre aux scripts Python (identifiant `PY…`).
-  bool get python => id.startsWith('PY');
+  bool get python => language == ToolLanguage.python;
 }
 
 const _sec = Category.security;
@@ -55,7 +60,7 @@ const _h = Severity.high;
 const _m = Severity.medium;
 const _l = Severity.low;
 
-const List<RuleInfo> ruleCatalog = [
+const List<RuleInfo> _coreCatalog = [
   // ── Sécurité ──────────────────────────────────────────────────────────────
   RuleInfo(
       'SEC001',
@@ -266,6 +271,38 @@ const List<RuleInfo> ruleCatalog = [
           'Git repository cloned without a pinned revision (tag or commit)'),
       Tr('Cloner une étiquette (git clone --branch v1.2.3) ou fixer le commit après le clonage (git -C dépôt checkout <sha>).',
           'Clone a tag (git clone --branch v1.2.3) or pin the commit after cloning (git -C repo checkout <sha>).')),
+  RuleInfo(
+      'SEC027',
+      _sec,
+      _c,
+      Tr('Shell inversé ou ouvert sur le réseau (/dev/tcp, nc -e, socat EXEC)',
+          'Reverse or bind shell (/dev/tcp, nc -e, socat EXEC)'),
+      Tr('Supprimer cette commande : aucun script d\'administration légitime n\'expose un shell sur le réseau. Utiliser ssh pour l\'accès distant.',
+          'Remove this command: no legitimate administration script exposes a shell over the network. Use ssh for remote access.')),
+  RuleInfo(
+      'SEC028',
+      _sec,
+      _m,
+      Tr('umask 000 : fichiers créés lisibles et modifiables par tous',
+          'umask 000: created files readable and writable by everyone'),
+      Tr('Utiliser umask 027 (ou 077 pour des données privées) ; ouvrir explicitement les droits des seuls fichiers concernés.',
+          'Use umask 027 (or 077 for private data); open up the permissions of the files concerned explicitly.')),
+  RuleInfo(
+      'SEC029',
+      _sec,
+      _m,
+      Tr('\$RANDOM pour un jeton, un mot de passe ou un sel : générateur prévisible',
+          '\$RANDOM for a token, password or salt: predictable generator'),
+      Tr('Utiliser openssl rand -hex 16, head -c 16 /dev/urandom | base64, ou \$SRANDOM (bash 5.1+).',
+          'Use openssl rand -hex 16, head -c 16 /dev/urandom | base64, or \$SRANDOM (bash 5.1+).')),
+  RuleInfo(
+      'SEC030',
+      _sec,
+      _h,
+      Tr('Protection système désactivée (setenforce 0, iptables -F, ufw disable, arrêt de auditd / fail2ban)',
+          'System protection disabled (setenforce 0, iptables -F, ufw disable, stopping auditd / fail2ban)'),
+      Tr('Ajouter la règle ou l\'exception nécessaire au lieu de couper la protection ; sinon la rétablir en fin de script.',
+          'Add the rule or exception needed instead of turning the protection off; otherwise restore it at the end of the script.')),
 
   // ── Dockerfile ────────────────────────────────────────────────────────────
   RuleInfo(
@@ -798,16 +835,22 @@ const List<RuleInfo> ruleCatalog = [
           'Add the package to the dependencies (requirements.txt, pyproject.toml or the script\'s PEP 723 header) so it installs elsewhere.')),
 ];
 
+/// Toutes les règles intégrées : shell, Python, puis les autres langages
+/// et fichiers d'administration.
+final List<RuleInfo> ruleCatalog = [..._coreCatalog, ...langRuleCatalog];
+
 final Map<String, RuleInfo> _byId = {for (final r in ruleCatalog) r.id: r};
 
 /// Règle du catalogue par identifiant (lève si inconnue : erreur de code).
 RuleInfo ruleInfo(String id) =>
     _byId[id] ?? (throw ArgumentError('unknown rule: $id'));
 
-/// Toutes les règles, shell puis Python, triées par catégorie puis
-/// identifiant (`--list-rules`).
+/// Toutes les règles, groupées par langage (shell, Python, puis les autres)
+/// et triées par catégorie puis identifiant (`--list-rules`).
 List<RuleInfo> allBuiltinRules() => [...ruleCatalog]..sort((a, b) {
-    if (a.python != b.python) return a.python ? 1 : -1;
+    if (a.language != b.language) {
+      return a.language.index.compareTo(b.language.index);
+    }
     final o = a.category.index.compareTo(b.category.index);
     return o != 0 ? o : a.id.compareTo(b.id);
   });

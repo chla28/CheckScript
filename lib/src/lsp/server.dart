@@ -285,17 +285,29 @@ class LspServer {
 
   static final _scriptExt =
       RegExp(r'\.(?:sh|bash|ksh|dash|zsh|pyw?)$', caseSensitive: false);
-  static final _shebang =
-      RegExp(r'^#!.*\b(?:(?:ba|da|k|mk|z)?sh|python[23]?(?:\.\d+)?)\b');
+  static final _shebang = RegExp(r'^#!.*\b(?:(?:ba|da|k|mk|z)?sh|'
+      r'python[23]?(?:\.\d+)?|perl\d*|ruby\d*|luajit|lua[\d.]*|nodejs|node)\b');
+
+  /// Chemin d'un script d'un autre langage ou d'un fichier d'administration
+  /// (hors JavaScript, voir [isAnalyzable]).
+  static bool _isAdminOrScriptPath(String p) {
+    final d = ScriptInfo.dialectFromPath(p);
+    return d != Dialect.unknown && d != Dialect.node;
+  }
 
   /// Le document est un script (ou contient des scripts intégrés).
   static bool isAnalyzable(String? path, String text, String languageId) {
-    if (const {'shellscript', 'sh', 'bash', 'zsh', 'python'}
-        .contains(languageId)) {
+    if (const {
+      'shellscript', 'sh', 'bash', 'zsh', 'python', //
+      'perl', 'ruby', 'lua', 'systemd', 'crontab', 'sudoers',
+    }.contains(languageId)) {
       return true;
     }
     final p = path ?? '';
     return _scriptExt.hasMatch(p) ||
+        // JavaScript : seulement avec un shebang node (voir _shebang), un
+        // projet web contient des centaines de fichiers qui n'en sont pas.
+        _isAdminOrScriptPath(p) ||
         _shebang.hasMatch(text.split('\n').first) ||
         detectEmbedded(p, text) != null;
   }
@@ -500,6 +512,13 @@ class LspServer {
     if (d == null) return const [];
     final fr = _lang == Lang.fr;
     final lines = d.text.split('\n');
+    // Préfixe de commentaire du langage (Lua : --, Node.js : //).
+    var dialect = lines.isEmpty
+        ? Dialect.unknown
+        : ScriptInfo.dialectFromShebang(
+            lines.first.startsWith('#!') ? lines.first : null);
+    if (dialect == Dialect.unknown) dialect = ScriptInfo.dialectFromPath(uri);
+    final cp = dialect.commentPrefix;
     final out = <Map<String, Object?>>[];
     final seen = <String>{};
     for (final diag
@@ -540,7 +559,7 @@ class LspServer {
             [
               {
                 'range': _range(f.line - 1, 0, f.line - 1, 0),
-                'newText': '$indent# check-script disable=${f.ruleId}\n',
+                'newText': '$indent$cp check-script disable=${f.ruleId}\n',
               }
             ],
             diagnostic: diag));
@@ -555,7 +574,7 @@ class LspServer {
             [
               {
                 'range': _range(at, 0, at, 0),
-                'newText': '# check-script disable-file=${f.ruleId}\n',
+                'newText': '$cp check-script disable-file=${f.ruleId}\n',
               }
             ],
             diagnostic: diag));

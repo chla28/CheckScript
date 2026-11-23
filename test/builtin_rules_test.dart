@@ -293,12 +293,16 @@ void main() {
     final rules = allBuiltinRules();
     expect(rules.map((r) => r.id).toSet().length, rules.length);
     expect(rules.first.category, Category.security);
-    // Règles shell puis règles Python, chacune par catégorie.
-    final shell = rules.takeWhile((r) => !r.python).toList();
+    // Règles shell, puis Python, puis les autres langages, chacune par
+    // catégorie.
+    final shell =
+        rules.takeWhile((r) => r.language == ToolLanguage.shell).toList();
     expect(shell.last.category, Category.performance);
-    final py = rules.skip(shell.length).toList();
+    final py = rules.skip(shell.length).takeWhile((r) => r.python).toList();
     expect(py, isNotEmpty);
-    expect(py.every((r) => r.python), isTrue);
     expect(py.first.id, 'PYSEC001');
+    final order = [for (final r in rules) r.language.index];
+    expect(order, [...order]..sort());
+    expect(rules.last.language, ToolLanguage.sudoers);
   });
 }

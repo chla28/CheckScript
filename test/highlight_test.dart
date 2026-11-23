@@ -36,6 +36,70 @@ void main() {
     }
   });
 
+  test('Perl, Ruby, Lua, Node.js : commentaires, chaînes, mots-clés', () {
+    expect(
+        show([r'my $x = "a"; # fin', r'my $n = $#list;'],
+            HighlightLanguage.perl),
+        [
+          '1:keyword:my',
+          '1:variable:\$x',
+          '1:string:"a"',
+          '1:comment:# fin',
+          '2:keyword:my',
+          '2:variable:\$n',
+          '2:variable:\$#list',
+        ]);
+    expect(show(['puts "x" # c'], HighlightLanguage.ruby),
+        ['1:keyword:puts', '1:string:"x"', '1:comment:# c']);
+    expect(
+        show(['local a = 1 -- c', '--[[ bloc', 'fin ]] x = 2'],
+            HighlightLanguage.lua),
+        [
+          '1:keyword:local',
+          '1:number:1',
+          '1:comment:-- c',
+          '2:comment:--[[ bloc',
+          '3:comment:fin ]]',
+          '3:number:2',
+        ]);
+    expect(
+        show(['const a = `x`; // c', '/* b', 'c */ let d;'],
+            HighlightLanguage.node),
+        [
+          '1:keyword:const',
+          '1:string:`x`',
+          '1:comment:// c',
+          '2:comment:/* b',
+          '3:comment:c */',
+          '3:keyword:let',
+        ]);
+  });
+
+  test('unités systemd, crontab et sudoers', () {
+    expect(
+        show(['[Service]', 'ExecStart=/bin/a', '; c'], HighlightLanguage.admin),
+        ['1:key:[Service]', '2:key:ExecStart', '3:comment:; c']);
+    expect(show(['0 3 * * * /bin/a', '@daily /bin/b'], HighlightLanguage.admin),
+        ['1:number:0 3 * * *', '2:number:@daily']);
+    expect(show(['alice ALL=(ALL) NOPASSWD: ALL'], HighlightLanguage.admin), [
+      '1:keyword:ALL',
+      '1:keyword:ALL',
+      '1:keyword:NOPASSWD',
+      '1:keyword:ALL'
+    ]);
+  });
+
+  test('langage d\'affichage selon le dialecte', () {
+    HighlightLanguage of(String path) =>
+        HighlightLanguage.of(ScriptInfo.fromContent(path, 'x\n'));
+    expect(of('a.pl'), HighlightLanguage.perl);
+    expect(of('a.rb'), HighlightLanguage.ruby);
+    expect(of('a.lua'), HighlightLanguage.lua);
+    expect(of('a.js'), HighlightLanguage.node);
+    expect(of('a.service'), HighlightLanguage.admin);
+    expect(of('/etc/sudoers'), HighlightLanguage.admin);
+  });
+
   test('shell : shebang, variables, chaînes, commentaires, mots-clés', () {
     final s = show([
       '#!/bin/bash',

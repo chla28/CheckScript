@@ -38,7 +38,7 @@ void main() {
         severity: Severity.medium,
         line: 3,
         message: 'Argument 1 has incompatible type');
-    final e = RuleEntry.fromFinding(f, python: true);
+    final e = RuleEntry.fromFinding(f, language: ToolLanguage.python);
     expect(e.key, 'ARG-TYPE');
     expect(e.language, ToolLanguage.python);
     final back = RuleEntry.fromJson(e.toJson())!;

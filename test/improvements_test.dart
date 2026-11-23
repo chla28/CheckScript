@@ -322,7 +322,7 @@ thresholds:
           await e.analyze(script('#!/bin/bash\negrep c h\n', path: 'b.sh'));
       final html = renderHtml([a, b], const RenderOptions(lang: Lang.fr));
       expect(html, contains('id="summary"'));
-      expect(html, contains('2 scripts (2 shell, 0 Python)'));
+      expect(html, contains('2 scripts (2 shell)'));
       expect(html, contains('table class="sortable"'));
       expect(html, contains('Règles les plus fréquentes'));
       // POR005 : 3 occurrences dans 2 scripts, avant les règles plus rares.

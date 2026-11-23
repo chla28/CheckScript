@@ -77,12 +77,13 @@ class RuleEntry {
 
   /// Règle découverte lors d'une analyse : le message du problème sert de
   /// titre.
-  factory RuleEntry.fromFinding(Finding f, {required bool python}) => RuleEntry(
+  factory RuleEntry.fromFinding(Finding f, {required ToolLanguage language}) =>
+      RuleEntry(
         id: f.ruleId,
         tool: f.tool,
         language: f.tool == 'gitleaks' || f.tool == 'trufflehog'
             ? ToolLanguage.any
-            : (python ? ToolLanguage.python : ToolLanguage.shell),
+            : language,
         category: f.category,
         severity: f.severity,
         title: f.message,

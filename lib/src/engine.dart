@@ -240,7 +240,7 @@ class Engine {
     var path = script.embedded == null ? filePath : null;
     if (path == null) {
       tmp = await Directory.systemTemp.createTemp('check_script_');
-      path = '${tmp.path}/script.${script.dialect.isPython ? 'py' : 'sh'}';
+      path = '${tmp.path}/script.${script.dialect.fileExtension}';
       await File(path).writeAsString(script.content);
     }
     try {
@@ -315,7 +315,7 @@ class Engine {
         ...staleDirectives(suppressions, raw, runs, lang),
       ];
       final fixed = attachFixes(
-          shell: !script.dialect.isPython,
+          shell: script.dialect.isShell,
           attachSource(
               fingerprintAll(
                   applyConfig(

@@ -1,7 +1,8 @@
 // Copyright (C) 2026 Christophe Lafaille
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-/// check-script : évalue un ou plusieurs scripts shell ou Python et produit un
+/// check-script : évalue un ou plusieurs scripts (shell, Python, Perl, Ruby,
+/// Lua, Node.js, fichiers systemd, crontab, sudoers) et produit un
 /// classement (Sécurité, Robustesse, Maintenabilité, Portabilité,
 /// Performance), dans le terminal et/ou dans des fichiers .md / .adoc /
 /// .html / .json / .sarif ; corrige les défauts sûrs avec --fix.
@@ -85,10 +86,13 @@ ArgParser buildParser(Lang lang) {
             'Report language (default: from LANG).'))
     ..addOption('shell',
         abbr: 's',
-        allowed: ['sh', 'bash', 'dash', 'ksh', 'zsh', 'python'],
+        allowed: [
+          for (final d in Dialect.values)
+            if (d != Dialect.unknown) d.name
+        ],
         help: t(
-            'Force le dialecte (sinon déduit du shebang, ou de l\'extension .py).',
-            'Force the dialect (otherwise taken from the shebang, or the .py extension).'))
+            'Force le dialecte : shell, python, perl, ruby, lua, node, ou fichier systemd, crontab, sudoers (sinon déduit du shebang ou de l\'extension).',
+            'Force the dialect: shell, python, perl, ruby, lua, node, or a systemd, crontab, sudoers file (otherwise taken from the shebang or the extension).'))
     ..addOption('python-target',
         valueHelp: 'VERSION',
         help: t(
@@ -368,10 +372,10 @@ Future<int> run(List<String> argv,
   if (a['help'] as bool) {
     out.writeln(t(
         'Usage : check-script [options] <script|dossier|->...\n\n'
-            'Évalue des scripts shell ou Python sur cinq axes (Sécurité, Robustesse, '
+            'Évalue des scripts (shell, Python, Perl, Ruby, Lua, Node.js) et des fichiers systemd, crontab, sudoers sur cinq axes (Sécurité, Robustesse, '
             'Maintenabilité, Portabilité, Performance), notés sur 10.\n',
         'Usage: check-script [options] <script|directory|->...\n\n'
-            'Rates shell or Python scripts on five axes (Security, Robustness, '
+            'Rates scripts (shell, Python, Perl, Ruby, Lua, Node.js) and systemd, crontab, sudoers files on five axes (Security, Robustness, '
             'Maintainability, Portability, Performance), scored out of 10.\n'));
     out.writeln(parser.usage);
     out.writeln(t(
@@ -704,8 +708,8 @@ Future<int> run(List<String> argv,
         continue;
       }
       if (files.isEmpty) {
-        err.writeln(t('Aucun script shell ou Python dans : $target',
-            'No shell or Python script in: $target'));
+        err.writeln(t('Aucun script reconnu dans : $target',
+            'No recognized script in: $target'));
       }
       // Sans correction ni dialecte forcé, les scripts d'un dossier sont
       // analysés en parallèle (ordre des rapports conservé).
@@ -1404,9 +1408,11 @@ Future<void> listTools(Engine engine, IOSink out, Lang lang) async {
         '${t.toolLanguage(an.language).padRight(10)}';
     if (an.name == 'builtin') {
       final rules = allBuiltinRules();
+      final shell = rules.where((r) => r.language == ToolLanguage.shell).length;
       final py = rules.where((r) => r.python).length;
       out.writeln('$head${builtIn.padRight(20)}'
-          '${rules.length - py} + $py ${lang == Lang.fr ? 'règles' : 'rules'}');
+          '$shell + $py + ${rules.length - shell - py} '
+          '${lang == Lang.fr ? 'règles (shell + Python + autres)' : 'rules (shell + Python + others)'}');
       continue;
     }
     if (!tc.enabled) {
@@ -1477,8 +1483,7 @@ void listRules(IOSink out, Lang lang,
     final ctx = r.contexts.isEmpty
         ? ''
         : ' [${r.contexts.map((c) => c.name).join(', ')}]';
-    out.writeln(
-        '${r.id.padRight(9)}${(r.python ? 'python' : 'shell').padRight(8)}'
+    out.writeln('${r.id.padRight(9)}${r.language.name.padRight(8)}'
         '${t.category(r.category).padRight(17)}'
         '${r.severity.label.padRight(10)}${r.title.of(lang)}$ctx');
     final refs = referencesOf(r.id);

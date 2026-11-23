@@ -17,7 +17,7 @@ complete -c check-script -f -n "not __fish_seen_subcommand_from $subcommands" -a
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -s o -l output -r -F -d 'Report file (repeatable)'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -s f -l format -x -a 'terminal md adoc html pdf json sarif codeclimate gitlab junit github' -d 'Output format'
 complete -c check-script -s l -l lang -x -a 'fr en' -d 'Language'
-complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -s s -l shell -x -a 'sh bash dash ksh zsh python' -d 'Force the dialect'
+complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -s s -l shell -x -a 'sh bash dash ksh zsh python perl ruby lua node systemd crontab sudoers' -d 'Force the dialect'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l python-target -x -a '3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14' -d 'Minimum Python version'
 complete -c check-script -s p -l profile -x -a 'strict default legacy' -d 'Scoring profile'
 complete -c check-script -n "not __fish_seen_subcommand_from $subcommands" -l context -x -a 'root cron systemd interactive' -d 'Execution context'

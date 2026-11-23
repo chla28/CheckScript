@@ -28,6 +28,9 @@
   "activationEvents": [
     "onLanguage:shellscript",
     "onLanguage:python",
+    "onLanguage:perl",
+    "onLanguage:ruby",
+    "onLanguage:lua",
     "onLanguage:dockerfile",
     "onLanguage:makefile",
     "onLanguage:yaml",

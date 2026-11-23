@@ -29,8 +29,8 @@ class Tips {
 
   // Barre d'outils
   String get openScript => _t(
-      'Choisir un ou plusieurs scripts shell ou Python à analyser, un onglet chacun (Ctrl+O, ou les déposer sur la fenêtre)',
-      'Pick one or more shell or Python scripts to analyse, one tab each (Ctrl+O, or drop them on the window)');
+      'Choisir un ou plusieurs scripts (shell, Python, Perl, Ruby, Lua, Node.js…) à analyser, un onglet chacun (Ctrl+O, ou les déposer sur la fenêtre)',
+      'Pick one or more scripts (shell, Python, Perl, Ruby, Lua, Node.js…) to analyse, one tab each (Ctrl+O, or drop them on the window)');
   String get openFolder => _t(
       'Choisir un dossier : tous ses scripts sont analysés (Ctrl+Maj+O, ou le déposer sur la fenêtre)',
       'Pick a folder: all its scripts are analysed (Ctrl+Shift+O, or drop it on the window)');

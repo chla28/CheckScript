@@ -16,7 +16,14 @@ void main() {
       '#!/usr/bin/python3': Dialect.python,
       '#!/usr/bin/env python': Dialect.python,
       '#!/usr/bin/env -S python3.11 -u': Dialect.python,
-      '#!/usr/bin/perl': Dialect.unknown,
+      '#!/usr/bin/perl': Dialect.perl,
+      '#!/usr/bin/env perl': Dialect.perl,
+      '#!/usr/bin/ruby3.2': Dialect.ruby,
+      '#!/usr/bin/env lua5.4': Dialect.lua,
+      '#!/usr/bin/env luajit': Dialect.lua,
+      '#!/usr/bin/env node': Dialect.node,
+      '#!/usr/bin/nodejs': Dialect.node,
+      '#!/usr/bin/awk -f': Dialect.unknown,
     };
     cases.forEach((shebang, expected) {
       test(shebang, () {

@@ -98,7 +98,8 @@ void main() {
     });
 
     Future<List<String>> found({List<String> exclude = const []}) async => [
-          for (final f in (await collectScripts(tmp.path, exclude: exclude, recursive: true))!)
+          for (final f in (await collectScripts(tmp.path,
+              exclude: exclude, recursive: true))!)
             f.substring(tmp.path.length + 1)
         ];
 
@@ -115,7 +116,8 @@ void main() {
       write('.checkscriptignore', '# propre\nvendor/\n**/gen/**\n');
       expect(await found(), ['a.sh', 'lib/d.sh']);
       // Désactivable.
-      final all = await collectScripts(tmp.path, useIgnoreFile: false, recursive: true);
+      final all =
+          await collectScripts(tmp.path, useIgnoreFile: false, recursive: true);
       expect(all!.length, 4);
     });
 

@@ -57,6 +57,13 @@ async function start(context: vscode.ExtensionContext) {
     documentSelector: [
       { scheme: 'file', language: 'shellscript' },
       { scheme: 'file', language: 'python' },
+      { scheme: 'file', language: 'perl' },
+      { scheme: 'file', language: 'ruby' },
+      { scheme: 'file', language: 'lua' },
+      // Fichiers d'administration (reconnus par leur nom).
+      { scheme: 'file', pattern: '**/*.{service,timer,socket}' },
+      { scheme: 'file', pattern: '**/{crontab,sudoers}' },
+      { scheme: 'file', pattern: '**/{cron.d,sudoers.d}/*' },
       { scheme: 'file', language: 'dockerfile' },
       { scheme: 'file', language: 'makefile' },
       // Le serveur ignore les fichiers YAML sans script intégré.

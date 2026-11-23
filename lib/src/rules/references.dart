@@ -13,6 +13,7 @@
 library;
 
 import '../model/finding.dart';
+import 'lang_catalog.dart';
 import 'same_rules.dart';
 
 class RuleRefs {
@@ -65,6 +66,10 @@ final Map<String, RuleRefs> ruleReferences = {
   'SEC024': const RuleRefs(cwe: [1357], owasp: [_a08, _cicd3]),
   'SEC025': RuleRefs(cwe: [347, 494], owasp: [_a08, _cicd3], anssi: [_bp(59)]),
   'SEC026': const RuleRefs(cwe: [829], owasp: [_a08, _cicd3]),
+  'SEC027': const RuleRefs(cwe: [506], owasp: [_a08]),
+  'SEC028': const RuleRefs(cwe: [732], owasp: [_a01]),
+  'SEC029': const RuleRefs(cwe: [338], owasp: [_a02]),
+  'SEC030': const RuleRefs(cwe: [693], owasp: [_a05]),
   'DKR001': const RuleRefs(cwe: [1357], owasp: [_a08, _cicd3]),
   'DKR002':
       const RuleRefs(cwe: [250], owasp: [_a05], anssi: ['ANSSI-FT-082 R7']),
@@ -92,6 +97,7 @@ final Map<String, RuleRefs> ruleReferences = {
   'PYROB001': const RuleRefs(cwe: [1088]),
   'PYROB003': const RuleRefs(cwe: [362]),
   'PYROB004': const RuleRefs(cwe: [393]),
+  ...langReferences,
 };
 
 /// Références d'une règle : la sienne, sinon celle de la même règle sous le
@@ -139,6 +145,7 @@ const Map<String, String> referenceTitles = {
   'CWE-59': 'Improper Link Resolution Before File Access',
   'CWE-73': 'External Control of File Name or Path',
   'CWE-78': 'Improper Neutralization of Special Elements used in an OS Command',
+  'CWE-88': 'Improper Neutralization of Argument Delimiters in a Command',
   'CWE-94': 'Improper Control of Generation of Code',
   'CWE-95':
       'Improper Neutralization of Directives in Dynamically Evaluated Code',
@@ -149,6 +156,8 @@ const Map<String, String> referenceTitles = {
   'CWE-272': 'Least Privilege Violation',
   'CWE-295': 'Improper Certificate Validation',
   'CWE-319': 'Cleartext Transmission of Sensitive Information',
+  'CWE-338':
+      'Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)',
   'CWE-347': 'Improper Verification of Cryptographic Signature',
   'CWE-362':
       'Concurrent Execution using Shared Resource with Improper Synchronization',
@@ -160,12 +169,15 @@ const Map<String, String> referenceTitles = {
   'CWE-459': 'Incomplete Cleanup',
   'CWE-477': 'Use of Obsolete Function',
   'CWE-494': 'Download of Code Without Integrity Check',
+  'CWE-502': 'Deserialization of Untrusted Data',
+  'CWE-506': 'Embedded Malicious Code',
   'CWE-526':
       'Cleartext Storage of Sensitive Information in an Environment Variable',
   'CWE-532': 'Insertion of Sensitive Information into Log File',
   'CWE-546': 'Suspicious Comment',
   'CWE-549': 'Missing Password Field Masking',
   'CWE-668': 'Exposure of Resource to Wrong Sphere',
+  'CWE-693': 'Protection Mechanism Failure',
   'CWE-732': 'Incorrect Permission Assignment for Critical Resource',
   'CWE-798': 'Use of Hard-coded Credentials',
   'CWE-829': 'Inclusion of Functionality from Untrusted Control Sphere',

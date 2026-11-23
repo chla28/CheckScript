@@ -194,8 +194,8 @@ class _RulesScreenState extends State<RulesScreen> {
                 _language,
                 s.allLanguages,
                 {
-                  ToolLanguage.shell: 'shell',
-                  ToolLanguage.python: 'python',
+                  for (final l in ToolLanguage.values)
+                    if (l != ToolLanguage.any) l: l.name,
                 },
                 (v) => setState(() => _language = v),
                 tp.languageFilter),

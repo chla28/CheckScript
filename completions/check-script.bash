@@ -27,7 +27,7 @@ _check_script() {
       return 0
       ;;
     --shell | -s)
-      mapfile -t COMPREPLY < <(compgen -W "sh bash dash ksh zsh python" -- "$cur")
+      mapfile -t COMPREPLY < <(compgen -W "sh bash dash ksh zsh python perl ruby lua node systemd crontab sudoers" -- "$cur")
       return 0
       ;;
     --profile | -p)

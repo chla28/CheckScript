@@ -226,12 +226,18 @@ class AnalyzerResult {
 enum ToolLanguage {
   shell,
   python,
+  perl,
+  ruby,
+  lua,
+  node,
+  systemd,
+  crontab,
+  sudoers,
 
   /// Outils indépendants du langage (secrets, règles intégrées, syntaxe).
   any;
 
-  bool accepts(ScriptInfo s) =>
-      this == any || (this == python) == s.dialect.isPython;
+  bool accepts(ScriptInfo s) => this == any || name == s.dialect.languageName;
 }
 
 abstract class Analyzer {

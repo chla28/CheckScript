@@ -230,8 +230,7 @@ class S {
   String get trend => _t('Tendance', 'Trend');
   String get issues => _t('Problèmes', 'Issues');
   String get openInAnalysis => _t('Ouvrir dans l\'analyse', 'Open in analysis');
-  String get noScripts => _t('Aucun script shell ou Python trouvé.',
-      'No shell or Python script found.');
+  String get noScripts => _t('Aucun script reconnu trouvé.', 'No recognized script found.');
   String get shellTools => _t('Scripts shell', 'Shell scripts');
   String get pythonTools => _t('Scripts Python', 'Python scripts');
   String get commonTools => _t('Tous les scripts', 'All scripts');
