@@ -75,7 +75,9 @@ lib/src/
   explain.dart                     ScoreExplanation, explainScore (cost and gain per rule, plan
                                    to the next grade), sortByQuickWin
   result_cache.dart                ResultCache (JSON reports by key), fastHash (64-bit FNV-1a)
-  git.dart                         changedSince (--changed-since), normalizedPath
+  git.dart                         changedSince (--changed-since), changedLines (--changed-lines),
+                                   stagedFiles / indexContent (--staged), normalizedPath
+  hook.dart                        preCommitHook (check-script install-hook)
   history.dart                     FolderHistory, HistoryEntry (folder history: GUI,
                                    --history-dir, --dashboard)
   feedback.dart                    FalsePositive, FalsePositiveLog, anonymizeCode

@@ -215,7 +215,8 @@ check-script -q -b baseline.json --baseline-update scripts
   nouveaux poids) sans que les scripts changent : régénérez la référence
   après une mise à jour, depuis la branche principale.
 * *`--changed-since`* ne note que les scripts modifiés ; combinez-le avec une
-  référence pour le reste.
+  référence pour le reste. Ajoutez *`--changed-lines`* pour ne signaler que les
+  problèmes des lignes nouvelles ou modifiées.
 * *Secrets* : les rapports ne contiennent jamais la ligne d'un secret
   détecté, mais ils contiennent des chemins et des noms de règles : traitez
   les artefacts d'un dépôt privé comme privés.

@@ -253,6 +253,8 @@ check-script -r scripts/             # scripts/ and its sub-folders
 |`--dashboard FILE.html` |Team dashboard: each target (folder) is a repository; average score, trend (history curve), serious issues, levels, most frequent rules, weakest scripts. The history is recorded on each run.
 |`--history-dir FOLDER` |Where to record the history of analyzed folders (default with `--dashboard`: `~/.local/share/check-script/history`); a versioned folder shares it within the team (same analysis paths, e.g. a nightly CI job).
 |`--changed-since REF` |Analyzes only the scripts modified since the git reference REF (commits, work in progress, new files), in the repository of the first target; no modified script: exit code 0. Ideal in CI (`--changed-since origin/main`) and in pre-commit.
+|`--changed-lines` |With `--changed-since`: reports only the issues located on the lines *added or modified* since REF (the new code), not those of the existing code; the scores stay those of the whole script. A new file counts entirely. Ideal to demand clean new code on a legacy codebase.
+|`--staged` |Analyzes the *staged* version (`git add`) of the modified scripts of the current repository (or of the repository given as argument), no target needed: this is what the pre-commit hook runs (see <<git-hook>>).
 |`-r`, `--recursive` |Walks the sub-folders of the given folders (by default only the scripts of the folder itself are analysed). With a pattern without `/` (`'*.sh'`), also looks for it in the sub-folders. In the GUI: *Sub-folders* option of the Folder screen.
 |`--exclude PATTERN` |Excludes from a folder analysis the paths matching the pattern (`.gitignore` syntax: `vendor/`, `*.min.sh`, `**/gen/**`); repeatable. Adds to the `exclude` key of the configuration and to the `.checkscriptignore` file of the folder (see <<exclusions>>).
 |`--[no-]cache` |Reuses the report of an unchanged script (default; `~/.cache/check-script/results`). The key covers the script's content and path, the configuration, the language, the versions of check-script and of the tools (and the Semgrep rules); an analysis where a tool failed is not cached; disabled with `--follow-source`.
@@ -531,6 +533,34 @@ therefore remains the script as it was before the first fix.
 The *Copy* button puts the fixed code on the clipboard. A line where a
 secret is detected never receives a concrete fix (its preview would copy
 the secret).
+
+[[git-hook]]
+== Git hook and history
+
+*pre-commit hook.* `check-script install-hook [REPO]` writes a `pre-commit`
+hook in the repository (it honours `core.hooksPath`). At each commit it runs
+`check-script --staged`: the *staged* version of the modified scripts is
+analyzed — every recognized language, not what is in the working tree — and the
+commit is blocked when a script goes under the minimum score (`--fail-under N`,
+default 6). `CHECK_SCRIPT_SKIP=1 git commit` skips the check once,
+`CHECK_SCRIPT_ARGS="--profile strict"` adds options. An existing `pre-commit`
+hook that is not check-script's is only replaced with `--force`;
+`check-script install-hook --uninstall` removes the hook (`--stdout` prints it).
+With the pre-commit framework, use the `check-script` hook of
+`.pre-commit-hooks.yaml` instead.
+
+*New code only.* `--changed-since REF --changed-lines` keeps only the issues
+on the lines added or modified since REF: a pipeline can require clean new code
+without having to fix a legacy codebase first (complementary to the baseline,
+<<reference>>).
+
+*History.* An analysis recorded with `--history-dir DIR` (or `--dashboard`, or
+the graphical interface) is kept per folder.
+`check-script history [FOLDER]` lists the analyses (date, average score, grade
+distribution), the overall change and the scripts whose score changed the
+most; `--csv` writes the table as CSV (`--scripts`: one row per analysis and
+per script), `--last N` keeps the last N analyses. In the GUI, the Folder
+screen offers the same two CSV exports under the history chart.
 
 [[reference]]
 == Baseline and evolution
@@ -1266,6 +1296,11 @@ User configuration*, then paste the sections of
 `editors/geany/lsp.conf` (Sh, Python, Dockerfile, Make, YAML). Geany has
 only one server per file type: for Python, CheckScript then replaces
 pyright or pylsp.
+
+JetBrains IDEs (IntelliJ IDEA, PyCharm…)::
+No dedicated plugin: the free *LSP4IJ* plugin runs `check-script lsp` as a
+language server. Steps and file patterns in `editors/jetbrains/README.md`
+(not tested in a JetBrains IDE).
 
 Other editors::
 Any LSP client: command `check-script lsp`, initialization options

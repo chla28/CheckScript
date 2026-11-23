@@ -255,6 +255,8 @@ check-script -r scripts/             # scripts/ et ses sous-dossiers
 |`--dashboard FICHIER.html` |Tableau de bord d'équipe : chaque cible (dossier) est un dépôt ; note moyenne, évolution (courbe de l'historique), problèmes graves, niveaux, règles les plus fréquentes, scripts les plus faibles. L'historique est enregistré à chaque exécution.
 |`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
 |`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
+|`--changed-lines` |Avec `--changed-since` : ne signale que les problèmes situés sur les lignes *ajoutées ou modifiées* depuis REF (le code nouveau), pas ceux du code existant ; les notes restent celles du script entier. Un fichier nouveau compte en entier. Idéal pour exiger du code neuf propre sur un existant ancien.
+|`--staged` |Analyse la version *indexée* (`git add`) des scripts modifiés du dépôt courant (ou du dépôt donné en argument), sans cible : c'est ce que lance le hook pre-commit (voir <<git-hook>>).
 |`-r`, `--recursive` |Parcourt les sous-dossiers des dossiers donnés (par défaut, seuls les scripts du dossier lui-même sont analysés). Avec un motif sans `/` (`'*.sh'`), le cherche aussi dans les sous-dossiers. Dans l'interface : option *Sous-dossiers* de l'écran Dossier.
 |`--exclude MOTIF` |Exclut de l'analyse d'un dossier les chemins correspondant au motif (syntaxe `.gitignore` : `vendor/`, `*.min.sh`, `**/gen/**`) ; répétable. S'ajoute à la clé `exclude` de la configuration et au fichier `.checkscriptignore` du dossier (voir <<exclusions>>).
 |`--[no-]cache` |Réutilise le rapport d'un script inchangé (défaut ; `~/.cache/check-script/results`). La clé couvre le contenu et le chemin du script, la configuration, la langue, les versions de check-script et des outils (et les règles Semgrep) ; une analyse où un outil a échoué n'est pas mise en cache ; désactivé avec `--follow-source`.
@@ -536,6 +538,35 @@ donc le script d'avant la première correction.
 Le bouton *Copier* place le code corrigé dans le presse-papiers. Une ligne
 où un secret est détecté ne reçoit jamais de correction concrète (son
 aperçu recopierait le secret).
+
+[[git-hook]]
+== Hook git et historique
+
+*Hook pre-commit.* `check-script install-hook [DÉPÔT]` écrit un hook
+`pre-commit` dans le dépôt (il respecte `core.hooksPath`). À chaque commit, il
+lance `check-script --staged` : la version *indexée* des scripts modifiés est
+analysée — tous les langages reconnus, et non l'arbre de travail — et le commit
+est bloqué si un script passe sous la note minimale (`--fail-under N`, défaut 6).
+`CHECK_SCRIPT_SKIP=1 git commit` ignore le contrôle une fois,
+`CHECK_SCRIPT_ARGS="--profile strict"` ajoute des options. Un hook `pre-commit`
+existant qui n'est pas celui de check-script n'est remplacé qu'avec `--force` ;
+`check-script install-hook --uninstall` retire le hook (`--stdout` l'affiche).
+Avec le framework pre-commit, utiliser plutôt le hook `check-script` de
+`.pre-commit-hooks.yaml`.
+
+*Code neuf seulement.* `--changed-since REF --changed-lines` ne garde que les
+problèmes situés sur les lignes ajoutées ou modifiées depuis REF : un pipeline
+peut exiger du code neuf propre sans corriger d'abord tout un existant ancien
+(complémentaire de la référence, <<reference>>).
+
+*Historique.* Une analyse enregistrée avec `--history-dir DIR` (ou
+`--dashboard`, ou l'interface graphique) est conservée par dossier.
+`check-script history [DOSSIER]` liste les analyses (date, note moyenne,
+répartition des niveaux), l'évolution globale et les scripts dont la note a le
+plus changé ; `--csv` écrit le tableau en CSV (`--scripts` : une ligne par
+analyse et par script), `--last N` garde les N dernières analyses. Dans
+l'interface, l'écran Dossier propose les deux mêmes exports CSV sous le
+graphique de l'historique.
 
 [[reference]]
 == Référence et évolution
@@ -1279,6 +1310,11 @@ Configuration utilisateur*, puis coller les sections de
 `editors/geany/lsp.conf` (Sh, Python, Dockerfile, Make, YAML). Geany n'a
 qu'un serveur par type de fichier : pour Python, CheckScript remplace alors
 pyright ou pylsp.
+
+IDE JetBrains (IntelliJ IDEA, PyCharm…)::
+Pas de plugin dédié : le plugin gratuit *LSP4IJ* lance `check-script lsp` comme
+serveur de langage. Étapes et motifs de fichiers dans
+`editors/jetbrains/README.fr.md` (non testé dans un IDE JetBrains).
 
 Autres éditeurs::
 Tout client LSP : commande `check-script lsp`, options d'initialisation

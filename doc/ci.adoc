@@ -210,7 +210,8 @@ check-script -q -b baseline.json --baseline-update scripts
   without any change in the scripts: regenerate the baseline after an
   upgrade, from the main branch.
 * *`--changed-since`* reports scores for the changed scripts only; combine it
-  with a baseline for the rest.
+  with a baseline for the rest. Add *`--changed-lines`* to report only the
+  issues on the new or modified lines.
 * *Secrets*: reports never contain the line of a detected secret, but they
   contain paths and rule names: treat artifacts of a private repository as
   private.

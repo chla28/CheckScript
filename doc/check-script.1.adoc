@@ -18,6 +18,10 @@ check-script - evaluates the quality and security of shell, Python, Perl, Ruby, 
 
 *check-script diff* [_OPTIONS_] _BEFORE.json_ _AFTER.json_
 
+*check-script install-hook* [_OPTIONS_] [_REPO_]
+
+*check-script history* [_OPTIONS_] [_FOLDER_]
+
 *check-script lsp* [*--lang* *fr*|*en*]
 
 == DESCRIPTION
@@ -129,6 +133,14 @@ with *--recursive*.
 
 *--changed-since* _REF_::
   Analyzes only the scripts modified since the git reference _REF_.
+
+*--changed-lines*::
+  With *--changed-since*: report only the issues on the lines added or
+  modified since _REF_.
+
+*--staged*::
+  Analyze the staged (git add) version of the modified scripts; for a
+  pre-commit hook.
 
 *--no-cache*::
   Re-analyzes everything, without reusing the reports of unchanged scripts
