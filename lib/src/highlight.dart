@@ -51,6 +51,7 @@ enum HighlightLanguage {
   ruby,
   lua,
   node,
+  dart,
 
   /// Unités systemd, crontab et sudoers.
   admin;
@@ -69,6 +70,7 @@ enum HighlightLanguage {
             Dialect.ruby => ruby,
             Dialect.lua => lua,
             Dialect.node => node,
+            Dialect.dart => dart,
             Dialect.systemd || Dialect.crontab || Dialect.sudoers => admin,
             _ => shell,
           },
@@ -93,6 +95,7 @@ List<List<Token>> highlightLines(List<String> lines, HighlightLanguage lang) {
     case HighlightLanguage.ruby:
     case HighlightLanguage.lua:
     case HighlightLanguage.node:
+    case HighlightLanguage.dart:
       final g = _Generic.of(lang);
       for (var i = 0; i < lines.length; i++) {
         out.add(g.line(lines[i], first: i == 0));
@@ -418,6 +421,15 @@ const _luaWords = {
   'do', 'repeat', 'until', 'return', 'break', 'in', 'and', 'or', 'not', 'nil',
   'true', 'false', 'require', 'print', 'load', 'dofile', 'pairs', 'ipairs',
 };
+const _dartWords = {
+  'abstract', 'as', 'assert', 'async', 'await', 'break', 'case', 'catch', //
+  'class', 'const', 'continue', 'default', 'do', 'dynamic', 'else', 'enum',
+  'export', 'extends', 'extension', 'external', 'factory', 'false', 'final',
+  'finally', 'for', 'get', 'if', 'implements', 'import', 'in', 'is', 'late',
+  'library', 'mixin', 'new', 'null', 'on', 'part', 'required', 'rethrow',
+  'return', 'sealed', 'set', 'static', 'super', 'switch', 'this', 'throw',
+  'true', 'try', 'typedef', 'var', 'void', 'while', 'with', 'yield', 'print',
+};
 const _nodeWords = {
   'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', //
   'do', 'switch', 'case', 'break', 'continue', 'try', 'catch', 'finally',
@@ -449,6 +461,8 @@ class _Generic {
         HighlightLanguage.ruby => _Generic('#', _rubyWords),
         HighlightLanguage.lua =>
           _Generic('--', _luaWords, blockOpen: '--[[', blockClose: ']]'),
+        HighlightLanguage.dart =>
+          _Generic('//', _dartWords, blockOpen: '/*', blockClose: '*/'),
         _ => _Generic('//', _nodeWords,
             blockOpen: '/*', blockClose: '*/', backtick: true),
       };

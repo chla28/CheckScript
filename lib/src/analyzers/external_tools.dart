@@ -46,6 +46,7 @@ class SyntaxAnalyzer extends Analyzer {
         Dialect.ruby => ('ruby', ['-c']),
         Dialect.lua => ('luac', ['-p']),
         Dialect.node => ('node', ['--check']),
+        Dialect.dart => ('dart', ['format', '--output=none']),
         Dialect.sudoers => ('visudo', ['-c', '-f']),
         _ => (interpreterFor(d), ['-n']),
       };
@@ -143,6 +144,7 @@ List<Finding> parsePythonSyntaxError(String stderr) {
 ///   Ruby    `x.rb:3: syntax error, unexpected end-of-input`
 ///   Lua     `luac: x.lua:3: unexpected symbol near '='`
 ///   Node.js `/chemin/x.js:3` puis, plus bas, `SyntaxError: Unexpected token`
+///   Dart    `line 2, column 7 of x.dart: Expected an identifier.`
 ///   visudo  `x:3:5: syntax error` ou `>>> x: syntax error near line 3 <<<`
 /// Une sortie illisible donne une erreur sans numéro de ligne.
 List<Finding> parseLangSyntaxError(Dialect d, String output) {
@@ -164,6 +166,15 @@ List<Finding> parseLangSyntaxError(Dialect d, String output) {
           RegExp(r'^(?:\w*Error): (.*)$', multiLine: true).firstMatch(text);
       if (at != null) line = int.parse(at[1]!);
       if (err != null) message = err[1]!.trim();
+    case Dialect.dart:
+      // `line 2, column 7 of x.dart: Expected an identifier.`
+      final m =
+          RegExp(r'^line (\d+), column \d+ of [^:]*: (.*)$', multiLine: true)
+              .firstMatch(text);
+      if (m != null) {
+        line = int.parse(m[1]!);
+        message = m[2]!.trim();
+      }
     case Dialect.sudoers:
       final m =
           RegExp(r':(\d+):\d+:\s*(.*)$', multiLine: true).firstMatch(text);

@@ -164,6 +164,9 @@ class CheckConfig {
     'gitleaks': ToolConfig(executable: 'gitleaks'),
     'trufflehog': ToolConfig(executable: 'trufflehog'),
     'syntax': ToolConfig(executable: ''),
+    // Dart / Flutter : outils du SDK.
+    'dart-analyze': ToolConfig(executable: 'dart'),
+    'dart-format': ToolConfig(executable: 'dart'),
     'builtin': ToolConfig(executable: ''),
     'commands': ToolConfig(executable: ''),
     'custom': ToolConfig(executable: ''),

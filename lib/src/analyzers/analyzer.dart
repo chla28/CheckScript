@@ -230,6 +230,7 @@ enum ToolLanguage {
   ruby,
   lua,
   node,
+  dart,
   systemd,
   crontab,
   sudoers,

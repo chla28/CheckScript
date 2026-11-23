@@ -150,6 +150,7 @@ String? planLine(ScriptReport r, Messages t, Lang lang) {
 const coreTools = {
   'shellcheck', 'shfmt', 'bashate', 'checkbashisms', 'syntax', //
   'ruff', 'bandit', 'mypy', 'radon', 'vermin',
+  'dart-analyze', 'dart-format',
 };
 
 List<String> _missing(List<ScriptReport> reports) => {

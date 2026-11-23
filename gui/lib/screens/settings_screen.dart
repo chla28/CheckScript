@@ -228,6 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'pydeps', 'pip-audit', 'pylint', 'pyright',
           ]
         ),
+        (s.dartTools, ['dart-analyze', 'dart-format']),
         (s.commonTools, ['gitleaks', 'trufflehog', 'syntax']),
         (s.hostTools, ['hadolint', 'actionlint', 'zizmor']),
       ]) ...[

@@ -1,0 +1,5 @@
+ERROR|COMPILE_TIME_ERROR|URI_DOES_NOT_EXIST|/tmp/p/a.dart|2|8|22|Target of URI doesn't exist: 'package:foo/foo.dart'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/tmp/p/a.dart|7|9|14|Undefined name 'undefinedThing'.
+ERROR|COMPILE_TIME_ERROR|INVALID_ASSIGNMENT|/tmp/p/a.dart|8|11|3|A value of type 'String' can't be assigned to a variable of type 'int'.
+WARNING|STATIC_WARNING|UNUSED_LOCAL_VARIABLE|/tmp/p/a.dart|6|7|1|The value of the local variable 'x' isn't used.
+WARNING|STATIC_WARNING|UNUSED_LOCAL_VARIABLE|/tmp/p/a.dart|8|7|1|The value of the local variable 'y' isn't used.

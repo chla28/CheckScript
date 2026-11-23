@@ -8,6 +8,7 @@ import 'analyzers/analyzer.dart';
 import 'analyzers/builtin_rules.dart';
 import 'analyzers/ci_tools.dart';
 import 'analyzers/commands.dart';
+import 'analyzers/dart_tools.dart';
 import 'analyzers/external_tools.dart';
 import 'analyzers/python_deps.dart';
 import 'analyzers/python_tools.dart';
@@ -50,6 +51,8 @@ List<Analyzer> defaultAnalyzers() => [
       GitleaksAnalyzer(),
       TrufflehogAnalyzer(),
       CheckbashismsAnalyzer(),
+      DartAnalyzeAnalyzer(),
+      DartFormatAnalyzer(),
       BuiltinAnalyzer(),
       CustomRulesAnalyzer(),
       // Après les règles intégrées : en cas de doublon, celles-ci (conseil

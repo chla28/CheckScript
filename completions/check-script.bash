@@ -27,7 +27,7 @@ _check_script() {
       return 0
       ;;
     --shell | -s)
-      mapfile -t COMPREPLY < <(compgen -W "sh bash dash ksh zsh python perl ruby lua node systemd crontab sudoers" -- "$cur")
+      mapfile -t COMPREPLY < <(compgen -W "sh bash dash ksh zsh python perl ruby lua node dart systemd crontab sudoers" -- "$cur")
       return 0
       ;;
     --profile | -p)
@@ -39,7 +39,7 @@ _check_script() {
       return 0
       ;;
     --with | --without)
-      mapfile -t COMPREPLY < <(compgen -W "shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor commands gitleaks trufflehog syntax builtin custom" -- "$cur")
+      mapfile -t COMPREPLY < <(compgen -W "shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor dart-analyze dart-format commands gitleaks trufflehog syntax builtin custom" -- "$cur")
       return 0
       ;;
     --sort)

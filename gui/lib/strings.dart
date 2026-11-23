@@ -234,6 +234,7 @@ class S {
       _t('Aucun script reconnu trouvé.', 'No recognized script found.');
   String get shellTools => _t('Scripts shell', 'Shell scripts');
   String get pythonTools => _t('Scripts Python', 'Python scripts');
+  String get dartTools => _t('Code Dart / Flutter', 'Dart / Flutter code');
   String get commonTools => _t('Tous les scripts', 'All scripts');
   String get pythonTarget => _t('Version minimale de Python à supporter',
       'Minimum Python version to support');

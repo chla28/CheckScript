@@ -10,7 +10,7 @@ import 'embedded.dart';
 import 'ignore.dart';
 
 final _scriptShebang = RegExp(r'^#!.*\b(?:(?:ba|da|k|mk|z)?sh|'
-    r'python[23]?(?:\.\d+)?|perl\d*|ruby\d*|luajit|lua[\d.]*|nodejs|node)\b');
+    r'python[23]?(?:\.\d+)?|perl\d*|ruby\d*|luajit|lua[\d.]*|nodejs|node|dart)\b');
 
 /// Extensions de scripts reconnues d'office dans un dossier.
 const _scriptExt = {
@@ -20,10 +20,10 @@ const _scriptExt = {
   '.service', '.timer', '.socket', '.cron',
 };
 
-/// Extensions JavaScript : trop courantes dans un projet web pour être
-/// analysées sans shebang `node` (un fichier donné explicitement l'est
-/// toujours).
-const _jsExt = {'.js', '.mjs', '.cjs'};
+/// Extensions JavaScript et Dart : trop courantes dans un projet web ou
+/// Flutter pour être analysées sans shebang `node` / `dart` (un fichier donné
+/// explicitement l'est toujours).
+const _jsExt = {'.js', '.mjs', '.cjs', '.dart'};
 
 /// Fichiers d'administration reconnus à leur nom : `crontab`, `sudoers`,
 /// et le contenu de `cron.d/` et `sudoers.d/`.

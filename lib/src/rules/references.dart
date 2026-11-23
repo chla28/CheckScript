@@ -146,6 +146,8 @@ const Map<String, String> referenceTitles = {
   'CWE-73': 'External Control of File Name or Path',
   'CWE-78': 'Improper Neutralization of Special Elements used in an OS Command',
   'CWE-88': 'Improper Neutralization of Argument Delimiters in a Command',
+  'CWE-89':
+      'Improper Neutralization of Special Elements used in an SQL Command',
   'CWE-94': 'Improper Control of Generation of Code',
   'CWE-95':
       'Improper Neutralization of Directives in Dynamically Evaluated Code',
@@ -155,6 +157,7 @@ const Map<String, String> referenceTitles = {
   'CWE-269': 'Improper Privilege Management',
   'CWE-272': 'Least Privilege Violation',
   'CWE-295': 'Improper Certificate Validation',
+  'CWE-312': 'Cleartext Storage of Sensitive Information',
   'CWE-319': 'Cleartext Transmission of Sensitive Information',
   'CWE-338':
       'Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)',
@@ -162,6 +165,7 @@ const Map<String, String> referenceTitles = {
   'CWE-362':
       'Concurrent Execution using Shared Resource with Improper Synchronization',
   'CWE-377': 'Insecure Temporary File',
+  'CWE-390': 'Detection of Error Condition Without Action',
   'CWE-393': 'Return of Wrong Status Code',
   'CWE-426': 'Untrusted Search Path',
   'CWE-427': 'Uncontrolled Search Path Element',

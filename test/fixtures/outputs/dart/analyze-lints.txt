@@ -1,0 +1,3 @@
+WARNING|STATIC_WARNING|UNUSED_IMPORT|/tmp/p/lint.dart|1|8|9|Unused import: 'dart:io'.
+INFO|LINT|AVOID_PRINT|/tmp/p/lint.dart|4|3|5|Don't invoke 'print' in production code.
+INFO|LINT|EMPTY_CATCHES|/tmp/p/lint.dart|5|20|2|Empty catch block.

@@ -26,6 +26,8 @@ const externalTools = [
   'shfmt',
   'bashate',
   'checkbashisms',
+  'dart-analyze',
+  'dart-format',
   'gitleaks',
   'trufflehog',
   'syntax',
@@ -91,8 +93,8 @@ ArgParser buildParser(Lang lang) {
             if (d != Dialect.unknown) d.name
         ],
         help: t(
-            'Force le dialecte : shell, python, perl, ruby, lua, node, ou fichier systemd, crontab, sudoers (sinon déduit du shebang ou de l\'extension).',
-            'Force the dialect: shell, python, perl, ruby, lua, node, or a systemd, crontab, sudoers file (otherwise taken from the shebang or the extension).'))
+            'Force le dialecte : shell, python, perl, ruby, lua, node, dart, ou fichier systemd, crontab, sudoers (sinon déduit du shebang ou de l\'extension).',
+            'Force the dialect: shell, python, perl, ruby, lua, node, dart, or a systemd, crontab, sudoers file (otherwise taken from the shebang or the extension).'))
     ..addOption('python-target',
         valueHelp: 'VERSION',
         help: t(
@@ -389,10 +391,10 @@ Future<int> run(List<String> argv,
   if (a['help'] as bool) {
     out.writeln(t(
         'Usage : check-script [options] <script|dossier|->...\n\n'
-            'Évalue des scripts (shell, Python, Perl, Ruby, Lua, Node.js) et des fichiers systemd, crontab, sudoers sur cinq axes (Sécurité, Robustesse, '
+            'Évalue des scripts (shell, Python, Perl, Ruby, Lua, Node.js, Dart) et des fichiers systemd, crontab, sudoers sur cinq axes (Sécurité, Robustesse, '
             'Maintenabilité, Portabilité, Performance), notés sur 10.\n',
         'Usage: check-script [options] <script|directory|->...\n\n'
-            'Rates scripts (shell, Python, Perl, Ruby, Lua, Node.js) and systemd, crontab, sudoers files on five axes (Security, Robustness, '
+            'Rates scripts (shell, Python, Perl, Ruby, Lua, Node.js, Dart) and systemd, crontab, sudoers files on five axes (Security, Robustness, '
             'Maintainability, Portability, Performance), scored out of 10.\n'));
     out.writeln(parser.usage);
     out.writeln(t(
@@ -1732,6 +1734,7 @@ String _installHint(String tool, Lang lang) {
     'shellcheck' => 'dnf install ShellCheck | apt install shellcheck',
     'shfmt' => 'dnf install shfmt | apt install shfmt',
     'bashate' => 'pip install --user bashate',
+    'dart-analyze' || 'dart-format' => 'https://dart.dev/get-dart',
     'checkbashisms' =>
       'dnf install devscripts-checkbashisms | apt install devscripts',
     'gitleaks' => 'https://github.com/gitleaks/gitleaks/releases',

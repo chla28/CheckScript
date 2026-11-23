@@ -286,13 +286,13 @@ class LspServer {
   static final _scriptExt =
       RegExp(r'\.(?:sh|bash|ksh|dash|zsh|pyw?)$', caseSensitive: false);
   static final _shebang = RegExp(r'^#!.*\b(?:(?:ba|da|k|mk|z)?sh|'
-      r'python[23]?(?:\.\d+)?|perl\d*|ruby\d*|luajit|lua[\d.]*|nodejs|node)\b');
+      r'python[23]?(?:\.\d+)?|perl\d*|ruby\d*|luajit|lua[\d.]*|nodejs|node|dart)\b');
 
   /// Chemin d'un script d'un autre langage ou d'un fichier d'administration
   /// (hors JavaScript, voir [isAnalyzable]).
   static bool _isAdminOrScriptPath(String p) {
     final d = ScriptInfo.dialectFromPath(p);
-    return d != Dialect.unknown && d != Dialect.node;
+    return d != Dialect.unknown && d != Dialect.node && d != Dialect.dart;
   }
 
   /// Le document est un script (ou contient des scripts intégrés).
@@ -305,8 +305,9 @@ class LspServer {
     }
     final p = path ?? '';
     return _scriptExt.hasMatch(p) ||
-        // JavaScript : seulement avec un shebang node (voir _shebang), un
-        // projet web contient des centaines de fichiers qui n'en sont pas.
+        // JavaScript et Dart : seulement avec un shebang (voir _shebang), un
+        // projet web ou Flutter contient des centaines de fichiers qui n'en
+        // sont pas.
         _isAdminOrScriptPath(p) ||
         _shebang.hasMatch(text.split('\n').first) ||
         detectEmbedded(p, text) != null;

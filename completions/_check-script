@@ -58,14 +58,14 @@ _arguments -s \
   '*'{-o,--output}'[report file]:file:_files' \
   {-f,--format}'[format]:format:(terminal md adoc html pdf json sarif codeclimate gitlab junit github)' \
   {-l,--lang}'[language]:language:(fr en)' \
-  {-s,--shell}'[dialect]:dialect:(sh bash dash ksh zsh python perl ruby lua node systemd crontab sudoers)' \
+  {-s,--shell}'[dialect]:dialect:(sh bash dash ksh zsh python perl ruby lua node dart systemd crontab sudoers)' \
   '--python-target[minimum Python version]:version:(3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14)' \
   {-p,--profile}'[profile]:profile:(strict default legacy)' \
   '*--context[execution context]:context:(root cron systemd interactive)' \
   '--follow-source[follow sourced files]' \
   {-c,--config}'[YAML configuration]:file:_files -g "*.y(a|)ml"' \
   '*--with[enable a tool]:tool:(pylint pyright)' \
-  '*--without[disable a tool]:tool:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor commands gitleaks trufflehog syntax builtin custom)' \
+  '*--without[disable a tool]:tool:(shellcheck shfmt bashate checkbashisms ruff bandit semgrep mypy pyright pylint radon vermin pydeps pip-audit hadolint actionlint zizmor dart-analyze dart-format commands gitleaks trufflehog syntax builtin custom)' \
   '--no-external[built-in rules only]' \
   '*--ref[issues attached to a CWE, OWASP or ANSSI reference]:reference:' \
   {-w,--watch}'[re-analyze on every save]' \

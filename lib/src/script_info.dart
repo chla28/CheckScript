@@ -4,7 +4,8 @@ library;
 import 'embedded.dart';
 
 /// Dialecte déduit du shebang ou de l'extension (ou forcé par l'utilisateur) :
-/// un shell, Python 3, un autre langage de script (Perl, Ruby, Lua, Node.js)
+/// un shell, Python 3, un autre langage de script (Perl, Ruby, Lua, Node.js,
+/// Dart)
 /// ou un fichier de configuration d'administration (unité systemd, crontab,
 /// sudoers).
 enum Dialect {
@@ -18,6 +19,7 @@ enum Dialect {
   ruby,
   lua,
   node,
+  dart,
   systemd,
   crontab,
   sudoers,
@@ -60,6 +62,7 @@ enum Dialect {
         Dialect.ruby ||
         Dialect.lua ||
         Dialect.node ||
+        Dialect.dart ||
         Dialect.systemd ||
         Dialect.crontab ||
         Dialect.sudoers =>
@@ -80,7 +83,7 @@ enum Dialect {
   /// Début d'un commentaire de ligne.
   String get commentPrefix => switch (this) {
         Dialect.lua => '--',
-        Dialect.node => '//',
+        Dialect.node || Dialect.dart => '//',
         _ => '#',
       };
 
@@ -91,6 +94,7 @@ enum Dialect {
         Dialect.ruby => 'rb',
         Dialect.lua => 'lua',
         Dialect.node => 'js',
+        Dialect.dart => 'dart',
         Dialect.systemd => 'service',
         Dialect.crontab => 'cron',
         Dialect.sudoers => 'sudoers',
@@ -169,6 +173,7 @@ class ScriptInfo {
       '.rb' || '.rake' || '.gemspec' => Dialect.ruby,
       '.lua' => Dialect.lua,
       '.js' || '.mjs' || '.cjs' => Dialect.node,
+      '.dart' => Dialect.dart,
       '.service' ||
       '.timer' ||
       '.socket' ||
@@ -211,6 +216,7 @@ class ScriptInfo {
         Dialect.ruby,
       _ when RegExp(r'^(?:lua|luajit)[\d.-]*$').hasMatch(interp) => Dialect.lua,
       'node' || 'nodejs' || 'deno' || 'bun' => Dialect.node,
+      'dart' => Dialect.dart,
       _ => Dialect.unknown,
     };
   }
@@ -240,7 +246,7 @@ class ScriptInfo {
     if (t.startsWith(p)) return true;
     return switch (dialect) {
       Dialect.systemd => t.startsWith(';'),
-      Dialect.node => t.startsWith('/*') || t.startsWith('*'),
+      Dialect.node || Dialect.dart => t.startsWith('/*') || t.startsWith('*'),
       _ => false,
     };
   }

@@ -306,6 +306,11 @@ class Tips {
             'Full Python analysis (redundant with Ruff)'),
         'pyright' => _t('Vérification des types (redondante avec Mypy)',
             'Type checking (redundant with Mypy)'),
+        'dart-analyze' => _t(
+            'Analyseur officiel du SDK Dart (erreurs, avertissements, lints)',
+            'Official Dart SDK analyzer (errors, warnings, lints)'),
+        'dart-format' => _t('Contrôle du formatage Dart (dart format)',
+            'Dart formatting check (dart format)'),
         'gitleaks' => _t('Détection de secrets', 'Secret detection'),
         'trufflehog' => _t('Détection de secrets', 'Secret detection'),
         'syntax' => _t('Vérification de la syntaxe (toujours disponible)',

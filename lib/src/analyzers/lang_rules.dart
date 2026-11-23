@@ -27,6 +27,8 @@ List<Finding> runLangRules(ScriptInfo s, CheckConfig config, Lang lang) {
       _lua(ctx);
     case Dialect.node:
       _node(ctx);
+    case Dialect.dart:
+      _dart(ctx);
     case Dialect.systemd:
       _systemd(ctx);
     case Dialect.crontab:
@@ -57,7 +59,8 @@ class _Ctx {
   /// Identifiant `PL`+[suffix] selon le dialecte.
   String id(String suffix) => '${_prefix(s.dialect)}$suffix';
 
-  void add(String ruleId, int line, {bool hide = false}) {
+  void add(String ruleId, int line,
+      {bool hide = false, List<String> eq = const []}) {
     final r = ruleInfo(ruleId);
     if (r.contexts.isNotEmpty && !r.contexts.any(config.contexts.contains)) {
       return;
@@ -72,6 +75,7 @@ class _Ctx {
       snippet: hide || line < 1 || line > s.lines.length
           ? null
           : s.lines[line - 1].trim(),
+      equivalents: eq,
       hint: r.fix.of(lang),
     ));
   }
@@ -79,14 +83,28 @@ class _Ctx {
   /// Une constatation par ligne dont le code correspond à [re] (sauf si
   /// [unless] correspond aussi).
   void scan(String ruleSuffix, RegExp re,
-      {RegExp? unless, bool Function(String line)? where, bool hide = false}) {
+      {RegExp? unless,
+      bool Function(String line)? where,
+      bool hide = false,
+      List<String> eq = const []}) {
     final rule = id(ruleSuffix);
     for (var i = 0; i < code.length; i++) {
       final c = code[i];
       if (c.isEmpty || !re.hasMatch(c)) continue;
       if (unless != null && unless.hasMatch(c)) continue;
       if (where != null && !where(c)) continue;
-      add(rule, i + 1, hide: hide);
+      add(rule, i + 1, hide: hide, eq: eq);
+    }
+  }
+
+  /// Motif sur plusieurs lignes : une constatation par correspondance, à la
+  /// ligne où elle commence.
+  void scanText(String ruleSuffix, RegExp re, {List<String> eq = const []}) {
+    final text = code.join('\n');
+    final rule = id(ruleSuffix);
+    for (final m in re.allMatches(text)) {
+      final line = '\n'.allMatches(text.substring(0, m.start)).length + 1;
+      add(rule, line, eq: eq);
     }
   }
 }
@@ -96,6 +114,7 @@ String _prefix(Dialect d) => switch (d) {
       Dialect.ruby => 'RB',
       Dialect.lua => 'LU',
       Dialect.node => 'JS',
+      Dialect.dart => 'DT',
       Dialect.systemd => 'SD',
       Dialect.crontab => 'CR',
       Dialect.sudoers => 'SU',
@@ -170,7 +189,7 @@ bool _wholeLineComment(String l, Dialect d) {
           }
           return (b.toString(), false);
         }
-      case Dialect.node:
+      case Dialect.node || Dialect.dart:
         if (line.startsWith('//', i)) return (b.toString(), false);
         if (line.startsWith('/*', i)) {
           inBlock = true;
@@ -382,6 +401,68 @@ void _node(_Ctx c) {
       !s.path.toLowerCase().endsWith('.mjs') &&
       c.code.any((l) => l.contains('require('))) {
     c.add('JSROB001', 0);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dart / Flutter
+// ─────────────────────────────────────────────────────────────────────────────
+
+void _dart(_Ctx c) {
+  _common(
+      c,
+      r'dart',
+      RegExp(
+          r'''chmod['"]\s*,\s*\[\s*['"](?:-\w+['"]\s*,\s*['"])?0?(?:777|666)\b'''));
+  c.scan(
+      'SEC002',
+      RegExp(
+          r'''\bProcess\.(?:run|runSync|start)\s*\(\s*['"](?:ba|da|z|k)?sh['"]\s*,\s*\[\s*['"]-c['"]\s*,\s*(?:['"][^'"]*\$|[A-Za-z_]\w*\s*[,\]]|['"][^'"]*['"]\s*\+)'''
+          r'''|\bProcess\.(?:run|runSync|start)\s*\(\s*['"][^'"]*\$\{?\w'''
+          r'''|\brunInShell\s*:\s*true\b.*\$'''));
+  c.scan(
+      'SEC003',
+      RegExp(
+          r'''\bIsolate\.spawnUri\s*\(|^\s*import\s+['"]dart:mirrors['"]'''));
+  c.scan(
+      'SEC004',
+      RegExp(
+          r'\bbadCertificateCallback\s*=\s*\([^)]*\)\s*(?:=>\s*true\b|\{\s*return\s+true\b)'));
+  c.scan('SEC006', RegExp(r'\bRandom\s*\(\s*\d*\s*\)'),
+      where: (l) => RegExp(
+              r'token|secret|passw|nonce|salt|api_?key|session|csrf|otp',
+              caseSensitive: false)
+          .hasMatch(l));
+  c.scan(
+      'SEC007',
+      RegExp(
+          r'''['"]http://(?!(?:localhost|127\.|10\.0\.2\.2|0\.0\.0\.0|\[::1\]))[\w.-]+'''),
+      unless: RegExp(r'w3\.org|schemas\.|xmlns|example\.(?:com|org|net)'));
+  c.scan(
+      'SEC008',
+      RegExp(
+          r'''\b(?:rawQuery|rawInsert|rawUpdate|rawDelete|execute|query)\s*\(\s*(?:"[^"]*\b(?:select|insert|update|delete|drop|create|alter)\b[^"]*(?:\$\{?\w|"\s*\+)|'[^']*\b(?:select|insert|update|delete|drop|create|alter)\b[^']*(?:\$\{?\w|'\s*\+))''',
+          caseSensitive: false));
+  c.scan(
+      'SEC009',
+      RegExp(
+          r'\b(?:print|debugPrint|log)\s*\(.*(?:\$\{?\w*(?:password|passwd|token|secret|api_?key)|\+\s*\w*(?:password|passwd|token|secret|api_?key))',
+          caseSensitive: false));
+  c.scan(
+      'SEC010',
+      RegExp(
+          r'''\b(?:setString|setStringList)\s*\(\s*['"][^'"]*(?:token|password|passwd|secret|api_?key)[^'"]*['"]''',
+          caseSensitive: false));
+  c.scanText('ROB001', RegExp(r'\bcatch\s*\([^)]*\)\s*\{\s*\}'),
+      eq: const ['empty_catches']);
+  c.scan('ROB002', RegExp(r'\bstdin\.readLineSync\s*\('));
+  final lines = c.code;
+  final http = RegExp(r'\bhttp\.(?:get|post|put|patch|delete|head|read)\s*\(');
+  for (var i = 0; i < lines.length; i++) {
+    if (!http.hasMatch(lines[i])) continue;
+    // `.timeout(…)` sur la ligne ou les deux suivantes (appel chaîné).
+    final window = lines.skip(i).take(3).join(' ');
+    if (!window.contains('.timeout(')) c.add('DTROB003', i + 1);
   }
 }
 

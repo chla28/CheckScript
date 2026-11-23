@@ -16,6 +16,7 @@ const _filler = {
   Dialect.ruby: 'n += 1',
   Dialect.lua: 'n = n + 1',
   Dialect.node: 'n += 1;',
+  Dialect.dart: 'n += 1;',
 };
 
 const _paths = {
@@ -23,6 +24,7 @@ const _paths = {
   Dialect.ruby: 'x.rb',
   Dialect.lua: 'x.lua',
   Dialect.node: 'x.js',
+  Dialect.dart: 'x.dart',
   Dialect.systemd: 'x.service',
   Dialect.crontab: 'crontab',
   Dialect.sudoers: '/etc/sudoers.d/x',
@@ -33,6 +35,7 @@ Dialect _dialectOf(String id) => {
       ToolLanguage.ruby: Dialect.ruby,
       ToolLanguage.lua: Dialect.lua,
       ToolLanguage.node: Dialect.node,
+      ToolLanguage.dart: Dialect.dart,
       ToolLanguage.systemd: Dialect.systemd,
       ToolLanguage.crontab: Dialect.crontab,
       ToolLanguage.sudoers: Dialect.sudoers,
@@ -52,8 +55,11 @@ ScriptInfo _wrap(Dialect d, String code) {
   return ScriptInfo.fromContent(_paths[d]!, '$text\n', forcedDialect: d);
 }
 
-Set<String> _rules(ScriptInfo s) =>
-    ids(runLangRules(s, const CheckConfig(), Lang.en));
+Set<String> _rules(ScriptInfo s) => ids(runLangRules(
+    s,
+    // Contextes déclarés : les règles « sans terminal » sont actives.
+    const CheckConfig(contexts: {ExecContext.cron, ExecContext.systemd}),
+    Lang.en));
 
 void main() {
   group('catalogue', () {
@@ -108,6 +114,7 @@ void main() {
       Dialect.ruby: 'API_KEY = "$value"',
       Dialect.lua: 'local api_key = "$value"',
       Dialect.node: 'const apiKey = "$value";',
+      Dialect.dart: 'final apiKey = "$value";',
     };
     cases.forEach((d, code) {
       test(d.name, () {
