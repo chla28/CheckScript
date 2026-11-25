@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.27.1 — 2026-11-25
+
+### Bug fixes
+
+- **test**: isole les tests de hook de la configuration git du poste (ebe72a4)
+
 ## 0.27.0 — 2026-11-23
 
 ### Features

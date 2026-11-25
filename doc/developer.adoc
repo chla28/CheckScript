@@ -392,7 +392,7 @@ JSON format (excerpt):
 [source,json]
 ----
 {
-  "tool": "check-script", "version": "0.27.0",
+  "tool": "check-script", "version": "0.27.1",
   "reports": [{
     "file": "deploy.sh", "dialect": "bash",
     "lines": {"total": 16, "code": 15, "comments": 0},
