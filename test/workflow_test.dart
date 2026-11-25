@@ -105,6 +105,12 @@ diff --git a/b.sh b/b.sh
       await git(['init', '-q']);
       await git(['config', 'user.email', 't@example.com']);
       await git(['config', 'user.name', 'Test']);
+      // Indépendant de la configuration git du poste : un core.hooksPath
+      // global (ou un modèle de dépôt avec un pre-commit) fausserait les
+      // tests, qui écriraient en outre dans les hooks de l'utilisateur.
+      await git(['config', 'core.hooksPath', '.git/hooks']);
+      final templated = File('${repo.path}/.git/hooks/pre-commit');
+      if (templated.existsSync()) templated.deleteSync();
       write('ok.sh', '#!/bin/sh\necho ok\n');
       await git(['add', '.']);
       await git(['commit', '-qm', 'init']);
