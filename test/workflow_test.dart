@@ -199,6 +199,26 @@ diff --git a/b.sh b/b.sh
       expect(hook.existsSync(), isFalse);
     });
 
+    test('install-hook : avertit quand les hooks sont hors du dépôt', () async {
+      // Dans le dépôt (défaut) : pas d'avertissement, même dossier absent.
+      var (code, out) = await run(['install-hook', repo.path]);
+      expect(code, 0);
+      expect(out, isNot(contains('hors du dépôt')));
+      await git(['config', 'core.hooksPath', '.githooks']);
+      (code, out) = await run(['install-hook', repo.path]);
+      expect(out, isNot(contains('hors du dépôt')));
+
+      final shared = await Directory.systemTemp.createTemp('cs_hooks_');
+      addTearDown(() => shared.delete(recursive: true));
+      await git(['config', 'core.hooksPath', shared.path]);
+      (code, out) = await run(['install-hook', repo.path]);
+      expect(code, 0);
+      expect(out, contains('hors du dépôt'));
+      expect(File('${shared.path}/pre-commit').existsSync(), isTrue);
+      (code, out) = await run(['install-hook', '--uninstall', repo.path]);
+      expect(out, contains('hors du dépôt'));
+    });
+
     test('install-hook : note invalide, pas un dépôt, --stdout', () async {
       expect(
           (await run(['install-hook', '--fail-under', '12', repo.path])).$1, 2);

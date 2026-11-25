@@ -160,3 +160,27 @@ Map<String, Set<int>> parseChangedLines(String diff, String root) {
   }
   return out;
 }
+
+/// [path] n'est ni dans l'arbre de travail ni dans le dossier git du dépôt
+/// qui contient [dir] : cas d'un `core.hooksPath` global ou système, partagé
+/// entre dépôts. Faux si git ne répond pas.
+Future<bool> isOutsideRepository(String path, String dir,
+    {CommandRunner runner = const ProcessCommandRunner()}) async {
+  // Liens symboliques résolus des deux côtés, y compris pour un dossier de
+  // hooks pas encore créé (résolution depuis [dir]).
+  final base = normalizedPath(dir);
+  String resolve(String x) =>
+      normalizedPath(p.normalize(p.isAbsolute(x) ? x : p.join(base, x)));
+  final target =
+      resolve(p.isAbsolute(path) ? path : p.relative(path, from: dir));
+  var known = false;
+  // Interrogés séparément : un dépôt nu n'a pas d'arbre de travail.
+  for (final option in const ['--show-toplevel', '--git-common-dir']) {
+    final r = await runner.run('git', ['-C', dir, 'rev-parse', option]);
+    if (r == null || r.exitCode != 0) continue;
+    known = true;
+    final root = resolve(r.stdout.trim());
+    if (p.equals(root, target) || p.isWithin(root, target)) return false;
+  }
+  return known;
+}

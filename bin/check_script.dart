@@ -1192,8 +1192,9 @@ Future<int> _installHook(List<String> args, Lang lang,
     return exitUsage;
   }
   final dir = a.rest.isEmpty ? '.' : a.rest.first;
-  final r = await (runner ?? const ProcessCommandRunner())
-      .run('git', ['-C', dir, 'rev-parse', '--git-path', 'hooks']);
+  final git = runner ?? const ProcessCommandRunner();
+  final r =
+      await git.run('git', ['-C', dir, 'rev-parse', '--git-path', 'hooks']);
   if (r == null || r.exitCode != 0) {
     err.writeln(t('Pas un dépôt git : $dir', 'Not a git repository: $dir'));
     return exitInput;
@@ -1201,6 +1202,13 @@ Future<int> _installHook(List<String> args, Lang lang,
   final hooks = r.stdout.trim();
   final hookFile = File(
       p.join(p.isAbsolute(hooks) ? hooks : p.join(dir, hooks), 'pre-commit'));
+  if (await isOutsideRepository(hookFile.parent.path, dir, runner: git)) {
+    err.writeln(t(
+        'Attention : ${hookFile.parent.path} est hors du dépôt (core.hooksPath) : '
+            'ce hook concerne tous les dépôts qui utilisent ce dossier.',
+        'Warning: ${hookFile.parent.path} is outside the repository (core.hooksPath): '
+            'this hook affects every repository that uses this folder.'));
+  }
   final existing = hookFile.existsSync() ? hookFile.readAsStringSync() : null;
   final ours = existing != null && isCheckScriptHook(existing);
   if (a['uninstall'] as bool) {

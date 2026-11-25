@@ -543,7 +543,9 @@ aperçu recopierait le secret).
 == Hook git et historique
 
 *Hook pre-commit.* `check-script install-hook [DÉPÔT]` écrit un hook
-`pre-commit` dans le dépôt (il respecte `core.hooksPath`). À chaque commit, il
+`pre-commit` dans le dépôt (il respecte `core.hooksPath`, et avertit quand ce
+dossier est hors du dépôt : un `core.hooksPath` global ou système fait
+s'appliquer le hook à tous les dépôts). À chaque commit, il
 lance `check-script --staged` : la version *indexée* des scripts modifiés est
 analysée — tous les langages reconnus, et non l'arbre de travail — et le commit
 est bloqué si un script passe sous la note minimale (`--fail-under N`, défaut 6).

@@ -538,7 +538,9 @@ the secret).
 == Git hook and history
 
 *pre-commit hook.* `check-script install-hook [REPO]` writes a `pre-commit`
-hook in the repository (it honours `core.hooksPath`). At each commit it runs
+hook in the repository (it honours `core.hooksPath`, and warns when that
+folder is outside the repository: a global or system `core.hooksPath` makes the
+hook apply to every repository). At each commit it runs
 `check-script --staged`: the *staged* version of the modified scripts is
 analyzed — every recognized language, not what is in the working tree — and the
 commit is blocked when a script goes under the minimum score (`--fail-under N`,
