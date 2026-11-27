@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.30.0 — 2026-11-28
+
+### Features
+
+- **cli**: permet la relecture par Claude, Mistral ou Gemini (e1a9c50)
+- **gui**: propose le choix du fournisseur pour la relecture (a74302d)
+
 ## 0.29.0 — 2026-11-27
 
 ### Features
