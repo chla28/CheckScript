@@ -255,7 +255,8 @@ check-script -r scripts/             # scripts/ and its sub-folders
 |`--changed-since REF` |Analyzes only the scripts modified since the git reference REF (commits, work in progress, new files), in the repository of the first target; no modified script: exit code 0. Ideal in CI (`--changed-since origin/main`) and in pre-commit.
 |`--changed-lines` |With `--changed-since`: reports only the issues located on the lines *added or modified* since REF (the new code), not those of the existing code; the scores stay those of the whole script. A new file counts entirely. Ideal to demand clean new code on a legacy codebase.
 |`--anomalies` |Adds the informative *Anomalies* section (see <<anomalies>>).
-|`--ai`, `--ai-fast`, `--ai-model NAME`, `--ai-url URL`, `--ai-timeout S` |Review by a local Ollama model (see <<anomalies>>).
+|`--ai`, `--ai-fast`, `--ai-model NAME`, `--ai-url URL`, `--ai-timeout S` |Review by a model, local by default (see <<anomalies>>).
+|`--ai-provider NAME`, `--ai-allow-remote` |Review by `claude`, `mistral` or `gemini`: the script leaves the machine.
 |`--staged` |Analyzes the *staged* version (`git add`) of the modified scripts of the current repository (or of the repository given as argument), no target needed: this is what the pre-commit hook runs (see <<git-hook>>).
 |`-r`, `--recursive` |Walks the sub-folders of the given folders (by default only the scripts of the folder itself are analysed). With a pattern without `/` (`'*.sh'`), also looks for it in the sub-folders. In the GUI: *Sub-folders* option of the Folder screen.
 |`--exclude PATTERN` |Excludes from a folder analysis the paths matching the pattern (`.gitignore` syntax: `vendor/`, `*.min.sh`, `**/gen/**`); repeatable. Adds to the `exclude` key of the configuration and to the `.checkscriptignore` file of the folder (see <<exclusions>>).
@@ -575,7 +576,7 @@ it is written the same way. A finding is dismissed with a directive:
 Anomalies appear in the terminal, Markdown, AsciiDoc, HTML, PDF and JSON
 reports; not in SARIF, JUnit, Code Quality or CI annotations.
 
-=== Review by a local model
+=== Review by a model
 
 `--ai` (implies `--anomalies`) has each script reviewed by a language model
 served by https://ollama.com[Ollama] *on the same machine*, to find what rules
@@ -588,7 +589,7 @@ check-script --ai deploy.sh
 check-script --ai --ai-model qwen3:8b --ai-fast scripts/
 ----
 
-* *Nothing leaves the machine*: only a loopback address is accepted
+* *With Ollama (default), nothing leaves the machine*: only a loopback address is accepted
   (`--ai-url`, default `http://127.0.0.1:11434`), without proxy nor redirect.
   Passwords, tokens and private keys are masked before sending (a best effort,
   not a guarantee).
@@ -602,6 +603,38 @@ check-script --ai --ai-model qwen3:8b --ai-fast scripts/
   characters the script is truncated, and the report says so.
 * A model that cannot be reached does not fail the analysis: the report states
   that the review failed.
+
+==== Remote providers
+
+Claude, Mistral and Gemini can replace Ollama. *Script content is then sent over
+the Internet*: nothing is sent without `--ai-allow-remote`.
+
+[source,bash]
+----
+export ANTHROPIC_API_KEY=...   # or MISTRAL_API_KEY, GEMINI_API_KEY
+check-script --ai --ai-provider claude --ai-allow-remote deploy.sh
+----
+
+[cols="1,2,2,2",options="header"]
+|===
+|`--ai-provider` |Key variable |Destination |Default model
+|`claude` |`ANTHROPIC_API_KEY` |`api.anthropic.com` |`claude-sonnet-5-5`
+|`mistral` |`MISTRAL_API_KEY` |`api.mistral.ai` |`mistral-medium-latest`
+|`gemini` |`GEMINI_API_KEY` |`generativelanguage.googleapis.com` |`gemini-3.8-flash`
+|===
+
+* Detected secrets are masked, *with no guarantee that all are found*; host names,
+  paths and internal logic are sent as they are. Check that you are allowed to
+  share the script. The file path is not sent.
+* Each analyzed script is one request, usually billed: with `-r`, the whole folder
+  is sent. The number of scripts is announced on standard error.
+* Addresses are fixed (`--ai-url` is for Ollama only) and keys are never stored
+  nor displayed. `HTTPS_PROXY` is honored.
+* `--ai-fast` reduces Claude's thinking; it has no effect with Mistral and Gemini.
+* With the default Claude model, a request declined by its safety filters is
+  retried on another Claude model chosen by the service (server-side fallback).
+* A refusal, a cut-off reply or an error is noted in the report. After a refused
+  key, an unknown model or an exhausted quota, the remaining scripts are not sent.
 
 [[git-hook]]
 == Git hook and history

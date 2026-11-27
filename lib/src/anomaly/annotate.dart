@@ -10,14 +10,14 @@ import 'detectors.dart';
 import 'local_model.dart';
 import 'signals.dart';
 
-/// [baseline] active les dérives, [model] les suggestions du modèle local
+/// [baseline] active les dérives, [model] les suggestions d'un modèle
 /// (un script après l'autre, [onModel] avant chacun). Un échec du modèle est
 /// noté dans le rapport : l'absence de suggestion ne doit pas passer pour un
 /// script sain.
 Future<List<ScriptReport>> annotateAnomalies(List<ScriptReport> reports,
     {required Lang lang,
     Baseline? baseline,
-    LocalModel? model,
+    ReviewModel? model,
     void Function(String path)? onModel}) async {
   final signals = [for (final r in reports) extractSignals(r.script)];
   final profiles = [
@@ -27,6 +27,7 @@ Future<List<ScriptReport>> annotateAnomalies(List<ScriptReport> reports,
   final outliers = detectOutliers(profiles, lang);
   String t(String fr, String en) => lang == Lang.fr ? fr : en;
   final out = <ScriptReport>[];
+  ModelException? abandoned;
   for (var i = 0; i < reports.length; i++) {
     final r = reports[i];
     final previous = baseline?.entryFor(r.script.path);
@@ -42,7 +43,10 @@ Future<List<ScriptReport>> annotateAnomalies(List<ScriptReport> reports,
             lang: lang),
     ];
     String? note;
-    if (model != null) {
+    if (model != null && abandoned != null) {
+      note = t('${model.model} : non relu — ${abandoned.message}',
+          '${model.model}: not reviewed — ${abandoned.message}');
+    } else if (model != null) {
       onModel?.call(r.script.path);
       try {
         final review = await model.review(r.script, lang);
@@ -51,6 +55,7 @@ Future<List<ScriptReport>> annotateAnomalies(List<ScriptReport> reports,
             '${model.model} : ${review.anomalies.length} suggestion(s) à vérifier${review.truncated ? ' (script tronqué : fin non relue)' : ''}',
             '${model.model}: ${review.anomalies.length} suggestion(s) to check${review.truncated ? ' (script truncated: end not reviewed)' : ''}');
       } on ModelException catch (e) {
+        if (e.fatal) abandoned = e;
         note = t('${model.model} : relecture impossible — ${e.message}',
             '${model.model}: review failed — ${e.message}');
       }

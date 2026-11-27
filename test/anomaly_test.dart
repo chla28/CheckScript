@@ -384,6 +384,164 @@ void main() {
     });
   });
 
+  group('fournisseurs distants', () {
+    const suggestions =
+        '{"anomalies":[{"line":1,"level":"high","title":"T","explanation":"E"}]}';
+    String replyOf(AiProvider p, {String? stop, String text = suggestions}) =>
+        jsonEncode(switch (p) {
+          AiProvider.claude => {
+              'stop_reason': stop ?? 'end_turn',
+              'content': [
+                {'type': 'thinking', 'thinking': ''},
+                {'type': 'text', 'text': text}
+              ]
+            },
+          AiProvider.mistral => {
+              'choices': [
+                {
+                  'finish_reason': stop ?? 'stop',
+                  'message': {'content': text}
+                }
+              ]
+            },
+          _ => {
+              'candidates': [
+                {
+                  'finishReason': stop ?? 'STOP',
+                  'content': {
+                    'parts': [
+                      {'text': 'réflexion', 'thought': true},
+                      {'text': text}
+                    ]
+                  }
+                }
+              ]
+            },
+        });
+    const remotes = [AiProvider.claude, AiProvider.mistral, AiProvider.gemini];
+    const key = 'k-test';
+
+    test('requête : adresse figée, clé en en-tête seulement, secrets masqués',
+        () async {
+      for (final p in remotes) {
+        late Uri url;
+        late Map<String, String> headers;
+        late String body;
+        final model =
+            RemoteModel(p, apiKey: key, transport: (u, h, b, t) async {
+          url = u;
+          headers = h;
+          body = b;
+          return replyOf(p);
+        });
+        final r = await model.review(sh('PASSWORD="hunter2hunter2"'), Lang.en);
+        expect(r.anomalies.single.title, 'T', reason: p.name);
+        expect(url.scheme, 'https');
+        expect(url.host, p.host);
+        expect(url.toString(), isNot(contains(key)));
+        expect(headers.values.join(), contains(key));
+        expect(body, isNot(contains(key)));
+        expect(body, isNot(contains('hunter2')));
+        expect('$url $body', contains(p.defaultModel));
+      }
+    });
+
+    test('Claude : repli et effort selon les options', () async {
+      Future<(Map<String, String>, Map)> send(
+          {String? model, bool fast = false}) async {
+        late Map<String, String> headers;
+        late Map body;
+        await RemoteModel(AiProvider.claude,
+            apiKey: key,
+            model: model,
+            fast: fast, transport: (u, h, b, t) async {
+          headers = h;
+          body = jsonDecode(b) as Map;
+          return replyOf(AiProvider.claude);
+        }).review(sh('echo a'), Lang.en);
+        return (headers, body);
+      }
+
+      final (h, b) = await send();
+      expect(b['fallbacks'], 'default');
+      expect(h, contains('anthropic-beta'));
+      expect(b, isNot(contains('temperature')));
+      expect(b['output_config'], isNot(contains('effort')));
+      final (h2, b2) = await send(model: 'claude-haiku-5-5', fast: true);
+      expect(b2, isNot(contains('fallbacks')));
+      expect(h2, isNot(contains('anthropic-beta')));
+      expect((b2['output_config'] as Map)['effort'], 'low');
+    });
+
+    test('refus, coupure et réponse illisible signalés', () async {
+      Future<String> failure(AiProvider p, String reply) async {
+        try {
+          await RemoteModel(p,
+                  apiKey: key, transport: (u, h, b, t) async => reply)
+              .review(sh('echo a'), Lang.en);
+        } on ModelException catch (e) {
+          return e.message;
+        }
+        return '';
+      }
+
+      for (final (p, refused, cut) in [
+        (AiProvider.claude, 'refusal', 'max_tokens'),
+        (AiProvider.mistral, 'error', 'length'),
+        (AiProvider.gemini, 'SAFETY', 'MAX_TOKENS'),
+      ]) {
+        expect(await failure(p, replyOf(p, stop: refused)), contains(refused));
+        expect(await failure(p, replyOf(p, stop: cut)), contains('cut off'));
+        expect(await failure(p, 'nope'), contains('unreadable'));
+        expect(await failure(p, '{}'), isNot(isEmpty));
+      }
+      expect(
+          await failure(
+              AiProvider.gemini,
+              jsonEncode({
+                'promptFeedback': {'blockReason': 'OTHER'}
+              })),
+          contains('refused'));
+    });
+
+    test('JSON encadré d\'un bloc Markdown accepté', () {
+      expect(parseSuggestions('```json\n$suggestions\n```', 1), hasLength(1));
+    });
+
+    test('clé et modèle vérifiés sans être cités', () {
+      for (final bad in [null, '', 'ab\ncd', 'clé']) {
+        expect(
+            () => RemoteModel(AiProvider.claude, apiKey: bad),
+            throwsA(isA<ModelException>().having(
+                (e) => e.message, 'message', contains('ANTHROPIC_API_KEY'))));
+      }
+      expect(
+          () => RemoteModel(AiProvider.gemini,
+              apiKey: key, model: '../../x?key=1'),
+          throwsA(isA<ModelException>()));
+      expect(httpError(401, '{"error":{"message":"bad key $key"}}'),
+          isNot(contains(key)));
+      expect(httpError(400, '{"error":{"message":"too long"}}'),
+          'HTTP 400: too long');
+      expect(httpError(503, '<html>'), 'HTTP 503: provider unavailable');
+    });
+
+    test('échec définitif : les scripts suivants ne sont pas envoyés',
+        () async {
+      var calls = 0;
+      final model = RemoteModel(AiProvider.mistral, apiKey: key,
+          transport: (u, h, b, t) async {
+        calls++;
+        throw const ModelException('HTTP 401', fatal: true);
+      });
+      final out = await annotateAnomalies(
+          [await report(sh('echo a')), await report(sh('echo b'))],
+          lang: Lang.fr, model: model);
+      expect(calls, 1);
+      expect(out[1].aiNote, contains('non relu'));
+    });
+  });
+
   group('CLI', () {
     late Directory d;
     setUp(() => d = Directory.systemTemp.createTempSync('cs_an_'));
@@ -418,6 +576,59 @@ void main() {
       final r = await run(['--anomalies', '-b', base, f]);
       expect(r.$2, contains('AD001'));
       expect(r.$2, contains('new.net'));
+    });
+
+    test('fournisseur distant : accord et clé exigés avant tout envoi',
+        () async {
+      final f = write('a.sh', '#!/bin/sh\necho a\n');
+      var calls = 0;
+      Future<(int, String)> go(
+          List<String> args, Map<String, String> env) async {
+        final out = Capture(), err = Capture();
+        final code = await cli.run(
+            ['--lang', 'fr', '--no-color', '--ai', ...args, f],
+            out: out.sink,
+            err: err.sink,
+            runner: noTools(),
+            environment: env, remoteTransport: (u, h, b, t) async {
+          calls++;
+          return jsonEncode({
+            'stop_reason': 'end_turn',
+            'content': [
+              {
+                'type': 'text',
+                'text': '{"anomalies":[{"line":1,"level":"low",'
+                    '"title":"Vu à distance","explanation":"e"}]}'
+              }
+            ]
+          });
+        });
+        return (code, '${await out.text()}\n${await err.text()}');
+      }
+
+      const env = {'ANTHROPIC_API_KEY': 'k-secret-test'};
+      var (code, text) = await go(['--ai-provider', 'claude'], env);
+      expect(code, 2);
+      expect(text, contains('--ai-allow-remote'));
+      (code, text) =
+          await go(['--ai-provider', 'claude', '--ai-allow-remote'], const {});
+      expect(code, 2);
+      expect(text, contains('ANTHROPIC_API_KEY'));
+      (code, text) = await go([
+        '--ai-provider',
+        'claude',
+        '--ai-allow-remote',
+        '--ai-url',
+        'http://127.0.0.1:1'
+      ], env);
+      expect(code, 2);
+      expect(calls, 0);
+      (code, text) =
+          await go(['--ai-provider', 'claude', '--ai-allow-remote'], env);
+      expect(calls, 1);
+      expect(text, contains('api.anthropic.com'));
+      expect(text, contains('Vu à distance'));
+      expect(text, isNot(contains('k-secret-test')));
     });
 
     test('--ai : adresse distante et options isolées refusées', () async {

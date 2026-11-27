@@ -143,8 +143,13 @@ with *--recursive*.
   drift with *--baseline*); scores and exit code are unchanged.
 
 *--ai* [*--ai-fast*] [*--ai-model* _NAME_] [*--ai-url* _URL_] [*--ai-timeout* _SECONDS_]::
-  Have each script reviewed by a local Ollama model (loopback only, secrets
-  masked). Suggestions are not reproducible and must be checked.
+  Have each script reviewed by a model (Ollama by default, loopback only),
+  secrets masked. Suggestions are not reproducible and must be checked.
+
+*--ai-provider* *ollama*|*claude*|*mistral*|*gemini* [*--ai-allow-remote*]::
+  Provider for *--ai*. A remote provider sends script content over the Internet:
+  *--ai-allow-remote* is required, and the key is read from
+  *ANTHROPIC_API_KEY*, *MISTRAL_API_KEY* or *GEMINI_API_KEY*.
 
 *--staged*::
   Analyze the staged (git add) version of the modified scripts; for a

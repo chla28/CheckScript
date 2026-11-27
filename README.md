@@ -27,7 +27,9 @@ injection of untrusted GitHub expressions). It fixes safe defects
 Code Quality, and offers a graphical interface (`check-script-gui`). On
 request it also reports informative *anomalies* (`--anomalies`: download then
 execute, hidden code, data exfiltration, outliers across a folder, drift from a
-baseline) and can have a script reviewed by a local Ollama model (`--ai`).
+baseline) and can have a script reviewed by a language model (`--ai`): local
+with Ollama by default, or Claude, Mistral or Gemini after explicit consent
+(`--ai-provider`, `--ai-allow-remote`).
 
 ```bash
 check-script deploy.sh                         # terminal report

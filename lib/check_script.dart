@@ -31,6 +31,7 @@ export 'src/anomaly/annotate.dart';
 export 'src/anomaly/anomaly.dart';
 export 'src/anomaly/detectors.dart';
 export 'src/anomaly/local_model.dart';
+export 'src/anomaly/remote_model.dart';
 export 'src/anomaly/signals.dart';
 export 'src/baseline.dart';
 export 'src/baseline_update.dart';

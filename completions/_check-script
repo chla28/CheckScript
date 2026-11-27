@@ -78,9 +78,11 @@ _arguments -s \
   '--changed-lines[only issues on added or modified lines (with --changed-since)]' \
   '--staged[analyse the staged version of the changed scripts]' \
   '--anomalies[add an informative Anomalies section]' \
-  '--ai[local model review (Ollama)]' \
+  '--ai[model review (local by default)]' \
+  '--ai-provider[review provider]:provider:(ollama claude mistral gemini)' \
+  '--ai-allow-remote[allow sending scripts to a remote provider]' \
   '--ai-fast[faster, less thorough model review]' \
-  '--ai-model[Ollama model]:model:' \
+  '--ai-model[review model]:model:' \
   '--ai-url[loopback Ollama address]:url:' \
   '--ai-timeout[seconds per script]:seconds:' \
   '--dashboard[team dashboard]:file:_files -g "*.html"' \

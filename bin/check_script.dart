@@ -171,17 +171,32 @@ ArgParser buildParser(Lang lang) {
     ..addFlag('ai',
         negatable: false,
         help: t(
-            'Fait relire chaque script par un modèle local (Ollama), secrets masqués ; implique --anomalies. Lent, non reproductible, à vérifier.',
-            'Have each script reviewed by a local model (Ollama), secrets masked; implies --anomalies. Slow, not reproducible, to be checked.'))
+            'Fait relire chaque script par un modèle (local par défaut : Ollama), secrets masqués ; implique --anomalies. Non reproductible, à vérifier.',
+            'Have each script reviewed by a model (local by default: Ollama), secrets masked; implies --anomalies. Not reproducible, to be checked.'))
+    ..addOption('ai-provider',
+        allowed: [for (final p in AiProvider.values) p.name],
+        help: t(
+            'Fournisseur de --ai (défaut : ollama). claude, mistral et gemini envoient le script sur Internet : voir --ai-allow-remote.',
+            'Provider for --ai (default: ollama). claude, mistral and gemini send the script over the Internet: see --ai-allow-remote.'))
+    ..addFlag('ai-allow-remote',
+        negatable: false,
+        help: t(
+            'Accepte que le contenu des scripts (secrets masqués, sans garantie) quitte la machine. Clé lue dans ANTHROPIC_API_KEY, MISTRAL_API_KEY ou GEMINI_API_KEY.',
+            'Accept that script content (secrets masked, without guarantee) leaves the machine. Key read from ANTHROPIC_API_KEY, MISTRAL_API_KEY or GEMINI_API_KEY.'))
     ..addFlag('ai-fast',
         negatable: false,
         help: t(
-            'Avec --ai : sans la « réflexion » du modèle, bien plus rapide mais moins fin.',
-            'With --ai: skip the model\'s "thinking", much faster but less thorough.'))
+            'Avec --ai : réflexion du modèle supprimée (Ollama) ou réduite (Claude), plus rapide mais moins fin.',
+            'With --ai: model "thinking" skipped (Ollama) or reduced (Claude), faster but less thorough.'))
     ..addOption('ai-model',
         valueHelp: t('NOM', 'NAME'),
-        help: t('Modèle Ollama utilisé par --ai (défaut : $defaultAiModel).',
-            'Ollama model used by --ai (default: $defaultAiModel).'))
+        help: t(
+            'Modèle utilisé par --ai (défaut selon le fournisseur : ${[
+              for (final p in AiProvider.values) p.defaultModel
+            ].join(', ')}).',
+            'Model used by --ai (default per provider: ${[
+              for (final p in AiProvider.values) p.defaultModel
+            ].join(', ')}).'))
     ..addOption('ai-url',
         valueHelp: 'URL',
         help: t(
@@ -360,7 +375,9 @@ Future<int> run(List<String> argv,
     IOSink? err,
     CommandRunner? runner,
     Future<void>? stopWatching,
-    Future<String?> Function()? readLine}) async {
+    Future<String?> Function()? readLine,
+    Map<String, String>? environment,
+    RemoteTransport? remoteTransport}) async {
   out ??= stdout;
   err ??= stderr;
   readLine ??= () async => stdin.readLineSync();
@@ -618,19 +635,22 @@ Future<int> run(List<String> argv,
         '--changed-lines requires --changed-since.'));
     return exitUsage;
   }
-  // Relecture par un modèle local : validée avant toute analyse.
+  // Relecture par un modèle : validée avant toute analyse.
   final ai = a['ai'] as bool;
   if (!ai &&
       (a['ai-fast'] as bool ||
+          a['ai-allow-remote'] as bool ||
+          a['ai-provider'] != null ||
           a['ai-model'] != null ||
           a['ai-url'] != null ||
           a['ai-timeout'] != null)) {
-    err.writeln(t(
-        '--ai-fast, --ai-model, --ai-url et --ai-timeout s\'utilisent avec --ai.',
-        '--ai-fast, --ai-model, --ai-url and --ai-timeout are used with --ai.'));
+    err.writeln(t('Les options --ai-… s\'utilisent avec --ai.',
+        'The --ai-… options are used with --ai.'));
     return exitUsage;
   }
-  LocalModel? model;
+  ReviewModel? model;
+  final provider =
+      AiProvider.tryParse(a['ai-provider'] as String? ?? 'ollama')!;
   if (ai) {
     final seconds = a['ai-timeout'] == null
         ? defaultAiTimeout.inSeconds
@@ -640,17 +660,51 @@ Future<int> run(List<String> argv,
           '--ai-timeout: integer ≥ 1 expected.'));
       return exitUsage;
     }
-    try {
-      model = LocalModel(
-          url: a['ai-url'] as String? ?? defaultAiUrl,
-          model: a['ai-model'] as String? ?? defaultAiModel,
-          timeout: Duration(seconds: seconds),
-          fast: a['ai-fast'] as bool);
-    } on ModelException {
-      err.writeln(t(
-          '--ai-url : adresse locale attendue (boucle locale uniquement) : ${a['ai-url']}',
-          '--ai-url: local address expected (loopback only): ${a['ai-url']}'));
-      return exitUsage;
+    final timeout = Duration(seconds: seconds);
+    final fast = a['ai-fast'] as bool;
+    if (provider.remote) {
+      if (a['ai-url'] != null) {
+        err.writeln(t('--ai-url ne s\'utilise qu\'avec Ollama.',
+            '--ai-url is only used with Ollama.'));
+        return exitUsage;
+      }
+      if (!(a['ai-allow-remote'] as bool)) {
+        err.writeln(t(
+            'Avec ${provider.label}, le contenu des scripts est envoyé à ${provider.host}. Ajoutez --ai-allow-remote pour l\'accepter.',
+            'With ${provider.label}, script content is sent to ${provider.host}. Add --ai-allow-remote to accept it.'));
+        return exitUsage;
+      }
+      final key = (environment ?? Platform.environment)[provider.keyVariable];
+      if (key == null || key.trim().isEmpty) {
+        err.writeln(t(
+            'Variable d\'environnement ${provider.keyVariable} non définie.',
+            'Environment variable ${provider.keyVariable} is not set.'));
+        return exitUsage;
+      }
+      try {
+        model = RemoteModel(provider,
+            apiKey: key,
+            model: a['ai-model'] as String?,
+            timeout: timeout,
+            fast: fast,
+            transport: remoteTransport);
+      } on ModelException catch (e) {
+        err.writeln(e.message);
+        return exitUsage;
+      }
+    } else {
+      try {
+        model = LocalModel(
+            url: a['ai-url'] as String? ?? defaultAiUrl,
+            model: a['ai-model'] as String? ?? defaultAiModel,
+            timeout: timeout,
+            fast: fast);
+      } on ModelException {
+        err.writeln(t(
+            '--ai-url : adresse locale attendue (boucle locale uniquement) : ${a['ai-url']}',
+            '--ai-url: local address expected (loopback only): ${a['ai-url']}'));
+        return exitUsage;
+      }
     }
   }
   if (a.rest.isEmpty && !staged) {
@@ -711,7 +765,9 @@ Future<int> run(List<String> argv,
         out: out,
         err: err,
         runner: runner,
-        stop: stopWatching);
+        stop: stopWatching,
+        environment: environment,
+        remoteTransport: remoteTransport);
   }
 
   // Fichiers modifiés depuis une référence git (--changed-since).
@@ -965,6 +1021,11 @@ Future<int> run(List<String> argv,
       ]);
     }
   }
+  if (ai && provider.remote) {
+    errSink.writeln(t(
+        'Envoi du contenu de ${reports.length} script(s) à ${provider.host} (secrets masqués, sans garantie).',
+        'Sending the content of ${reports.length} script(s) to ${provider.host} (secrets masked, without guarantee).'));
+  }
   if (ai || a['anomalies'] as bool) {
     final annotated = await annotateAnomalies(reports,
         lang: lang,
@@ -1064,7 +1125,9 @@ Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
     required IOSink out,
     required IOSink err,
     CommandRunner? runner,
-    Future<void>? stop}) async {
+    Future<void>? stop,
+    Map<String, String>? environment,
+    RemoteTransport? remoteTransport}) async {
   String t(String fr, String en) => lang == Lang.fr ? fr : en;
   final once = [
     for (final x in argv)
@@ -1076,7 +1139,12 @@ Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
   }
   final full = (a['output'] as List<String>).isNotEmpty;
   final embedded = a['embedded'] as bool;
-  var code = await run(once, out: out, err: err, runner: runner);
+  var code = await run(once,
+      out: out,
+      err: err,
+      runner: runner,
+      environment: environment,
+      remoteTransport: remoteTransport);
   void waiting() => err.writeln(t(
       '\nSurveillance de ${targets.join(', ')} (Ctrl+C pour arrêter)…',
       '\nWatching ${targets.join(', ')} (Ctrl+C to stop)…'));
@@ -1104,7 +1172,11 @@ Future<int> _watch(List<String> argv, ArgResults a, Lang lang,
       out.writeln(
           '\n── $now — ${scripts.map((f) => p.relative(f)).join(', ')} ──');
       code = await run([...options, ...(full ? a.rest : scripts)],
-          out: out, err: err, runner: runner);
+          out: out,
+          err: err,
+          runner: runner,
+          environment: environment,
+          remoteTransport: remoteTransport);
       waiting();
     } finally {
       sub.resume();

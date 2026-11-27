@@ -257,7 +257,8 @@ check-script -r scripts/             # scripts/ et ses sous-dossiers
 |`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
 |`--changed-lines` |Avec `--changed-since` : ne signale que les problèmes situés sur les lignes *ajoutées ou modifiées* depuis REF (le code nouveau), pas ceux du code existant ; les notes restent celles du script entier. Un fichier nouveau compte en entier. Idéal pour exiger du code neuf propre sur un existant ancien.
 |`--anomalies` |Ajoute la section informative *Anomalies* (voir <<anomalies>>).
-|`--ai`, `--ai-fast`, `--ai-model NOM`, `--ai-url URL`, `--ai-timeout S` |Relecture par un modèle Ollama local (voir <<anomalies>>).
+|`--ai`, `--ai-fast`, `--ai-model NOM`, `--ai-url URL`, `--ai-timeout S` |Relecture par un modèle, local par défaut (voir <<anomalies>>).
+|`--ai-provider NOM`, `--ai-allow-remote` |Relecture par `claude`, `mistral` ou `gemini` : le script quitte la machine.
 |`--staged` |Analyse la version *indexée* (`git add`) des scripts modifiés du dépôt courant (ou du dépôt donné en argument), sans cible : c'est ce que lance le hook pre-commit (voir <<git-hook>>).
 |`-r`, `--recursive` |Parcourt les sous-dossiers des dossiers donnés (par défaut, seuls les scripts du dossier lui-même sont analysés). Avec un motif sans `/` (`'*.sh'`), le cherche aussi dans les sous-dossiers. Dans l'interface : option *Sous-dossiers* de l'écran Dossier.
 |`--exclude MOTIF` |Exclut de l'analyse d'un dossier les chemins correspondant au motif (syntaxe `.gitignore` : `vendor/`, `*.min.sh`, `**/gen/**`) ; répétable. S'ajoute à la clé `exclude` de la configuration et au fichier `.checkscriptignore` du dossier (voir <<exclusions>>).
@@ -580,7 +581,7 @@ s'il est écrit de la même façon. Un constat s'écarte avec une directive :
 Les anomalies figurent dans les rapports terminal, Markdown, AsciiDoc, HTML, PDF
 et JSON ; pas dans SARIF, JUnit, Code Quality ni les annotations de CI.
 
-=== Relecture par un modèle local
+=== Relecture par un modèle
 
 `--ai` (implique `--anomalies`) fait relire chaque script par un modèle de
 langage servi par https://ollama.com[Ollama] *sur la même machine*, pour trouver
@@ -594,7 +595,7 @@ check-script --ai deploy.sh
 check-script --ai --ai-model qwen3:8b --ai-fast scripts/
 ----
 
-* *Rien ne quitte la machine* : seule une adresse de boucle locale est acceptée
+* *Avec Ollama (défaut), rien ne quitte la machine* : seule une adresse de boucle locale est acceptée
   (`--ai-url`, défaut `http://127.0.0.1:11434`), sans proxy ni redirection. Les
   mots de passe, jetons et clés privées sont masqués avant l'envoi (au mieux, sans
   garantie).
@@ -610,6 +611,39 @@ check-script --ai --ai-model qwen3:8b --ai-fast scripts/
   le rapport le dit.
 * Un modèle injoignable ne fait pas échouer l'analyse : le rapport indique que la
   relecture a échoué.
+
+==== Fournisseurs distants
+
+Claude, Mistral et Gemini peuvent remplacer Ollama. *Le contenu des scripts est
+alors envoyé sur Internet* : rien ne part sans `--ai-allow-remote`.
+
+[source,bash]
+----
+export ANTHROPIC_API_KEY=...   # ou MISTRAL_API_KEY, GEMINI_API_KEY
+check-script --ai --ai-provider claude --ai-allow-remote deploy.sh
+----
+
+[cols="1,2,2,2",options="header"]
+|===
+|`--ai-provider` |Variable de la clé |Destination |Modèle par défaut
+|`claude` |`ANTHROPIC_API_KEY` |`api.anthropic.com` |`claude-sonnet-5-5`
+|`mistral` |`MISTRAL_API_KEY` |`api.mistral.ai` |`mistral-medium-latest`
+|`gemini` |`GEMINI_API_KEY` |`generativelanguage.googleapis.com` |`gemini-3.8-flash`
+|===
+
+* Les secrets repérés sont masqués, *sans garantie de tous les trouver* ; noms de
+  machines, chemins et logique interne partent tels quels. Vérifiez que vous avez
+  le droit de transmettre le script. Le chemin du fichier n'est pas envoyé.
+* Un script analysé est un envoi, en général facturé : avec `-r`, tout le dossier
+  part. Le nombre de scripts est annoncé sur la sortie d'erreur.
+* Les adresses sont figées (`--ai-url` ne vaut que pour Ollama) et les clés ne sont
+  jamais enregistrées ni affichées. `HTTPS_PROXY` est respecté.
+* `--ai-fast` réduit la réflexion de Claude ; sans effet chez Mistral et Gemini.
+* Avec le modèle Claude par défaut, une demande refusée par ses filtres est
+  rejouée par un autre modèle Claude choisi par le service (repli côté serveur).
+* Un refus, une réponse coupée ou une erreur est noté dans le rapport. Après une
+  clé refusée, un modèle inconnu ou un quota atteint, les scripts suivants ne sont
+  pas envoyés.
 
 [[git-hook]]
 == Hook git et historique

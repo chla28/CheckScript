@@ -81,6 +81,7 @@ lib/src/
   anomaly/                         Informative anomalies: signals.dart (facts per line),
                                    detectors.dart (AB behaviours, AF outliers, AD drift),
                                    local_model.dart (Ollama, loopback only, secrets masked),
+                                   remote_model.dart (Claude, Mistral, Gemini, on consent),
                                    annotate.dart (adds them to the reports)
   history.dart                     FolderHistory, HistoryEntry (folder history: GUI,
                                    --history-dir, --dashboard)
