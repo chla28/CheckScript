@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.29.0 — 2026-11-27
+
+### Features
+
+- **cli**: ajoute la détection d'anomalies et la relecture locale (8d100c4)
+- **gui**: affiche les anomalies et propose la relecture locale (3688acc)
+
 ## 0.28.0 — 2026-11-25
 
 ### Features

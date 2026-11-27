@@ -113,7 +113,7 @@ and **Eclipse** plugin (`.zip` update site) are attached to each release;
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: chla28/CheckScript@v0.28.0
+- uses: chla28/CheckScript@v0.29.0
   with:
     paths: scripts .github
     fail-under: '6'
