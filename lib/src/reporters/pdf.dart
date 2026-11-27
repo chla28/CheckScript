@@ -448,6 +448,26 @@ Future<Uint8List> _build(
       }));
     }
 
+    final found = r.anomalies;
+    if (found != null) {
+      body.add(heading('${t.anomaliesTitle} (${found.length})', size: 11));
+      body.add(text(t.anomaliesIntro, size: 7, color: _muted));
+      if (found.isEmpty) body.add(text(t.noAnomaly, size: 8));
+      for (final x in found) {
+        body.add(pw.SizedBox(height: 3));
+        body.add(text(
+            '${x.id} · ${t.anomalyLevel(x.level)} · ${t.anomalyKind(x.kind)} — ${x.title}',
+            size: 8,
+            font: bold));
+        body.add(text(
+            '${x.detail}${x.lines.isEmpty ? '' : ' (${x.lines.map((l) => 'L$l').join(', ')})'}',
+            size: 8));
+      }
+      if (r.aiNote != null) {
+        body.add(text(r.aiNote!, size: 7, color: _muted));
+      }
+    }
+
     body.add(heading(t.details, size: 11));
     if (r.findings.isEmpty) {
       body.add(text(t.noIssue));

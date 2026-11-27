@@ -163,6 +163,35 @@ ArgParser buildParser(Lang lang) {
         help: t(
             'Analyse la version indexée (git add) des scripts modifiés du dépôt courant (ou du dépôt donné) : pour un hook pre-commit (voir install-hook).',
             'Analyse the staged (git add) version of the changed scripts of the current (or given) repository: for a pre-commit hook (see install-hook).'))
+    ..addFlag('anomalies',
+        negatable: false,
+        help: t(
+            'Ajoute une section « Anomalies » (comportements suspects, écarts entre scripts, dérives avec --baseline). Informatif : ni la note ni les seuils ne changent.',
+            'Add an "Anomalies" section (suspicious behaviours, outliers between scripts, drift with --baseline). Informative: neither the score nor the thresholds change.'))
+    ..addFlag('ai',
+        negatable: false,
+        help: t(
+            'Fait relire chaque script par un modèle local (Ollama), secrets masqués ; implique --anomalies. Lent, non reproductible, à vérifier.',
+            'Have each script reviewed by a local model (Ollama), secrets masked; implies --anomalies. Slow, not reproducible, to be checked.'))
+    ..addFlag('ai-fast',
+        negatable: false,
+        help: t(
+            'Avec --ai : sans la « réflexion » du modèle, bien plus rapide mais moins fin.',
+            'With --ai: skip the model\'s "thinking", much faster but less thorough.'))
+    ..addOption('ai-model',
+        valueHelp: t('NOM', 'NAME'),
+        help: t('Modèle Ollama utilisé par --ai (défaut : $defaultAiModel).',
+            'Ollama model used by --ai (default: $defaultAiModel).'))
+    ..addOption('ai-url',
+        valueHelp: 'URL',
+        help: t(
+            'Adresse d\'Ollama, locale uniquement (défaut : $defaultAiUrl).',
+            'Ollama address, loopback only (default: $defaultAiUrl).'))
+    ..addOption('ai-timeout',
+        valueHelp: t('SECONDES', 'SECONDS'),
+        help: t(
+            'Délai maximal par script pour --ai (défaut : ${defaultAiTimeout.inSeconds}).',
+            'Maximum time per script for --ai (default: ${defaultAiTimeout.inSeconds}).'))
     ..addFlag('cache',
         defaultsTo: true,
         help: t(
@@ -589,6 +618,41 @@ Future<int> run(List<String> argv,
         '--changed-lines requires --changed-since.'));
     return exitUsage;
   }
+  // Relecture par un modèle local : validée avant toute analyse.
+  final ai = a['ai'] as bool;
+  if (!ai &&
+      (a['ai-fast'] as bool ||
+          a['ai-model'] != null ||
+          a['ai-url'] != null ||
+          a['ai-timeout'] != null)) {
+    err.writeln(t(
+        '--ai-fast, --ai-model, --ai-url et --ai-timeout s\'utilisent avec --ai.',
+        '--ai-fast, --ai-model, --ai-url and --ai-timeout are used with --ai.'));
+    return exitUsage;
+  }
+  LocalModel? model;
+  if (ai) {
+    final seconds = a['ai-timeout'] == null
+        ? defaultAiTimeout.inSeconds
+        : int.tryParse(a['ai-timeout'] as String);
+    if (seconds == null || seconds < 1) {
+      err.writeln(t('--ai-timeout : nombre entier ≥ 1 attendu.',
+          '--ai-timeout: integer ≥ 1 expected.'));
+      return exitUsage;
+    }
+    try {
+      model = LocalModel(
+          url: a['ai-url'] as String? ?? defaultAiUrl,
+          model: a['ai-model'] as String? ?? defaultAiModel,
+          timeout: Duration(seconds: seconds),
+          fast: a['ai-fast'] as bool);
+    } on ModelException {
+      err.writeln(t(
+          '--ai-url : adresse locale attendue (boucle locale uniquement) : ${a['ai-url']}',
+          '--ai-url: local address expected (loopback only): ${a['ai-url']}'));
+      return exitUsage;
+    }
+  }
   if (a.rest.isEmpty && !staged) {
     err.writeln(t('Aucun script à analyser. Voir check-script --help.',
         'No script to analyse. See check-script --help.'));
@@ -900,6 +964,18 @@ Future<int> run(List<String> argv,
           if (matchesReference(f.refs, refFilter)) f
       ]);
     }
+  }
+  if (ai || a['anomalies'] as bool) {
+    final annotated = await annotateAnomalies(reports,
+        lang: lang,
+        baseline: baseline,
+        model: model,
+        onModel: (path) => errSink.writeln(t(
+            'Relecture par ${model!.model} : $path…',
+            'Review by ${model.model}: $path…')));
+    reports
+      ..clear()
+      ..addAll(annotated);
   }
   if (baseline != null) {
     for (final r in reports.where((r) => r.comparison == null)) {

@@ -254,6 +254,8 @@ check-script -r scripts/             # scripts/ and its sub-folders
 |`--history-dir FOLDER` |Where to record the history of analyzed folders (default with `--dashboard`: `~/.local/share/check-script/history`); a versioned folder shares it within the team (same analysis paths, e.g. a nightly CI job).
 |`--changed-since REF` |Analyzes only the scripts modified since the git reference REF (commits, work in progress, new files), in the repository of the first target; no modified script: exit code 0. Ideal in CI (`--changed-since origin/main`) and in pre-commit.
 |`--changed-lines` |With `--changed-since`: reports only the issues located on the lines *added or modified* since REF (the new code), not those of the existing code; the scores stay those of the whole script. A new file counts entirely. Ideal to demand clean new code on a legacy codebase.
+|`--anomalies` |Adds the informative *Anomalies* section (see <<anomalies>>).
+|`--ai`, `--ai-fast`, `--ai-model NAME`, `--ai-url URL`, `--ai-timeout S` |Review by a local Ollama model (see <<anomalies>>).
 |`--staged` |Analyzes the *staged* version (`git add`) of the modified scripts of the current repository (or of the repository given as argument), no target needed: this is what the pre-commit hook runs (see <<git-hook>>).
 |`-r`, `--recursive` |Walks the sub-folders of the given folders (by default only the scripts of the folder itself are analysed). With a pattern without `/` (`'*.sh'`), also looks for it in the sub-folders. In the GUI: *Sub-folders* option of the Folder screen.
 |`--exclude PATTERN` |Excludes from a folder analysis the paths matching the pattern (`.gitignore` syntax: `vendor/`, `*.min.sh`, `**/gen/**`); repeatable. Adds to the `exclude` key of the configuration and to the `.checkscriptignore` file of the folder (see <<exclusions>>).
@@ -533,6 +535,73 @@ therefore remains the script as it was before the first fix.
 The *Copy* button puts the fixed code on the clipboard. A line where a
 secret is detected never receives a concrete fix (its preview would copy
 the secret).
+
+[[anomalies]]
+== Anomaly detection
+
+`--anomalies` adds an *Anomalies* section to the report. Anomalies are
+*informative*: they change neither the scores, nor the issues, nor the exit
+code. They tell where to look; they do not prove a defect, and an empty section
+does not prove a script is harmless.
+
+[cols="1,2,3",options="header"]
+|===
+|Id |Finding |Raised when
+|`AB001` |Downloaded code executed without verification |pipe to a shell, or a downloaded file made executable / run, with no checksum or signature check
+|`AB002` |Download then persistent installation |download and cron, systemd, shell profile… (legitimate installers do this too)
+|`AB003` |Hidden code executed |decoding (base64, xxd, openssl…) whose result is executed
+|`AB004` |Sensitive data and network upload |private keys, `/etc/shadow`, cloud credentials… and data sent out
+|`AB005` |Remote shell |reverse or bind shell
+|`AB006` |Trace removal |history or logs wiped by a script that also acts on the system or network
+|`AB007` |Defence disabled |firewall, SELinux, auditing turned off along with network or persistent activity
+|`AB008` |Account created then given access |new or changed account plus sudoers, SSH key or admin group
+|`AB009` |Large encoded block |long base64 or hexadecimal string
+|`AB010` |Persistent task contacting the network |installed task that reaches a remote host
+|`AF001`–`AF003` |Outliers |network destination, risky capability or sensitive command found in *one* script only, among at least 5 analyzed together
+|`AD001`–`AD003` |Drift |with `--baseline`: new destination, new capability, score dropped by 1 point or more
+|`AI001`… |Model suggestions |with `--ai`
+|===
+
+For drift, produce the baseline with anomalies: `check-script --anomalies -o
+baseline.json scripts/`, then `check-script --anomalies --baseline
+baseline.json scripts/`. A baseline made without anomalies only gives the score
+drop.
+
+Detection is lexical, designed for shell scripts and also applied to the other
+languages; it follows a file name from its download to its execution only when
+it is written the same way. A finding is dismissed with a directive:
+`# check-script disable=AB002` (or `disable-file=AB*`).
+
+Anomalies appear in the terminal, Markdown, AsciiDoc, HTML, PDF and JSON
+reports; not in SARIF, JUnit, Code Quality or CI annotations.
+
+=== Review by a local model
+
+`--ai` (implies `--anomalies`) has each script reviewed by a language model
+served by https://ollama.com[Ollama] *on the same machine*, to find what rules
+miss: logic errors, wrong error handling, hidden intent.
+
+[source,bash]
+----
+ollama pull qwen3:8b
+check-script --ai deploy.sh
+check-script --ai --ai-model qwen3:8b --ai-fast scripts/
+----
+
+* *Nothing leaves the machine*: only a loopback address is accepted
+  (`--ai-url`, default `http://127.0.0.1:11434`), without proxy nor redirect.
+  Passwords, tokens and private keys are masked before sending (a best effort,
+  not a guarantee).
+* *Suggestions must be checked*: they vary between runs and can be wrong.
+* *The script is untrusted input*: a comment can try to instruct the model.
+  The reply is bounded, cleaned and never executed, but *silence proves
+  nothing*.
+* *Speed*: without a GPU, about two minutes for a short script with the default
+  model; `--ai-fast` skips the model's "thinking" (seconds) but misses subtle
+  defects. `--ai-timeout` bounds the time per script (300 s). Beyond 24,000
+  characters the script is truncated, and the report says so.
+* A model that cannot be reached does not fail the analysis: the report states
+  that the review failed.
 
 [[git-hook]]
 == Git hook and history

@@ -188,6 +188,25 @@ String renderHtml(List<ScriptReport> reports, RenderOptions o) {
       b.writeln('</table></div>');
     }
 
+    final found = r.anomalies;
+    if (found != null) {
+      b.writeln('<h2>${_e(t.anomaliesTitle)} (${found.length})</h2>'
+          '<div class="card"><p class="muted">${_e(t.anomaliesIntro)}</p>');
+      if (found.isEmpty) b.writeln('<p>${_e(t.noAnomaly)}</p>');
+      for (final x in found) {
+        final lines =
+            [for (final l in x.lines) '<a href="#$sid-L$l">L$l</a>'].join(', ');
+        b.writeln('<p><strong>${_e(x.id)}</strong> '
+            '<span class="sev ${x.level.name}">${t.anomalyLevel(x.level)}</span> '
+            '${_e(x.title)} <span class="muted">(${_e(t.anomalyKind(x.kind))})</span>'
+            '<br>${_e(x.detail)}${lines.isEmpty ? '' : '<br>$lines'}</p>');
+      }
+      if (r.aiNote != null) {
+        b.writeln('<p class="muted">${_e(r.aiNote!)}</p>');
+      }
+      b.writeln('</div>');
+    }
+
     // Source annotée : chaque ligne porte la sévérité la plus forte ; les
     // lignes masquées par le moteur (secret potentiel) ne sont pas recopiées.
     final worst = <int, Severity>{};

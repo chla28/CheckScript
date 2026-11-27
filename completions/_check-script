@@ -77,6 +77,12 @@ _arguments -s \
   '--changed-since[scripts modified since the git reference]:reference:' \
   '--changed-lines[only issues on added or modified lines (with --changed-since)]' \
   '--staged[analyse the staged version of the changed scripts]' \
+  '--anomalies[add an informative Anomalies section]' \
+  '--ai[local model review (Ollama)]' \
+  '--ai-fast[faster, less thorough model review]' \
+  '--ai-model[Ollama model]:model:' \
+  '--ai-url[loopback Ollama address]:url:' \
+  '--ai-timeout[seconds per script]:seconds:' \
   '--dashboard[team dashboard]:file:_files -g "*.html"' \
   '--history-dir[history of analyzed folders]:folder:_files -/' \
   '(--no-cache)--cache[reuse results (default)]' \

@@ -25,7 +25,11 @@ projet (`rules.custom`). Il analyse aussi le shell intégré aux workflows
 GitHub Actions et GitLab CI, aux Dockerfile, aux Makefile et aux tâches
 Ansible (dont l'injection d'expressions GitHub non fiables). Il corrige les défauts sûrs
 (`--fix`), compare une analyse à une référence, produit du SARIF et du GitLab
-Code Quality, et propose une interface graphique (`check-script-gui`).
+Code Quality, et propose une interface graphique (`check-script-gui`). Sur
+demande, il signale aussi des *anomalies* informatives (`--anomalies` :
+téléchargement puis exécution, code masqué, envoi de données sensibles, écarts
+au sein d'un dossier, dérives depuis une référence) et peut faire relire un
+script par un modèle Ollama local (`--ai`).
 
 ```bash
 check-script deploy.sh                         # rapport terminal

@@ -6,6 +6,7 @@
 library;
 
 import 'analyzers/analyzer.dart' show ToolLanguage;
+import 'anomaly/anomaly.dart';
 import 'model/finding.dart';
 
 enum Lang {
@@ -112,6 +113,24 @@ class Messages {
       'Issues of this analysis linked to each reference (rules without a direct match are not listed).');
   String get message => _t('Message', 'Message');
   String get script => _t('Script', 'Script');
+  String get anomaliesTitle => _t('Anomalies', 'Anomalies');
+  String get anomaliesIntro => _t(
+      'Constats informatifs à vérifier : ils ne changent ni la note ni les seuils.',
+      'Informative findings to check: they change neither the score nor the thresholds.');
+  String get noAnomaly => _t(
+      'Aucune anomalie repérée (ce n\'est pas une preuve d\'innocuité).',
+      'No anomaly spotted (which is not proof of harmlessness).');
+  String anomalyKind(AnomalyKind k) => switch (k) {
+        AnomalyKind.behaviour => _t('comportement', 'behaviour'),
+        AnomalyKind.outlier => _t('écart au parc', 'outlier'),
+        AnomalyKind.drift => _t('dérive', 'drift'),
+        AnomalyKind.model => _t('suggestion du modèle', 'model suggestion'),
+      };
+  String anomalyLevel(AnomalyLevel l) => switch (l) {
+        AnomalyLevel.high => 'High',
+        AnomalyLevel.medium => 'Medium',
+        AnomalyLevel.low => 'Low',
+      };
   String get noIssue => _t('Aucun problème détecté.', 'No issue detected.');
   String get wholeFile => _t('fichier', 'file');
   String get maskedSecret => _t('(ligne non reproduite : secret potentiel)',

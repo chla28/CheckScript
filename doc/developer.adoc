@@ -78,6 +78,10 @@ lib/src/
   git.dart                         changedSince (--changed-since), changedLines (--changed-lines),
                                    stagedFiles / indexContent (--staged), normalizedPath
   hook.dart                        preCommitHook (check-script install-hook)
+  anomaly/                         Informative anomalies: signals.dart (facts per line),
+                                   detectors.dart (AB behaviours, AF outliers, AD drift),
+                                   local_model.dart (Ollama, loopback only, secrets masked),
+                                   annotate.dart (adds them to the reports)
   history.dart                     FolderHistory, HistoryEntry (folder history: GUI,
                                    --history-dir, --dashboard)
   feedback.dart                    FalsePositive, FalsePositiveLog, anonymizeCode

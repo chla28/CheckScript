@@ -24,7 +24,10 @@ fix suggestion for each, and with the project's custom rules
 GitLab CI workflows, Dockerfiles, Makefiles and Ansible tasks (including
 injection of untrusted GitHub expressions). It fixes safe defects
 (`--fix`), compares an analysis against a baseline, produces SARIF and GitLab
-Code Quality, and offers a graphical interface (`check-script-gui`).
+Code Quality, and offers a graphical interface (`check-script-gui`). On
+request it also reports informative *anomalies* (`--anomalies`: download then
+execute, hidden code, data exfiltration, outliers across a folder, drift from a
+baseline) and can have a script reviewed by a local Ollama model (`--ai`).
 
 ```bash
 check-script deploy.sh                         # terminal report

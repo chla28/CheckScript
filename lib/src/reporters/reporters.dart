@@ -5,6 +5,7 @@ library;
 import 'dart:convert';
 
 import '../analyzers/commands.dart';
+import '../anomaly/anomaly.dart';
 import '../explain.dart';
 import '../i18n.dart';
 import 'codeclimate.dart';
@@ -256,6 +257,33 @@ void _writeSource(StringBuffer b, Finding f, _Ansi a, Messages t) {
   }
 }
 
+/// `L3, L7` : lignes d'une anomalie ('' pour tout le script).
+String anomalyLines(Anomaly x) => x.lines.map((l) => 'L$l').join(', ');
+
+void _terminalAnomalies(StringBuffer b, ScriptReport r, _Ansi a, Messages t) {
+  final found = r.anomalies;
+  if (found == null) return;
+  b.writeln();
+  b.writeln(a.magenta('◆ ${t.anomaliesTitle} (${found.length})'));
+  b.writeln(a.dim('  ${t.anomaliesIntro}'));
+  if (found.isEmpty) b.writeln('  ${t.noAnomaly}');
+  for (final x in found) {
+    final level = _pad(t.anomalyLevel(x.level), 9);
+    b.writeln('  ${_pad(x.id, 7)}'
+        '${switch (x.level) {
+      AnomalyLevel.high => a.red(level),
+      AnomalyLevel.medium => a.yellow(level),
+      AnomalyLevel.low => a.blue(level),
+    }}'
+        '${x.title} ${a.dim('[${t.anomalyKind(x.kind)}]')}');
+    b.writeln(a.dim('${' ' * 16}${x.detail}'));
+    if (x.lines.isNotEmpty) {
+      b.writeln(a.dim('${' ' * 16}${anomalyLines(x)}'));
+    }
+  }
+  if (r.aiNote != null) b.writeln(a.dim('  ${r.aiNote}'));
+}
+
 String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
   final t = Messages(o.lang);
   final a = _Ansi(o.color);
@@ -353,6 +381,7 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
         }
       }
     }
+    _terminalAnomalies(b, r, a, t);
     b.writeln();
   }
   if (reports.length > 1) {
@@ -385,6 +414,15 @@ String renderTerminal(List<ScriptReport> reports, RenderOptions o) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 String _mdCell(String s) => s.replaceAll('|', r'\|').replaceAll('\n', ' ');
+
+/// Texte libre (dont celui d'un modèle) rendu inerte en Markdown : ni HTML,
+/// ni lien, ni mise en forme.
+String _mdText(String s) => s
+    .replaceAll('\n', ' ')
+    .replaceAllMapped(RegExp(r'[\\`*_\[\]!|]'), (m) => '\\${m[0]}')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 
 String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
   final t = Messages(o.lang);
@@ -490,6 +528,19 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
       }
       b.writeln();
     }
+    final found = r.anomalies;
+    if (found != null) {
+      b.writeln('$h# ${t.anomaliesTitle} (${found.length})\n');
+      b.writeln('_${t.anomaliesIntro}_\n');
+      if (found.isEmpty) b.writeln('${t.noAnomaly}\n');
+      for (final x in found) {
+        b.writeln('- **${x.id}** (${t.anomalyLevel(x.level)}, '
+            '${t.anomalyKind(x.kind)}) ${_mdText(x.title)} — ${_mdText(x.detail)}'
+            '${x.lines.isEmpty ? '' : ' _(${anomalyLines(x)})_'}');
+      }
+      if (found.isNotEmpty) b.writeln();
+      if (r.aiNote != null) b.writeln('> ${_mdText(r.aiNote!)}\n');
+    }
   }
   final missing = _missing(reports);
   if (missing.isNotEmpty) b.writeln('> ${t.missingToolsHint(missing)}\n');
@@ -502,6 +553,10 @@ String renderMarkdown(List<ScriptReport> reports, RenderOptions o) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 String _adocCell(String s) => s.replaceAll('|', r'\|').replaceAll('\n', ' ');
+
+/// Texte libre inséré tel quel (aucune macro ni substitution AsciiDoc).
+String _adocText(String s) =>
+    'pass:c[${s.replaceAll('\n', ' ').replaceAll(']', r'\]')}]';
 
 String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
   final t = Messages(o.lang);
@@ -606,6 +661,19 @@ String renderAsciidoc(List<ScriptReport> reports, RenderOptions o) {
             '|${_adocCell(f.message)}$snippet$hint$refs');
       }
       b.writeln('|===\n');
+    }
+    final found = r.anomalies;
+    if (found != null) {
+      b.writeln('$h ${t.anomaliesTitle} (${found.length})\n');
+      b.writeln('_${t.anomaliesIntro}_\n');
+      if (found.isEmpty) b.writeln('${t.noAnomaly}\n');
+      for (final x in found) {
+        b.writeln('* *${x.id}* (${t.anomalyLevel(x.level)}, '
+            '${t.anomalyKind(x.kind)}) ${_adocText(x.title)} — ${_adocText(x.detail)}'
+            '${x.lines.isEmpty ? '' : ' (${anomalyLines(x)})'}');
+      }
+      if (found.isNotEmpty) b.writeln();
+      if (r.aiNote != null) b.writeln('NOTE: ${_adocText(r.aiNote!)}\n');
     }
   }
   final missing = _missing(reports);

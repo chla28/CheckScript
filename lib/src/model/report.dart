@@ -1,6 +1,7 @@
 /// Résultat complet de l'analyse d'un script.
 library;
 
+import '../anomaly/anomaly.dart';
 import '../analyzers/commands.dart';
 import '../explain.dart';
 import '../scoring.dart';
@@ -65,6 +66,16 @@ class ScriptReport {
   /// Commandes externes du script (shell), avec leur présence et leur paquet.
   final List<CommandUse> commands;
 
+  /// Anomalies (informatives) ; null si leur détection n'a pas été demandée,
+  /// à distinguer d'une liste vide (rien trouvé).
+  final List<Anomaly>? anomalies;
+
+  /// Capacités, hôtes et commandes du script (dérives depuis la référence).
+  final AnomalyProfile? anomalyProfile;
+
+  /// Résultat de la relecture par le modèle local (y compris son échec).
+  final String? aiNote;
+
   const ScriptReport({
     required this.script,
     required this.tools,
@@ -78,6 +89,9 @@ class ScriptReport {
     this.comparison,
     this.explanation = ScoreExplanation.empty,
     this.commands = const [],
+    this.anomalies,
+    this.anomalyProfile,
+    this.aiNote,
   });
 
   /// Même rapport, problèmes limités à [kept] (filtre d'affichage : les
@@ -95,6 +109,9 @@ class ScriptReport {
         comparison: comparison,
         explanation: explanation,
         commands: commands,
+        anomalies: anomalies,
+        anomalyProfile: anomalyProfile,
+        aiNote: aiNote,
       );
 
   ScriptReport withComparison(Comparison? c) => ScriptReport(
@@ -110,6 +127,29 @@ class ScriptReport {
         comparison: c,
         explanation: explanation,
         commands: commands,
+        anomalies: anomalies,
+        anomalyProfile: anomalyProfile,
+        aiNote: aiNote,
+      );
+
+  ScriptReport withAnomalies(
+          List<Anomaly> found, AnomalyProfile profile, String? note) =>
+      ScriptReport(
+        script: script,
+        tools: tools,
+        findings: findings,
+        scores: scores,
+        global: global,
+        date: date,
+        suppressed: suppressed,
+        profile: this.profile,
+        contexts: contexts,
+        comparison: comparison,
+        explanation: explanation,
+        commands: commands,
+        anomalies: found,
+        anomalyProfile: profile,
+        aiNote: note,
       );
 
   /// Relit [toJson] pour [script] (cache des résultats) ; la comparaison
@@ -140,6 +180,14 @@ class ScriptReport {
         for (final c in j['commands'] as List? ?? const [])
           CommandUse.fromJson((c as Map).cast<String, Object?>())
       ],
+      anomalies: j['anomalies'] is List
+          ? [
+              for (final a in j['anomalies'] as List)
+                Anomaly.fromJson((a as Map).cast<String, Object?>())
+            ]
+          : null,
+      anomalyProfile: AnomalyProfile.fromJson(j['anomalyProfile']),
+      aiNote: j['aiNote'] as String?,
     );
   }
 
@@ -172,5 +220,9 @@ class ScriptReport {
         if (commands.isNotEmpty)
           'commands': [for (final c in commands) c.toJson()],
         'findings': [for (final f in findings) f.toJson()],
+        if (anomalies != null)
+          'anomalies': [for (final a in anomalies!) a.toJson()],
+        if (anomalyProfile != null) 'anomalyProfile': anomalyProfile!.toJson(),
+        if (aiNote != null) 'aiNote': aiNote,
       };
 }

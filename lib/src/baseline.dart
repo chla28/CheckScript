@@ -8,6 +8,7 @@
 /// pas passer pour nouveau.
 library;
 
+import 'anomaly/anomaly.dart';
 import 'dart:convert';
 
 import 'package:path/path.dart' as p;
@@ -49,7 +50,11 @@ class BaselineEntry {
   final Map<String, int> fingerprints;
   final double global;
   final Map<Category, double> scores;
-  const BaselineEntry(this.file, this.fingerprints, this.global, this.scores);
+
+  /// Profil d'anomalies, si la référence a été produite avec `--anomalies`.
+  final AnomalyProfile? profile;
+  const BaselineEntry(this.file, this.fingerprints, this.global, this.scores,
+      {this.profile});
 }
 
 class Baseline {
@@ -90,6 +95,7 @@ class Baseline {
                 Category.tryParse('${c['category']}')!:
                     jsonDouble(c['score']) ?? 0,
           },
+          profile: AnomalyProfile.fromJson(r['anomalyProfile']),
         ),
     ]);
   }

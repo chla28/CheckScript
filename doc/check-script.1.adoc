@@ -138,6 +138,14 @@ with *--recursive*.
   With *--changed-since*: report only the issues on the lines added or
   modified since _REF_.
 
+*--anomalies*::
+  Add an informative Anomalies section (suspicious behaviours, outliers,
+  drift with *--baseline*); scores and exit code are unchanged.
+
+*--ai* [*--ai-fast*] [*--ai-model* _NAME_] [*--ai-url* _URL_] [*--ai-timeout* _SECONDS_]::
+  Have each script reviewed by a local Ollama model (loopback only, secrets
+  masked). Suggestions are not reproducible and must be checked.
+
 *--staged*::
   Analyze the staged (git add) version of the modified scripts; for a
   pre-commit hook.

@@ -256,6 +256,8 @@ check-script -r scripts/             # scripts/ et ses sous-dossiers
 |`--history-dir DOSSIER` |Où enregistrer l'historique des dossiers analysés (défaut avec `--dashboard` : `~/.local/share/check-script/history`) ; un dossier versionné le partage dans l'équipe (même chemins d'analyse, ex. un job CI nocturne).
 |`--changed-since REF` |N'analyse que les scripts modifiés depuis la référence git REF (commits, modifications en cours, nouveaux fichiers), dans le dépôt de la première cible ; aucun script modifié : code de sortie 0. Idéal en CI (`--changed-since origin/main`) et en pre-commit.
 |`--changed-lines` |Avec `--changed-since` : ne signale que les problèmes situés sur les lignes *ajoutées ou modifiées* depuis REF (le code nouveau), pas ceux du code existant ; les notes restent celles du script entier. Un fichier nouveau compte en entier. Idéal pour exiger du code neuf propre sur un existant ancien.
+|`--anomalies` |Ajoute la section informative *Anomalies* (voir <<anomalies>>).
+|`--ai`, `--ai-fast`, `--ai-model NOM`, `--ai-url URL`, `--ai-timeout S` |Relecture par un modèle Ollama local (voir <<anomalies>>).
 |`--staged` |Analyse la version *indexée* (`git add`) des scripts modifiés du dépôt courant (ou du dépôt donné en argument), sans cible : c'est ce que lance le hook pre-commit (voir <<git-hook>>).
 |`-r`, `--recursive` |Parcourt les sous-dossiers des dossiers donnés (par défaut, seuls les scripts du dossier lui-même sont analysés). Avec un motif sans `/` (`'*.sh'`), le cherche aussi dans les sous-dossiers. Dans l'interface : option *Sous-dossiers* de l'écran Dossier.
 |`--exclude MOTIF` |Exclut de l'analyse d'un dossier les chemins correspondant au motif (syntaxe `.gitignore` : `vendor/`, `*.min.sh`, `**/gen/**`) ; répétable. S'ajoute à la clé `exclude` de la configuration et au fichier `.checkscriptignore` du dossier (voir <<exclusions>>).
@@ -538,6 +540,76 @@ donc le script d'avant la première correction.
 Le bouton *Copier* place le code corrigé dans le presse-papiers. Une ligne
 où un secret est détecté ne reçoit jamais de correction concrète (son
 aperçu recopierait le secret).
+
+[[anomalies]]
+== Détection d'anomalies
+
+`--anomalies` ajoute au rapport une section *Anomalies*. Les anomalies sont
+*informatives* : elles ne changent ni les notes, ni les problèmes, ni le code de
+sortie. Elles indiquent où regarder ; elles ne prouvent pas un défaut, et une
+section vide ne prouve pas qu'un script est sans danger.
+
+[cols="1,2,3",options="header"]
+|===
+|Id |Constat |Signalé quand
+|`AB001` |Code téléchargé puis exécuté sans vérification |tube vers un shell, ou fichier téléchargé rendu exécutable ou lancé, sans somme de contrôle ni signature
+|`AB002` |Téléchargement puis installation persistante |téléchargement et cron, systemd, profil de shell… (un installateur légitime le fait aussi)
+|`AB003` |Code masqué puis exécuté |décodage (base64, xxd, openssl…) dont le résultat est exécuté
+|`AB004` |Données sensibles et envoi sur le réseau |clés privées, `/etc/shadow`, identifiants cloud… et données envoyées
+|`AB005` |Shell distant |shell inversé ou à l'écoute
+|`AB006` |Effacement de traces |historique ou journaux effacés par un script qui agit aussi sur le système ou le réseau
+|`AB007` |Protection coupée |pare-feu, SELinux, audit désactivés avec une activité réseau ou persistante
+|`AB008` |Compte créé puis doté d'un accès |compte créé ou modifié, plus sudoers, clé SSH ou groupe d'administration
+|`AB009` |Bloc encodé volumineux |longue chaîne base64 ou hexadécimale
+|`AB010` |Tâche persistante qui contacte le réseau |tâche installée qui joint un hôte distant
+|`AF001`–`AF003` |Écarts au parc |destination réseau, capacité à risque ou commande sensible présente dans *un seul* script, parmi au moins 5 analysés ensemble
+|`AD001`–`AD003` |Dérives |avec `--baseline` : nouvelle destination, nouvelle capacité, note en baisse d'un point ou plus
+|`AI001`… |Suggestions du modèle |avec `--ai`
+|===
+
+Pour les dérives, produire la référence avec les anomalies : `check-script
+--anomalies -o baseline.json scripts/`, puis `check-script --anomalies
+--baseline baseline.json scripts/`. Une référence produite sans anomalies ne
+donne que la baisse de note.
+
+La détection est lexicale, pensée pour le shell et appliquée aussi aux autres
+langages ; elle ne suit un fichier de son téléchargement à son exécution que
+s'il est écrit de la même façon. Un constat s'écarte avec une directive :
+`# check-script disable=AB002` (ou `disable-file=AB*`).
+
+Les anomalies figurent dans les rapports terminal, Markdown, AsciiDoc, HTML, PDF
+et JSON ; pas dans SARIF, JUnit, Code Quality ni les annotations de CI.
+
+=== Relecture par un modèle local
+
+`--ai` (implique `--anomalies`) fait relire chaque script par un modèle de
+langage servi par https://ollama.com[Ollama] *sur la même machine*, pour trouver
+ce que les règles ne voient pas : erreurs de logique, mauvaise gestion des
+erreurs, intention cachée.
+
+[source,bash]
+----
+ollama pull qwen3:8b
+check-script --ai deploy.sh
+check-script --ai --ai-model qwen3:8b --ai-fast scripts/
+----
+
+* *Rien ne quitte la machine* : seule une adresse de boucle locale est acceptée
+  (`--ai-url`, défaut `http://127.0.0.1:11434`), sans proxy ni redirection. Les
+  mots de passe, jetons et clés privées sont masqués avant l'envoi (au mieux, sans
+  garantie).
+* *Les suggestions sont à vérifier* : elles varient d'une exécution à l'autre et
+  peuvent être fausses.
+* *Le script est une entrée non fiable* : un commentaire peut chercher à donner
+  des consignes au modèle. La réponse est bornée, nettoyée et jamais exécutée,
+  mais *son silence ne prouve rien*.
+* *Vitesse* : sans carte graphique, environ deux minutes pour un script court
+  avec le modèle par défaut ; `--ai-fast` supprime la « réflexion » du modèle
+  (quelques secondes) mais manque des défauts subtils. `--ai-timeout` borne la
+  durée par script (300 s). Au-delà de 24 000 caractères, le script est tronqué et
+  le rapport le dit.
+* Un modèle injoignable ne fait pas échouer l'analyse : le rapport indique que la
+  relecture a échoué.
 
 [[git-hook]]
 == Hook git et historique

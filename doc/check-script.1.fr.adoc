@@ -138,6 +138,14 @@ l'arborescence avec *--recursive*.
   Avec *--changed-since* : ne signale que les problèmes situés sur les lignes
   ajoutées ou modifiées depuis _REF_.
 
+*--anomalies*::
+  Ajoute une section informative Anomalies (comportements suspects, écarts,
+  dérives avec *--baseline*) ; notes et code de sortie inchangés.
+
+*--ai* [*--ai-fast*] [*--ai-model* _NOM_] [*--ai-url* _URL_] [*--ai-timeout* _SECONDES_]::
+  Fait relire chaque script par un modèle Ollama local (boucle locale
+  uniquement, secrets masqués). Suggestions non reproductibles, à vérifier.
+
 *--staged*::
   Analyse la version indexée (git add) des scripts modifiés ; pour un hook
   pre-commit.
