@@ -120,6 +120,24 @@ class Tips {
   String get tabSummary => _t(
       'Note globale, radar des catégories et ce qui pèse sur la note',
       'Overall score, category radar and what weighs on the score');
+  String get tabAnomalies => _t(
+      'Comportements suspects, écarts au dossier, dérives depuis la référence et suggestions du modèle local',
+      'Suspicious behaviours, folder outliers, drift from the baseline and local model suggestions');
+  String get anomaliesColumn => _t(
+      'Nombre d\'anomalies (informatives) du script',
+      'Number of (informative) anomalies of the script');
+  String get anomaliesSetting => _t(
+      'Ajoute l\'onglet Anomalies : constats à vérifier, sans effet sur la note ni les seuils',
+      'Fills the Anomalies tab: findings to check, with no effect on the score or thresholds');
+  String get aiReview => _t(
+      'Envoie le script, secrets masqués, au modèle Ollama de ce poste (une à deux minutes sans carte graphique)',
+      'Sends the script, secrets masked, to the Ollama model on this machine (a minute or two without a GPU)');
+  String get aiModelSetting => _t(
+      'Nom d\'un modèle installé (ollama list) ; seul Ollama sur ce poste est utilisé',
+      'Name of an installed model (ollama list); only Ollama on this machine is used');
+  String get aiFastSetting => _t(
+      'Beaucoup plus rapide, mais des défauts subtils échappent',
+      'Much faster, but subtle defects slip through');
   String get tabIssues => _t(
       'Liste détaillée des problèmes, avec filtres et corrections',
       'Detailed list of issues, with filters and fixes');

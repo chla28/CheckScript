@@ -218,6 +218,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
       ]),
+      section(s.anomalies, HelpTopic.tools),
+      tip(
+        tp.anomaliesSetting,
+        SwitchListTile(
+          dense: true,
+          title: Text(s.anomaliesSetting),
+          value: g.anomalies,
+          onChanged: (v) => state.updateSettings(g.copyWith(anomalies: v)),
+        ),
+      ),
+      tip(
+        tp.aiModelSetting,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: TextFormField(
+            key: ValueKey('aiModel-${g.aiModel}'),
+            initialValue: g.aiModel,
+            decoration: InputDecoration(labelText: s.aiModelSetting),
+            onFieldSubmitted: (v) => state.updateSettings(g.copyWith(
+                aiModel: v.trim().isEmpty ? defaultAiModel : v.trim())),
+          ),
+        ),
+      ),
+      tip(
+        tp.aiFastSetting,
+        SwitchListTile(
+          dense: true,
+          title: Text(s.aiFastSetting),
+          value: g.aiFast,
+          onChanged: (v) => state.updateSettings(g.copyWith(aiFast: v)),
+        ),
+      ),
       section(s.tools, HelpTopic.tools),
       for (final (title, tools) in [
         (s.shellTools, ['shellcheck', 'shfmt', 'bashate', 'checkbashisms']),

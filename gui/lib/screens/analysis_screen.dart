@@ -17,6 +17,7 @@ import '../help/help_content.dart';
 import '../help/help_screen.dart';
 import '../help/tips.dart';
 import '../strings.dart';
+import '../widgets/anomalies_panel.dart';
 import '../widgets/findings_list.dart';
 import '../widgets/score_panel.dart';
 import '../widgets/source_view.dart';
@@ -40,8 +41,9 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     with SingleTickerProviderStateMixin {
   int? _selectedLine;
 
-  /// Onglets Synthèse / Problèmes (le premier est affiché au départ).
-  late final _tabs = TabController(length: 2, vsync: this);
+  /// Onglets Synthèse / Problèmes / Anomalies (le premier est affiché au
+  /// départ).
+  late final _tabs = TabController(length: 3, vsync: this);
 
   /// Recherche dans le code : champ ouvert, texte, occurrence courante.
   bool _searching = false;
@@ -229,6 +231,12 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                             tip(tp.tabSummary, Tab(text: s.summary)),
                             tip(tp.tabIssues,
                                 Tab(text: '${s.issues} (${issues.length})')),
+                            tip(
+                                tp.tabAnomalies,
+                                Tab(
+                                    text: report.anomalies == null
+                                        ? s.anomalies
+                                        : '${s.anomalies} (${report.anomalies!.length})')),
                           ]),
                           Expanded(
                             child: TabBarView(controller: _tabs, children: [
@@ -266,6 +274,14 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                                       : (f) =>
                                           _falsePositive(context, report, f),
                                 ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: AnomaliesPanel(
+                                    state: state,
+                                    report: report,
+                                    onSelectLine: (l) =>
+                                        setState(() => _selectedLine = l)),
                               ),
                             ]),
                           ),

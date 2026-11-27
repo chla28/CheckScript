@@ -279,6 +279,21 @@ class S {
       'Réutiliser les résultats d\'un script inchangé (cache)',
       'Reuse results of an unchanged script (cache)');
   String get history => _t('Historique', 'History');
+  String get anomalies => _t('Anomalies', 'Anomalies');
+  String get anomaliesSetting => _t(
+      'Détecter les anomalies (informatif, sans effet sur la note)',
+      'Detect anomalies (informative, no effect on the score)');
+  String get anomaliesOff => _t(
+      'La détection des anomalies est désactivée dans les réglages.',
+      'Anomaly detection is turned off in the settings.');
+  String get aiReview =>
+      _t('Relire avec le modèle local', 'Review with the local model');
+  String get aiReviewing => _t('Relecture en cours…', 'Reviewing…');
+  String get aiModelSetting =>
+      _t('Modèle Ollama pour la relecture', 'Ollama model for the review');
+  String get aiFastSetting => _t(
+      'Relecture rapide (sans « réflexion » du modèle, moins fine)',
+      'Fast review (without model "thinking", less thorough)');
   String get exportHistory =>
       _t('Exporter l\'historique (CSV)', 'Export history (CSV)');
   String get exportHistoryScripts => _t(

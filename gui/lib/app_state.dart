@@ -48,6 +48,13 @@ class GuiSettings {
   /// seulement).
   final bool recursive;
 
+  /// Détecter les anomalies (informatives) à chaque analyse.
+  final bool anomalies;
+
+  /// Modèle Ollama de la relecture à la demande ; [aiFast] : sans réflexion.
+  final String aiModel;
+  final bool aiFast;
+
   /// Ruff suit la configuration du projet du script (ruff.toml,
   /// pyproject.toml) plutôt que les réglages de check-script.
   final bool ruffProjectConfig;
@@ -72,6 +79,9 @@ class GuiSettings {
   static const defaultNarrowSplit = SplitState(0.35);
 
   const GuiSettings({
+    this.anomalies = true,
+    this.aiModel = defaultAiModel,
+    this.aiFast = false,
     this.lang,
     this.theme = ThemeMode.system,
     this.profile = Profile.standard,
@@ -146,8 +156,14 @@ class GuiSettings {
     List<String>? recent,
     String? Function()? codeFont,
     double? codeFontSize,
+    bool? anomalies,
+    String? aiModel,
+    bool? aiFast,
   }) =>
       GuiSettings(
+        anomalies: anomalies ?? this.anomalies,
+        aiModel: aiModel ?? this.aiModel,
+        aiFast: aiFast ?? this.aiFast,
         lang: lang == null ? this.lang : lang(),
         theme: theme ?? this.theme,
         profile: profile ?? this.profile,
@@ -174,6 +190,9 @@ class GuiSettings {
   static Future<GuiSettings> load() async {
     final p = await SharedPreferences.getInstance();
     return GuiSettings(
+      anomalies: p.getBool('anomalies') ?? true,
+      aiModel: p.getString('aiModel') ?? defaultAiModel,
+      aiFast: p.getBool('aiFast') ?? false,
       lang: Lang.tryParse(p.getString('lang') ?? ''),
       theme: ThemeMode.values.firstWhere((t) => t.name == p.getString('theme'),
           orElse: () => ThemeMode.system),
@@ -209,6 +228,9 @@ class GuiSettings {
 
   Future<void> save() async {
     final p = await SharedPreferences.getInstance();
+    await p.setBool('anomalies', anomalies);
+    await p.setString('aiModel', aiModel);
+    await p.setBool('aiFast', aiFast);
     if (lang == null) {
       await p.remove('lang');
     } else {
@@ -289,7 +311,8 @@ class AppState extends ChangeNotifier {
       Map<String, RuleEntry>? seenRules,
       FolderHistory? history,
       bool? watchFiles,
-      FalsePositiveLog? falsePositives})
+      FalsePositiveLog? falsePositives,
+      this.modelTransport})
       : runner = runner ?? const ProcessCommandRunner(),
         _settings = settings ?? const GuiSettings(),
         seenRules = seenRules ?? {},
@@ -597,6 +620,7 @@ class AppState extends ChangeNotifier {
         s.configPath,
         s.pythonTarget,
         s.ruffProjectConfig,
+        s.anomalies,
       ].join('|');
 
   Future<void> updateSettings(GuiSettings s) async {
@@ -684,6 +708,9 @@ class AppState extends ChangeNotifier {
       recursive: _settings.recursive,
       editorCommand: _settings.editorCommand,
       ruffProjectConfig: _settings.ruffProjectConfig,
+      anomalies: _settings.anomalies,
+      aiModel: _settings.aiModel,
+      aiFast: _settings.aiFast,
       configPath: path,
       profile: c.profile,
       contexts: c.contexts,
@@ -776,6 +803,70 @@ class AppState extends ChangeNotifier {
 
   void cancel() => _cancel?.cancel();
 
+  /// Envoi au modèle local (remplacé dans les tests).
+  final ModelTransport? modelTransport;
+
+  /// Script en cours de relecture par le modèle (null : aucune).
+  String? reviewing;
+
+  Future<List<ScriptReport>> _annotate(List<ScriptReport> reports) async =>
+      _settings.anomalies
+          ? await annotateAnomalies(reports, lang: lang, baseline: baseline)
+          : reports;
+
+  /// Les écarts au parc ne se voient qu'avec le dossier : ils sont repris
+  /// quand un de ses scripts est réanalysé seul.
+  ScriptReport _withFolderOutliers(ScriptReport r) {
+    final found = r.anomalies;
+    if (found == null) return r;
+    for (final f in folderReports) {
+      if (f.script.path != r.script.path ||
+          f.script.content != r.script.content) {
+        continue;
+      }
+      final outliers = [
+        for (final a in f.anomalies ?? const <Anomaly>[])
+          if (a.kind == AnomalyKind.outlier) a
+      ];
+      return r
+          .withAnomalies([...found, ...outliers], r.anomalyProfile!, r.aiNote);
+    }
+    return r;
+  }
+
+  /// Fait relire le script courant par le modèle local. L'interface reste
+  /// utilisable ; le résultat est abandonné si le script a été réanalysé
+  /// entre-temps.
+  Future<void> reviewWithModel() async {
+    final r = current;
+    if (r == null || r.anomalies == null || reviewing != null) return;
+    final path = r.script.path;
+    reviewing = path;
+    notifyListeners();
+    ScriptReport? done;
+    try {
+      final model = LocalModel(
+          model: _settings.aiModel,
+          fast: _settings.aiFast,
+          transport: modelTransport);
+      final annotated =
+          (await annotateAnomalies([r], lang: lang, model: model)).single;
+      done = r.withAnomalies([
+        for (final a in r.anomalies!)
+          if (a.kind != AnomalyKind.model) a,
+        for (final a in annotated.anomalies!)
+          if (a.kind == AnomalyKind.model) a,
+      ], r.anomalyProfile!, annotated.aiNote);
+    } finally {
+      reviewing = null;
+      if (done != null && identical(_tabReports[path], r)) {
+        _tabReports[path] = done;
+        if (identical(current, r)) current = done;
+      }
+      notifyListeners();
+    }
+  }
+
   /// Analyse un script ; le résultat devient le script courant.
   Future<void> analyzeFile(String path) async {
     if (busy) return;
@@ -787,6 +878,7 @@ class AppState extends ChangeNotifier {
         progress = ProgressInfo(p.tool ?? '', p.fraction);
         notifyListeners();
       });
+      current = _withFolderOutliers((await _annotate([current!])).single);
       await _recordSeen([current!]);
       if (!openTabs.contains(path)) openTabs.add(path);
       _tabReports[path] = current!;
@@ -815,11 +907,12 @@ class AppState extends ChangeNotifier {
       final engine = await _engine(near: path);
       // Plusieurs scripts à la fois ; fichiers illisibles ou non textuels
       // ignorés.
-      final out = await engine.analyzeFiles(files, cancel: token,
+      final analyzed = await engine.analyzeFiles(files, cancel: token,
           onDone: (done, total, file) {
         progress = ProgressInfo('$done/$total  $file', done / total);
         notifyListeners();
       });
+      final out = await _annotate(analyzed);
       folderReports = out;
       await _recordSeen(out);
       _watchFolder(path);

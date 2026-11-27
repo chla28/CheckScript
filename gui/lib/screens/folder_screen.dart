@@ -213,6 +213,11 @@ class _FolderScreenState extends State<FolderScreen> {
                         col(t.category(Category.values[i]), i),
                       col(t.globalScore, -1),
                       col(s.issues, 5),
+                      if (state.settings.anomalies)
+                        DataColumn(
+                            label: Text(s.anomalies),
+                            tooltip: tp.anomaliesColumn,
+                            numeric: true),
                       if (state.baseline != null)
                         DataColumn(label: Text(s.trend), tooltip: tp.trend),
                     ],
@@ -238,6 +243,10 @@ class _FolderScreenState extends State<FolderScreen> {
                                     color: scoreColor(r.global, b),
                                     fontWeight: FontWeight.w700))),
                             DataCell(Text('${r.findings.length}')),
+                            if (state.settings.anomalies)
+                              DataCell(Text(r.anomalies == null
+                                  ? '—'
+                                  : '${r.anomalies!.length}')),
                             if (state.baseline != null)
                               DataCell(r.comparison == null
                                   ? const Text('—')
