@@ -55,6 +55,17 @@ class GuiSettings {
   final String aiModel;
   final bool aiFast;
 
+  /// Fournisseur de la relecture. [aiAllowRemote] : l'envoi d'un script hors
+  /// du poste est accepté ; [aiCloudModel] vide : modèle par défaut.
+  final AiProvider aiProvider;
+  final bool aiAllowRemote;
+  final String aiCloudModel;
+
+  /// Modèle de la relecture avec le fournisseur choisi.
+  String get reviewModel => !aiProvider.remote
+      ? aiModel
+      : (aiCloudModel.isEmpty ? aiProvider.defaultModel : aiCloudModel);
+
   /// Ruff suit la configuration du projet du script (ruff.toml,
   /// pyproject.toml) plutôt que les réglages de check-script.
   final bool ruffProjectConfig;
@@ -82,6 +93,9 @@ class GuiSettings {
     this.anomalies = true,
     this.aiModel = defaultAiModel,
     this.aiFast = false,
+    this.aiProvider = AiProvider.ollama,
+    this.aiAllowRemote = false,
+    this.aiCloudModel = '',
     this.lang,
     this.theme = ThemeMode.system,
     this.profile = Profile.standard,
@@ -159,11 +173,17 @@ class GuiSettings {
     bool? anomalies,
     String? aiModel,
     bool? aiFast,
+    AiProvider? aiProvider,
+    bool? aiAllowRemote,
+    String? aiCloudModel,
   }) =>
       GuiSettings(
         anomalies: anomalies ?? this.anomalies,
         aiModel: aiModel ?? this.aiModel,
         aiFast: aiFast ?? this.aiFast,
+        aiProvider: aiProvider ?? this.aiProvider,
+        aiAllowRemote: aiAllowRemote ?? this.aiAllowRemote,
+        aiCloudModel: aiCloudModel ?? this.aiCloudModel,
         lang: lang == null ? this.lang : lang(),
         theme: theme ?? this.theme,
         profile: profile ?? this.profile,
@@ -193,6 +213,10 @@ class GuiSettings {
       anomalies: p.getBool('anomalies') ?? true,
       aiModel: p.getString('aiModel') ?? defaultAiModel,
       aiFast: p.getBool('aiFast') ?? false,
+      aiProvider: AiProvider.tryParse(p.getString('aiProvider') ?? '') ??
+          AiProvider.ollama,
+      aiAllowRemote: p.getBool('aiAllowRemote') ?? false,
+      aiCloudModel: p.getString('aiCloudModel') ?? '',
       lang: Lang.tryParse(p.getString('lang') ?? ''),
       theme: ThemeMode.values.firstWhere((t) => t.name == p.getString('theme'),
           orElse: () => ThemeMode.system),
@@ -231,6 +255,9 @@ class GuiSettings {
     await p.setBool('anomalies', anomalies);
     await p.setString('aiModel', aiModel);
     await p.setBool('aiFast', aiFast);
+    await p.setString('aiProvider', aiProvider.name);
+    await p.setBool('aiAllowRemote', aiAllowRemote);
+    await p.setString('aiCloudModel', aiCloudModel);
     if (lang == null) {
       await p.remove('lang');
     } else {
@@ -304,6 +331,9 @@ class FixRecord {
       this.path, this.before, this.after, this.time, this.kind, this.detail);
 }
 
+/// Raison pour laquelle un fournisseur distant ne peut pas être utilisé.
+enum AiBlock { notAllowed, missingKey }
+
 class AppState extends ChangeNotifier {
   AppState(
       {CommandRunner? runner,
@@ -312,8 +342,11 @@ class AppState extends ChangeNotifier {
       FolderHistory? history,
       bool? watchFiles,
       FalsePositiveLog? falsePositives,
-      this.modelTransport})
-      : runner = runner ?? const ProcessCommandRunner(),
+      this.modelTransport,
+      this.remoteTransport,
+      Map<String, String>? environment})
+      : environment = environment ?? Platform.environment,
+        runner = runner ?? const ProcessCommandRunner(),
         _settings = settings ?? const GuiSettings(),
         seenRules = seenRules ?? {},
         // Historique et surveillance : par défaut seulement avec les vrais
@@ -711,6 +744,9 @@ class AppState extends ChangeNotifier {
       anomalies: _settings.anomalies,
       aiModel: _settings.aiModel,
       aiFast: _settings.aiFast,
+      aiProvider: _settings.aiProvider,
+      aiAllowRemote: _settings.aiAllowRemote,
+      aiCloudModel: _settings.aiCloudModel,
       configPath: path,
       profile: c.profile,
       contexts: c.contexts,
@@ -806,6 +842,32 @@ class AppState extends ChangeNotifier {
   /// Envoi au modèle local (remplacé dans les tests).
   final ModelTransport? modelTransport;
 
+  /// Envoi à un fournisseur distant (remplacé dans les tests).
+  final RemoteTransport? remoteTransport;
+
+  /// Variables d'environnement, d'où viennent les clés d'API.
+  final Map<String, String> environment;
+
+  String? get _apiKey => environment[_settings.aiProvider.keyVariable]?.trim();
+
+  /// Ce qui empêche la relecture avec le fournisseur choisi (null : rien).
+  AiBlock? get reviewBlock {
+    if (!_settings.aiProvider.remote) return null;
+    if (!_settings.aiAllowRemote) return AiBlock.notAllowed;
+    return (_apiKey ?? '').isEmpty ? AiBlock.missingKey : null;
+  }
+
+  ReviewModel _reviewModel() => _settings.aiProvider.remote
+      ? RemoteModel(_settings.aiProvider,
+          apiKey: _apiKey,
+          model: _settings.reviewModel,
+          fast: _settings.aiFast,
+          transport: remoteTransport)
+      : LocalModel(
+          model: _settings.aiModel,
+          fast: _settings.aiFast,
+          transport: modelTransport);
+
   /// Script en cours de relecture par le modèle (null : aucune).
   String? reviewing;
 
@@ -834,29 +896,34 @@ class AppState extends ChangeNotifier {
     return r;
   }
 
-  /// Fait relire le script courant par le modèle local. L'interface reste
+  /// Fait relire le script courant par le modèle choisi. L'interface reste
   /// utilisable ; le résultat est abandonné si le script a été réanalysé
-  /// entre-temps.
-  Future<void> reviewWithModel() async {
+  /// entre-temps. Un envoi hors du poste exige [confirmedRemote], donné pour
+  /// ce seul envoi.
+  Future<void> reviewWithModel({bool confirmedRemote = false}) async {
     final r = current;
     if (r == null || r.anomalies == null || reviewing != null) return;
+    if (_settings.aiProvider.remote &&
+        (!confirmedRemote || reviewBlock != null)) {
+      return;
+    }
     final path = r.script.path;
     reviewing = path;
     notifyListeners();
     ScriptReport? done;
     try {
-      final model = LocalModel(
-          model: _settings.aiModel,
-          fast: _settings.aiFast,
-          transport: modelTransport);
       final annotated =
-          (await annotateAnomalies([r], lang: lang, model: model)).single;
+          (await annotateAnomalies([r], lang: lang, model: _reviewModel()))
+              .single;
       done = r.withAnomalies([
         for (final a in r.anomalies!)
           if (a.kind != AnomalyKind.model) a,
         for (final a in annotated.anomalies!)
           if (a.kind == AnomalyKind.model) a,
       ], r.anomalyProfile!, annotated.aiNote);
+    } on ModelException catch (e) {
+      // Clé ou nom de modèle refusés avant tout envoi.
+      done = r.withAnomalies(r.anomalies!, r.anomalyProfile!, e.message);
     } finally {
       reviewing = null;
       if (done != null && identical(_tabReports[path], r)) {

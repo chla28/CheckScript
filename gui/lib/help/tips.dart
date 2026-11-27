@@ -132,9 +132,21 @@ class Tips {
   String get aiReview => _t(
       'Envoie le script, secrets masqués, au modèle Ollama de ce poste (une à deux minutes sans carte graphique)',
       'Sends the script, secrets masked, to the Ollama model on this machine (a minute or two without a GPU)');
+  String aiReviewRemote(String host) => _t(
+      'Envoie le script, secrets masqués, à $host après confirmation',
+      'Sends the script, secrets masked, to $host after confirmation');
+  String get aiProviderSetting => _t(
+      'Ollama garde le script sur ce poste ; Claude, Mistral et Gemini l\'envoient sur Internet',
+      'Ollama keeps the script on this machine; Claude, Mistral and Gemini send it over the Internet');
+  String get aiAllowRemoteSetting => _t(
+      'Sans cet accord, aucun script ne part ; chaque envoi reste confirmé',
+      'Without this consent nothing is sent; each transfer is still confirmed');
+  String get aiCloudModelSetting => _t(
+      'Identifiant du modèle chez le fournisseur',
+      'Model identifier at the provider');
   String get aiModelSetting => _t(
-      'Nom d\'un modèle installé (ollama list) ; seul Ollama sur ce poste est utilisé',
-      'Name of an installed model (ollama list); only Ollama on this machine is used');
+      'Nom d\'un modèle installé (ollama list) sur ce poste',
+      'Name of a model installed on this machine (ollama list)');
   String get aiFastSetting => _t(
       'Beaucoup plus rapide, mais des défauts subtils échappent',
       'Much faster, but subtle defects slip through');

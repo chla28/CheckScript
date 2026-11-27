@@ -158,6 +158,8 @@ List<HelpPage> helpPages(Lang lang) {
               '**Folder outliers** (AF, from 5 scripts) and **drift** (AD, with a baseline saved with anomalies): what only one script does, or newly does.'),
           t('**Relire avec le modèle local** envoie le script, secrets masqués, à Ollama sur ce poste. Les suggestions (AI) sont à vérifier : elles changent d\'une fois à l\'autre, un commentaire piégé peut tromper le modèle, et **leur absence ne prouve rien**.',
               '**Review with the local model** sends the script, secrets masked, to Ollama on this machine. Suggestions (AI) must be checked: they vary from one run to the next, a crafted comment can mislead the model, and **their absence proves nothing**.'),
+          t('Les réglages permettent de choisir **Claude**, **Mistral** ou **Gemini**. Le script **quitte alors le poste** : il faut l\'autoriser, définir `ANTHROPIC_API_KEY`, `MISTRAL_API_KEY` ou `GEMINI_API_KEY` avant de lancer l\'application, et confirmer chaque envoi. Le masquage des secrets ne les détecte pas tous, et le service peut être payant.',
+              'The settings let you pick **Claude**, **Mistral** or **Gemini**. The script then **leaves your machine**: you have to allow it, set `ANTHROPIC_API_KEY`, `MISTRAL_API_KEY` or `GEMINI_API_KEY` before starting the application, and confirm each transfer. Secret masking does not catch everything, and the service may be billed.'),
           t('Pour écarter un constat : directive `check-script disable=AB001` dans le script. La détection se désactive dans les *Réglages*.',
               'To dismiss a finding: a `check-script disable=AB001` directive in the script. Detection is turned off in the *Settings*.'),
         ]),

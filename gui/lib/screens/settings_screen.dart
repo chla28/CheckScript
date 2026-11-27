@@ -229,27 +229,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       tip(
-        tp.aiModelSetting,
+        tp.aiProviderSetting,
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: TextFormField(
-            key: ValueKey('aiModel-${g.aiModel}'),
-            initialValue: g.aiModel,
-            decoration: InputDecoration(labelText: s.aiModelSetting),
-            onFieldSubmitted: (v) => state.updateSettings(g.copyWith(
-                aiModel: v.trim().isEmpty ? defaultAiModel : v.trim())),
+          child: DropdownButtonFormField<AiProvider>(
+            key: ValueKey('aiProvider-${g.aiProvider.name}'),
+            initialValue: g.aiProvider,
+            decoration: InputDecoration(labelText: s.aiProviderSetting),
+            items: [
+              for (final p in AiProvider.values)
+                DropdownMenuItem(
+                    value: p,
+                    child: Text(p.remote ? p.label : s.aiProviderLocal)),
+            ],
+            // L'accord et le modèle valent pour un fournisseur donné.
+            onChanged: (p) => p == null || p == g.aiProvider
+                ? null
+                : state.updateSettings(g.copyWith(
+                    aiProvider: p, aiAllowRemote: false, aiCloudModel: '')),
           ),
         ),
       ),
-      tip(
-        tp.aiFastSetting,
-        SwitchListTile(
-          dense: true,
-          title: Text(s.aiFastSetting),
-          value: g.aiFast,
-          onChanged: (v) => state.updateSettings(g.copyWith(aiFast: v)),
+      if (g.aiProvider.remote) ...[
+        tip(
+          tp.aiAllowRemoteSetting,
+          SwitchListTile(
+            dense: true,
+            title: Text(s.aiAllowRemoteSetting),
+            subtitle: Text((state.environment[g.aiProvider.keyVariable] ?? '')
+                    .trim()
+                    .isEmpty
+                ? s.aiMissingKey(g.aiProvider.keyVariable)
+                : s.aiKeyFound(g.aiProvider.keyVariable)),
+            value: g.aiAllowRemote,
+            onChanged: (v) =>
+                state.updateSettings(g.copyWith(aiAllowRemote: v)),
+          ),
         ),
-      ),
+        tip(
+          tp.aiCloudModelSetting,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: TextFormField(
+              key: ValueKey('aiCloudModel-${g.aiProvider.name}'),
+              initialValue: g.aiCloudModel,
+              decoration: InputDecoration(
+                  labelText: s.aiCloudModelSetting(g.aiProvider.label),
+                  hintText: g.aiProvider.defaultModel),
+              onFieldSubmitted: (v) =>
+                  state.updateSettings(g.copyWith(aiCloudModel: v.trim())),
+            ),
+          ),
+        ),
+      ] else
+        tip(
+          tp.aiModelSetting,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: TextFormField(
+              key: ValueKey('aiModel-${g.aiModel}'),
+              initialValue: g.aiModel,
+              decoration: InputDecoration(labelText: s.aiModelSetting),
+              onFieldSubmitted: (v) => state.updateSettings(g.copyWith(
+                  aiModel: v.trim().isEmpty ? defaultAiModel : v.trim())),
+            ),
+          ),
+        ),
+      if (g.aiProvider == AiProvider.ollama ||
+          g.aiProvider == AiProvider.claude)
+        tip(
+          tp.aiFastSetting,
+          SwitchListTile(
+            dense: true,
+            title: Text(s.aiFastSetting),
+            value: g.aiFast,
+            onChanged: (v) => state.updateSettings(g.copyWith(aiFast: v)),
+          ),
+        ),
       section(s.tools, HelpTopic.tools),
       for (final (title, tools) in [
         (s.shellTools, ['shellcheck', 'shfmt', 'bashate', 'checkbashisms']),

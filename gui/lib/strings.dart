@@ -289,11 +289,37 @@ class S {
   String get aiReview =>
       _t('Relire avec le modèle local', 'Review with the local model');
   String get aiReviewing => _t('Relecture en cours…', 'Reviewing…');
+  String aiReviewWith(String provider) =>
+      _t('Relire avec $provider', 'Review with $provider');
+  String get aiProviderSetting =>
+      _t('Fournisseur de la relecture', 'Review provider');
+  String get aiProviderLocal =>
+      _t('Ollama (ce poste)', 'Ollama (this machine)');
+  String get aiAllowRemoteSetting => _t(
+      'Autoriser l\'envoi des scripts hors de ce poste',
+      'Allow sending scripts outside this machine');
+  String aiCloudModelSetting(String provider) => _t(
+      'Modèle $provider (vide : défaut)', '$provider model (empty: default)');
+  String aiKeyFound(String variable) =>
+      _t('Clé trouvée dans $variable.', 'Key found in $variable.');
+  String get aiNotAllowed => _t(
+      'Autorisez l\'envoi hors du poste dans les réglages.',
+      'Allow sending outside this machine in the settings.');
+  String aiMissingKey(String variable) => _t(
+      'Variable $variable non définie : relancez l\'application avec elle.',
+      '$variable is not set: restart the application with it.');
+  String aiSendTitle(String provider) =>
+      _t('Envoyer le script à $provider ?', 'Send the script to $provider?');
+  String aiSendBody(String path, int lines, String host, String model) => _t(
+      '$path ($lines lignes) sera envoyé à $host (modèle $model). Les secrets repérés sont masqués, sans garantie de tous les détecter.',
+      '$path ($lines lines) will be sent to $host (model $model). Detected secrets are masked, with no guarantee that all are found.');
+  String get aiSend => _t('Envoyer', 'Send');
+  String get aiSendCancel => _t('Annuler', 'Cancel');
   String get aiModelSetting =>
       _t('Modèle Ollama pour la relecture', 'Ollama model for the review');
   String get aiFastSetting => _t(
-      'Relecture rapide (sans « réflexion » du modèle, moins fine)',
-      'Fast review (without model "thinking", less thorough)');
+      'Relecture rapide (« réflexion » du modèle réduite, moins fine)',
+      'Fast review (reduced model "thinking", less thorough)');
   String get exportHistory =>
       _t('Exporter l\'historique (CSV)', 'Export history (CSV)');
   String get exportHistoryScripts => _t(

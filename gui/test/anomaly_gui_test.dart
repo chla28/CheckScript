@@ -104,11 +104,78 @@ void main() {
     expect(line, 2);
   });
 
+  testWidgets('fournisseur distant : accord, clé puis confirmation',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var calls = 0;
+    AppState remote({bool allowed = true, Map<String, String>? env}) =>
+        AppState(
+            runner: NoTools(),
+            environment: env ?? const {'MISTRAL_API_KEY': 'k-test'},
+            remoteTransport: (u, h, b, t) async {
+              calls++;
+              return jsonEncode({
+                'choices': [
+                  {
+                    'finish_reason': 'stop',
+                    'message': {'content': '{"anomalies":[]}'}
+                  }
+                ]
+              });
+            },
+            settings: GuiSettings(
+                lang: Lang.fr,
+                aiProvider: AiProvider.mistral,
+                aiAllowRemote: allowed));
+    expect(remote(allowed: false).reviewBlock, AiBlock.notAllowed);
+    expect(remote(env: const {}).reviewBlock, AiBlock.missingKey);
+
+    final state = remote();
+    final f = write('a.sh', _shell);
+    await tester.runAsync(() async {
+      await state.analyzeFile(f);
+      // Sans confirmation, rien ne part.
+      await state.reviewWithModel();
+    });
+    expect(calls, 0);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: AnomaliesPanel(
+                state: state, report: state.current!, onSelectLine: (_) {}))));
+    await tester.tap(find.text('Relire avec Mistral'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('api.mistral.ai'), findsOneWidget);
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+    await tester.tap(find.text('Relire avec Mistral'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Envoyer'));
+      await tester.pump();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    expect(calls, 1);
+    expect(state.current!.aiNote, contains('mistral-medium-latest'));
+  });
+
   test('réglages enregistrés puis relus', () async {
     await const GuiSettings()
-        .copyWith(anomalies: false, aiModel: 'm:1', aiFast: true)
+        .copyWith(
+            anomalies: false,
+            aiModel: 'm:1',
+            aiFast: true,
+            aiProvider: AiProvider.gemini,
+            aiAllowRemote: true,
+            aiCloudModel: 'g-x')
         .save();
     final s = await GuiSettings.load();
     expect((s.anomalies, s.aiModel, s.aiFast), (false, 'm:1', true));
+    final loaded = await GuiSettings.load();
+    expect(loaded.aiProvider, AiProvider.gemini);
+    expect(loaded.aiAllowRemote, isTrue);
+    expect(loaded.reviewModel, 'g-x');
   });
 }
